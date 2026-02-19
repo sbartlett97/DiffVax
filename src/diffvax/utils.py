@@ -63,20 +63,20 @@ def set_seed_lib(seed):
     set_seed(seed)
 
 
-def load_image(image_name, data_dir, is_mask=False, images_subdir="images", masks_subdir="masks"):
+def load_image(image_name, data_dir, is_mask=False, images_subdir="images", masks_subdir="masks", size=(512, 512)):
     """Load image or mask from data directory."""
     data_path = Path(data_dir)
     if is_mask:
         image = (
             Image.open(data_path / masks_subdir / f"mask_{image_name}.png")
             .convert("RGB")
-            .resize((512, 512))
+            .resize(size)
         )
     else:
         image = (
             Image.open(data_path / images_subdir / f"{image_name}.png")
             .convert("RGB")
-            .resize((512, 512))
+            .resize(size)
         )
     return image
 
@@ -125,6 +125,7 @@ def get_train_val_image_prompt_list(data_dir):
                     out.append({
                         "image": img_filename,
                         "prompts": row["prompts"],
+                        "flux_prompts": row.get("flux_prompts", row["prompts"]),
                     })
             return out
 

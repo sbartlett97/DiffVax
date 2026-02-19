@@ -1,12 +1,10 @@
 """DiffVax immunization against diffusion attacks."""
 
 import torch
+import torch.nn.functional as F
 import numpy as np
-import torchvision.transforms as T
 import os
-import datetime
 from tqdm import tqdm
-from PIL import Image
 import gc
 
 from diffvax.model import NestedUNet
@@ -18,16 +16,18 @@ scaler = torch.cuda.amp.GradScaler()
 class ImmunizationDataset(torch.utils.data.Dataset):
     """Dataset for immunization training."""
 
-    def __init__(self, img_list, img_mask_list, prompt_list):
+    def __init__(self, img_list, img_mask_list, prompt_list, flux_prompt_list=None):
         self.img_list = img_list
         self.img_mask_list = img_mask_list
         self.prompt_list = prompt_list
+        self.flux_prompt_list = flux_prompt_list if flux_prompt_list is not None else prompt_list
 
     def __getitem__(self, index):
         img = self.img_list[index]
         img_mask = self.img_mask_list[index]
         prompt = self.prompt_list[index]
-        return img, img_mask, prompt
+        flux_prompt = self.flux_prompt_list[index]
+        return img, img_mask, prompt, flux_prompt
 
     def __len__(self):
         return len(self.img_list)
@@ -36,20 +36,36 @@ class ImmunizationDataset(torch.utils.data.Dataset):
 class DiffVaxImmunization:
     def __init__(
         self,
-        attack_model,
-        config,
+        attack_model=None,
+        config=None,
         load_existing=False,
         existing_iter_num=0,
         load_path=None,
         output_dir=None,
+        attack_manager=None,
     ):
         self.model_name = "DiffVaxImmunization"
-        self.attack_model = attack_model
         self.step_size = 1
         self.eps = 32 / 255
         self.clamp_min = -1
         self.clamp_max = 1
         self.output_dir = output_dir or "outputs"
+
+        # Support both single attack_model (backward compat) and attack_manager
+        if attack_manager is not None:
+            self.attack_manager = attack_manager
+            self.attack_model = None
+        elif attack_model is not None:
+            from diffvax.attack_manager import AttackModelManager
+            self.attack_manager = AttackModelManager(
+                models={"sd": attack_model},
+                probabilities={"sd": 1.0},
+            )
+            # Load the single model to GPU since there's no swapping needed
+            attack_model.to_device("cuda")
+            self.attack_model = attack_model
+        else:
+            raise ValueError("Either attack_model or attack_manager must be provided")
 
         unetmodel = NestedUNet(num_classes=3)
         self.unetmodel = unetmodel.to("cuda")
@@ -60,6 +76,8 @@ class DiffVaxImmunization:
         self.existing_iter_num = existing_iter_num
 
         if self.load_existing:
+            if not load_path:
+                raise ValueError("load_existing=True but no load_path was provided")
             self.unetmodel.load_state_dict(torch.load(load_path, weights_only=True))
         self.model = self.unetmodel
 
@@ -84,6 +102,7 @@ class DiffVaxImmunization:
         img_list,
         img_mask_list,
         prompt_list,
+        flux_prompt_list=None,
         target_image=None,
         iter_num=2000,
         SEED=5,
@@ -116,7 +135,7 @@ class DiffVaxImmunization:
                 f"sd15_all_images_{self.model_name}_iter_{iter_num}_alpha_{alpha}_loss_{loss_type}_batch_{batch_size}",
             )
 
-        dataset = ImmunizationDataset(img_list, img_mask_list, prompt_list)
+        dataset = ImmunizationDataset(img_list, img_mask_list, prompt_list, flux_prompt_list)
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_size=batch_size, shuffle=True
         )
@@ -127,12 +146,18 @@ class DiffVaxImmunization:
             epoch_losses1 = []
             epoch_losses2 = []
 
-            for i, (img_batch, mask_batch, prompt_batch) in enumerate(dataloader):
+            for i, (img_batch, mask_batch, prompt_batch, flux_prompt_batch) in enumerate(dataloader):
                 self.optimizer.zero_grad()
                 losses = []
                 losses1 = []
                 losses2 = []
                 cur_iter = i + self.existing_iter_num
+
+                # Select model for this batch
+                model_name, attack_model = self.attack_manager.select_and_load()
+
+                # Pick prompt set based on active model
+                cur_prompt = flux_prompt_batch if model_name == "flux" else prompt_batch
 
                 mask_batch.requires_grad = False
                 img_batch.requires_grad_()
@@ -144,18 +169,44 @@ class DiffVaxImmunization:
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
-                img_out = self.attack_model.attack(
-                    prompt=prompt_batch,
-                    masked_image=img_adv,
-                    mask=mask_batch,
-                    num_inference_steps=4,
-                    batch_size=batch_size,
-                )
 
+                # Differentiable resize for SD at resolutions > 512
+                h, w = img_batch.shape[2], img_batch.shape[3]
+                actual_bs = img_batch.shape[0]
+                if model_name == "sd" and h > 512:
+                    img_adv_resized = F.interpolate(img_adv, (512, 512), mode='bilinear', align_corners=False)
+                    mask_resized = F.interpolate(mask_batch, (512, 512), mode='nearest')
+                    img_out_small = attack_model.attack(
+                        prompt=cur_prompt,
+                        image=img_adv_resized,
+                        mask=mask_resized,
+                        height=512,
+                        width=512,
+                        num_inference_steps=4,
+                        batch_size=actual_bs,
+                    )
+                    img_out = F.interpolate(img_out_small, (h, w), mode='bilinear', align_corners=False)
+                else:
+                    img_out = attack_model.attack(
+                        prompt=cur_prompt,
+                        image=img_adv,
+                        mask=mask_batch,
+                        height=h,
+                        width=w,
+                        num_inference_steps=4,
+                        batch_size=actual_bs,
+                    )
+
+                # Model-aware loss with dynamic resolution normalization
+                resolution = h
                 target_image = torch.zeros_like(img_out).cuda()
 
-                loss1 = (((img_out - target_image) * (mask_batch / 512)).norm(p=1) / (mask_batch / 512).sum())
-                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / 512)).norm(p=1) / ((1 - mask_batch) / 512).sum()
+                if attack_model.loss_uses_mask_weighting:
+                    loss1 = (((img_out - target_image) * (mask_batch / resolution)).norm(p=1) / (mask_batch / resolution).sum())
+                else:
+                    loss1 = (img_out - target_image).norm(p=1) / img_out.numel()
+
+                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / resolution)).norm(p=1) / ((1 - mask_batch) / resolution).sum()
                 loss = loss1 + loss2
 
                 loss1 = loss1.item()
@@ -210,7 +261,23 @@ class DiffVaxImmunization:
         guidance_scale = 7.5
         self.generator.manual_seed(SEED)
 
-        edited_image = self.attack_model.model(
+        # Use first available attack model for editing
+        if self.attack_model is not None:
+            model = self.attack_model.model
+        else:
+            # Pick the SD model from the manager if available
+            for name, m in self.attack_manager.models.items():
+                if name == "sd":
+                    m.to_device("cuda")
+                    model = m.model
+                    break
+            else:
+                # Fallback: use first model
+                name, m = next(iter(self.attack_manager.models.items()))
+                m.to_device("cuda")
+                model = m.model
+
+        edited_image = model(
             prompt=prompt,
             image=img,
             mask_image=img_mask,

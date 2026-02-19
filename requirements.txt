@@ -12,3 +12,6 @@ hf-xet
 opencv-python
 scipy
 matplotlib
+optimum
+optimum-quanto
+bitsandbytes

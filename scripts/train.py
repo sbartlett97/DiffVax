@@ -12,6 +12,7 @@ _project_root = os.path.dirname(_script_dir)
 sys.path.insert(0, os.path.join(_project_root, "src"))
 
 from diffvax.attack import Attack
+from diffvax.attack_manager import AttackModelManager
 from diffvax.immunization import DiffVaxImmunization
 from diffvax.utils import (
     load_image,
@@ -28,16 +29,45 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     batch_size = config["batch_size"]
     train_all = config["train_all"]
     attack_model_link = config["attack_model_link"]
+    resolution = config.get("resolution", 512)
 
-    attack_model = Attack(attack_model_link)
+    # Build attack models and manager
+    models = {}
+    probabilities = {}
+
+    # SD attack (always created)
+    sd_prob = config.get("sd_probability", 1.0)
+    if sd_prob > 0:
+        sd_attack = Attack(attack_model_link)
+        models["sd"] = sd_attack
+        probabilities["sd"] = sd_prob
+
+    # FLUX attack (optional)
+    flux_model_link = config.get("flux_model_link")
+    flux_prob = config.get("flux_probability", 0.0)
+    if flux_model_link and flux_prob > 0:
+        from diffvax.flux_attack import FluxAttack
+        flux_attack = FluxAttack(flux_model_link)
+        models["flux"] = flux_attack
+        probabilities["flux"] = flux_prob
+
+    attack_manager = AttackModelManager(models, probabilities)
 
     immunization_config = {
         "iter_num": iter_num,
         "learning_rate": config["learning_rate"],
         "immunization_model": immunization_model_name,
     }
+
+    load_existing = config.get("load_existing", False)
+    load_path = config.get("load_path")
+
     immunization_mdl = DiffVaxImmunization(
-        attack_model, immunization_config, output_dir=output_dir
+        config=immunization_config,
+        attack_manager=attack_manager,
+        load_existing=load_existing,
+        load_path=load_path,
+        output_dir=output_dir,
     )
 
     if not train_all:
@@ -46,13 +76,17 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
 
     image_name_list = [image_prompt["image"][:-4] for image_prompt in image_prompt_list]
     prompt_list = [image_prompt["prompts"] for image_prompt in image_prompt_list]
+    flux_prompt_list = [image_prompt.get("flux_prompts", image_prompt["prompts"]) for image_prompt in image_prompt_list]
+
     image_torch_list = []
     mask_torch_list = []
     prompt_train_list = []
+    flux_prompt_train_list = []
 
     # Support both dataset layouts: images/masks or cropped_images/sam_masks
     images_subdir = config.get("images_subdir", "train/images")
     masks_subdir = config.get("masks_subdir", "train/masks")
+    size = (resolution, resolution)
 
     for image_ind, image_name in enumerate(image_name_list):
         image = load_image(
@@ -61,6 +95,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             is_mask=False,
             images_subdir=images_subdir,
             masks_subdir=masks_subdir,
+            size=size,
         )
         image_mask = load_image(
             image_name,
@@ -68,6 +103,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             is_mask=True,
             images_subdir=images_subdir,
             masks_subdir=masks_subdir,
+            size=size,
         )
         mask_torch, image_torch, non_masked_image_torch = prepare_mask_and_masked_image(
             image, image_mask
@@ -77,16 +113,23 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         mask_torch = mask_torch.half().cuda()
 
         cur_prompt_list = prompt_list[image_ind]
-        for prompt in cur_prompt_list:
+        cur_flux_prompt_list = flux_prompt_list[image_ind]
+        for prompt_idx, prompt in enumerate(cur_prompt_list):
             image_torch_list.append(image_torch.squeeze(0))
             mask_torch_list.append(mask_torch.squeeze(0))
             prompt_train_list.append(prompt)
+            # flux_prompts may have fewer entries; fall back to SD prompt
+            if prompt_idx < len(cur_flux_prompt_list):
+                flux_prompt_train_list.append(cur_flux_prompt_list[prompt_idx])
+            else:
+                flux_prompt_train_list.append(prompt)
 
     immunized_img, immunization_model_path = (
         immunization_mdl.train_immunization_all_images_batch(
             image_torch_list,
             mask_torch_list,
             prompt_train_list,
+            flux_prompt_list=flux_prompt_train_list,
             target_image=None,
             alpha=alpha,
             iter_num=iter_num,
@@ -117,6 +160,12 @@ def main():
         default="outputs",
         help="Path to output directory",
     )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to an existing perturbation net checkpoint (.pth) to resume from",
+    )
     args = parser.parse_args()
 
     with open(args.config, "r") as file:
@@ -124,6 +173,11 @@ def main():
 
     config["data_dir"] = args.data_dir
     config["output_dir"] = args.output_dir
+
+    # CLI --checkpoint overrides config file values
+    if args.checkpoint is not None:
+        config["load_existing"] = True
+        config["load_path"] = args.checkpoint
 
     data_dir = config["data_dir"]
 

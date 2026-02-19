@@ -10,8 +10,10 @@ from diffusers import (
 )
 from typing import Union, List, Optional, Callable
 
+from diffvax.attack_base import BaseAttack
 
-class Attack:
+
+class Attack(BaseAttack):
     def __init__(self, model_link: str, scheduler: str = "DDIM"):
         pipe_inpaint = StableDiffusionInpaintPipeline.from_pretrained(
             model_link,
@@ -38,13 +40,13 @@ class Attack:
                 pipe_inpaint.scheduler.config
             )
 
-        self.model = pipe_inpaint.to("cuda")
+        self.model = pipe_inpaint
         self.model_link = model_link
 
     def attack(
         self,
         prompt: Union[str, List[str]],
-        masked_image: Union[torch.FloatTensor, Image.Image],
+        image: Union[torch.FloatTensor, Image.Image],
         mask: Union[torch.FloatTensor, Image.Image],
         height: int = 512,
         width: int = 512,
@@ -78,7 +80,7 @@ class Attack:
         mask = torch.cat([mask] * 2)
 
         masked_image_latents = diffusion_model.vae.encode(
-            masked_image
+            image
         ).latent_dist.sample()
         masked_image_latents = 0.18215 * masked_image_latents
         masked_image_latents = torch.cat([masked_image_latents] * 2)
@@ -110,6 +112,17 @@ class Attack:
         latents = 1 / 0.18215 * latents
         image = diffusion_model.vae.decode(latents).sample
         return image
+
+    def to_device(self, device: str):
+        self.model = self.model.to(device)
+
+    def to_cpu(self):
+        self.model.to("cpu")
+        torch.cuda.empty_cache()
+
+    @property
+    def loss_uses_mask_weighting(self) -> bool:
+        return True
 
     def tokenize_prompt(
         self, diffusion_model, prompt, batch_size=1, tokenize_negative=False
