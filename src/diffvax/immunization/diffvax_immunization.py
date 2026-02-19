@@ -213,9 +213,9 @@ class DiffVaxImmunization:
 
                 # FLUX affects the full image; SD only fills the masked region.
                 loss_mask = torch.ones_like(mask_batch) if model_name == "flux" else mask_batch
-                loss1 = (((img_out - target_image) * (loss_mask / resolution)).norm(p=1) / (loss_mask / resolution).sum())
+                loss1 = (((img_out - target_image) * (loss_mask / resolution)).norm(p=2) / (loss_mask / resolution).sum())
 
-                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / resolution)).norm(p=1) / ((1 - mask_batch) / resolution).sum()
+                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / resolution)).norm(p=2) / ((1 - mask_batch) / resolution).sum()
                 loss = loss1 + loss2
 
                 loss1 = loss1.item()
