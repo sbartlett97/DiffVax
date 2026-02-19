@@ -77,7 +77,7 @@ class FluxAttack(BaseAttack):
             )
         else:
             self.pipe = PipeClass.from_pretrained(
-                model_link, torch_dtype="auto"
+                model_link, torch_dtype="bfloat16"
             )
 
         self.model_link = model_link
