@@ -152,6 +152,7 @@ class DiffVaxImmunization:
             epoch_losses = []
             epoch_losses1 = []
             epoch_losses2 = []
+            per_model_losses = {}  # {model_name: {"loss": [], "loss1": [], "loss2": []}}
 
             for i, (img_batch, mask_batch, prompt_batch, flux_prompt_batch) in enumerate(dataloader):
                 self.optimizer.zero_grad()
@@ -228,6 +229,12 @@ class DiffVaxImmunization:
                 epoch_losses1.append(loss1)
                 epoch_losses2.append(loss2)
 
+                if model_name not in per_model_losses:
+                    per_model_losses[model_name] = {"loss": [], "loss1": [], "loss2": []}
+                per_model_losses[model_name]["loss"].append(loss.item())
+                per_model_losses[model_name]["loss1"].append(loss1)
+                per_model_losses[model_name]["loss2"].append(loss2)
+
                 scaler.scale(loss).backward()
 
                 scaler.step(self.optimizer)
@@ -248,6 +255,18 @@ class DiffVaxImmunization:
                 losses = []
                 losses1 = []
                 losses2 = []
+
+            # Per-model loss summary for this epoch
+            parts = [f"Epoch {epoch_i}"]
+            for mn in sorted(per_model_losses):
+                m = per_model_losses[mn]
+                parts.append(
+                    f"[{mn}] loss={np.mean(m['loss']):.4f} "
+                    f"loss1={np.mean(m['loss1']):.4f} "
+                    f"loss2={np.mean(m['loss2']):.4f} "
+                    f"(n={len(m['loss'])})"
+                )
+            tqdm.write("  ".join(parts))
 
         torch.save(self.model.state_dict(), path_of_models + "_final.pth")
 
