@@ -7,9 +7,6 @@ Requires diffusers with FLUX.2 Klein support. Install from source if needed:
 import torch
 from typing import Union, List
 
-from optimum.quanto import freeze, qint8, quantize
-from transformers import T5EncoderModel
-
 from diffvax.attack_base import BaseAttack
 
 
@@ -41,44 +38,22 @@ class FluxAttack(BaseAttack):
     Output is converted to float16 for consistent loss computation with GradScaler.
     """
 
-    def __init__(self, model_link: str, strength: float = 0.75, transformer_repo: str = None):
+    def __init__(self, model_link: str, strength: float = 0.75):
         # Lazy import — only fail when someone actually uses FLUX
         try:
             from diffusers import Flux2KleinPipeline as PipeClass
-            from diffusers import Flux2Transformer2DModel
         except ImportError:
             try:
                 from diffusers import Flux2KleinPipeline as PipeClass
-                from diffusers import Flux2Transformer2DModel
             except ImportError:
                 raise ImportError(
                     "FLUX support requires diffusers with FLUX pipeline support. "
                     "Install from source: pip install git+https://github.com/huggingface/diffusers.git"
                 )
 
-        if transformer_repo is not None:
-            # Load the quantized transformer first, then swap into the pipeline
-            try:
-                transformer = Flux2Transformer2DModel.from_single_file(
-                    "https://huggingface.co/vistralis/FLUX.2-klein-4b-INT8-transformer/blob/main/flux-2-klein-4b-int8.safetensors",
-                    torch_dtype="bfloat16"
-                )
-            except Exception:
-                transformer = Flux2Transformer2DModel.from_single_file(
-                    "https://huggingface.co/vistralis/FLUX.2-klein-4b-INT8-transformer/blob/main/flux-2-klein-4b-int8.safetensors",
-                    torch_dtype="float32"
-                )
-            # Load VAE, text encoder, tokenizer, scheduler from the original
-            # repo but swap in the quantized transformer.
-            self.pipe = PipeClass.from_pretrained(
-                model_link,
-                transformer=transformer,
-                torch_dtype=torch.bfloat16,
-            )
-        else:
-            self.pipe = PipeClass.from_pretrained(
-                model_link, torch_dtype=torch.float16
-            )
+        self.pipe = PipeClass.from_pretrained(
+            model_link, torch_dtype=torch.float16
+        )
 
         self.model_link = model_link
         self.strength = strength
@@ -198,6 +173,10 @@ class FluxAttack(BaseAttack):
         unpatchify → VAE decode → output image.
         """
         device = self.pipe.device
+        if device.type == "cpu":
+            raise RuntimeError(
+                "FluxAttack pipeline is on CPU. Call to_device('cuda') before calling attack()."
+            )
         vae = self.pipe.vae
         dtype = next(vae.parameters()).dtype
         transformer = self.pipe.transformer
