@@ -243,7 +243,7 @@ class DiffVaxImmunization:
                 total_iter += batch_size
 
                 pbar.set_description_str(
-                    f"AVG Loss: {np.mean(losses):.3f} Loss1: {np.mean(losses1):.3f} Loss2: {np.mean(losses2):.3f}"
+                    f"AVG Loss: {np.mean(losses):.5f} Loss1: {np.mean(losses1):.5f} Loss2: {np.mean(losses2):.5f}"
                 )
                 pbar.update(1)
                 if torch.isnan(loss):
@@ -266,7 +266,7 @@ class DiffVaxImmunization:
                     f"loss2={np.mean(m['loss2']):.4f} "
                     f"(n={len(m['loss'])})"
                 )
-            tqdm.write("  ".join(parts))
+            pbar.write("  ".join(parts))
 
         torch.save(self.model.state_dict(), path_of_models + "_final.pth")
 
