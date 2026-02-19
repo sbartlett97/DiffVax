@@ -5,7 +5,6 @@ import torch.nn.functional as F
 import numpy as np
 import os
 from tqdm import tqdm
-import gc
 
 from diffvax.model import NestedUNet
 from diffvax.utils import set_seed_lib, load_image, prepare_mask_and_masked_image
@@ -70,8 +69,6 @@ class DiffVaxImmunization:
                 models={"sd": attack_model},
                 probabilities={"sd": 1.0},
             )
-            # Load the single model to GPU since there's no swapping needed
-            attack_model.to_device("cuda")
             self.attack_model = attack_model
         else:
             raise ValueError("Either attack_model or attack_manager must be provided")
@@ -237,9 +234,6 @@ class DiffVaxImmunization:
                 scaler.step(self.optimizer)
                 scaler.update()
 
-                torch.cuda.empty_cache()
-                gc.collect()
-
                 total_iter += batch_size
 
                 pbar.set_description_str(
@@ -281,13 +275,11 @@ class DiffVaxImmunization:
             # Pick the SD model from the manager if available
             for name, m in self.attack_manager.models.items():
                 if name == "sd":
-                    m.to_device("cuda")
                     model = m.model
                     break
             else:
                 # Fallback: use first model
-                name, m = next(iter(self.attack_manager.models.items()))
-                m.to_device("cuda")
+                _, m = next(iter(self.attack_manager.models.items()))
                 model = m.model
 
         edited_image = model(
