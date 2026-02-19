@@ -8,29 +8,38 @@ from tqdm import tqdm
 import gc
 
 from diffvax.model import NestedUNet
-from diffvax.utils import set_seed_lib
+from diffvax.utils import set_seed_lib, load_image, prepare_mask_and_masked_image
 
 scaler = torch.cuda.amp.GradScaler()
 
 
 class ImmunizationDataset(torch.utils.data.Dataset):
-    """Dataset for immunization training."""
+    """Dataset for immunization training — streams images from disk on demand."""
 
-    def __init__(self, img_list, img_mask_list, prompt_list, flux_prompt_list=None):
-        self.img_list = img_list
-        self.img_mask_list = img_mask_list
-        self.prompt_list = prompt_list
-        self.flux_prompt_list = flux_prompt_list if flux_prompt_list is not None else prompt_list
+    def __init__(self, entries, data_dir, images_subdir, masks_subdir, size):
+        self.entries = entries          # list of {"image_name", "prompt", "flux_prompt"}
+        self.data_dir = data_dir
+        self.images_subdir = images_subdir
+        self.masks_subdir = masks_subdir
+        self.size = size
 
     def __getitem__(self, index):
-        img = self.img_list[index]
-        img_mask = self.img_mask_list[index]
-        prompt = self.prompt_list[index]
-        flux_prompt = self.flux_prompt_list[index]
-        return img, img_mask, prompt, flux_prompt
+        entry = self.entries[index]
+        image = load_image(
+            entry["image_name"], self.data_dir, is_mask=False,
+            images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
+            size=self.size,
+        )
+        image_mask = load_image(
+            entry["image_name"], self.data_dir, is_mask=True,
+            images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
+            size=self.size,
+        )
+        mask_torch, image_torch, _ = prepare_mask_and_masked_image(image, image_mask)
+        return image_torch.squeeze(0).half(), mask_torch.squeeze(0).half(), entry["prompt"], entry["flux_prompt"]
 
     def __len__(self):
-        return len(self.img_list)
+        return len(self.entries)
 
 
 class DiffVaxImmunization:
@@ -99,10 +108,11 @@ class DiffVaxImmunization:
 
     def train_immunization_all_images_batch(
         self,
-        img_list,
-        img_mask_list,
-        prompt_list,
-        flux_prompt_list=None,
+        entries,
+        data_dir,
+        images_subdir,
+        masks_subdir,
+        size,
         target_image=None,
         iter_num=2000,
         SEED=5,
@@ -135,9 +145,9 @@ class DiffVaxImmunization:
                 f"sd15_all_images_{self.model_name}_iter_{iter_num}_alpha_{alpha}_loss_{loss_type}_batch_{batch_size}",
             )
 
-        dataset = ImmunizationDataset(img_list, img_mask_list, prompt_list, flux_prompt_list)
+        dataset = ImmunizationDataset(entries, data_dir, images_subdir, masks_subdir, size)
         dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True
+            dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True,
         )
 
         for epoch_i in range(iter_num):
@@ -158,6 +168,9 @@ class DiffVaxImmunization:
 
                 # Pick prompt set based on active model
                 cur_prompt = flux_prompt_batch if model_name == "flux" else prompt_batch
+
+                img_batch = img_batch.cuda()
+                mask_batch = mask_batch.cuda()
 
                 mask_batch.requires_grad = False
                 img_batch.requires_grad_()

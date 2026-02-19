@@ -15,8 +15,6 @@ from diffvax.attack import Attack
 from diffvax.attack_manager import AttackModelManager
 from diffvax.immunization import DiffVaxImmunization
 from diffvax.utils import (
-    load_image,
-    prepare_mask_and_masked_image,
     get_train_val_image_prompt_list,
     ensure_dataset_in_data_dir,
 )
@@ -78,58 +76,29 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     prompt_list = [image_prompt["prompts"] for image_prompt in image_prompt_list]
     flux_prompt_list = [image_prompt.get("flux_prompts", image_prompt["prompts"]) for image_prompt in image_prompt_list]
 
-    image_torch_list = []
-    mask_torch_list = []
-    prompt_train_list = []
-    flux_prompt_train_list = []
-
-    # Support both dataset layouts: images/masks or cropped_images/sam_masks
     images_subdir = config.get("images_subdir", "train/images")
     masks_subdir = config.get("masks_subdir", "train/masks")
     size = (resolution, resolution)
 
+    entries = []
     for image_ind, image_name in enumerate(image_name_list):
-        image = load_image(
-            image_name,
-            data_dir,
-            is_mask=False,
-            images_subdir=images_subdir,
-            masks_subdir=masks_subdir,
-            size=size,
-        )
-        image_mask = load_image(
-            image_name,
-            data_dir,
-            is_mask=True,
-            images_subdir=images_subdir,
-            masks_subdir=masks_subdir,
-            size=size,
-        )
-        mask_torch, image_torch, non_masked_image_torch = prepare_mask_and_masked_image(
-            image, image_mask
-        )
-        image_torch = image_torch.half().cuda()
-        non_masked_image_torch = non_masked_image_torch.half().cuda()
-        mask_torch = mask_torch.half().cuda()
-
         cur_prompt_list = prompt_list[image_ind]
         cur_flux_prompt_list = flux_prompt_list[image_ind]
         for prompt_idx, prompt in enumerate(cur_prompt_list):
-            image_torch_list.append(image_torch.squeeze(0))
-            mask_torch_list.append(mask_torch.squeeze(0))
-            prompt_train_list.append(prompt)
-            # flux_prompts may have fewer entries; fall back to SD prompt
-            if prompt_idx < len(cur_flux_prompt_list):
-                flux_prompt_train_list.append(cur_flux_prompt_list[prompt_idx])
-            else:
-                flux_prompt_train_list.append(prompt)
+            flux_prompt = (
+                cur_flux_prompt_list[prompt_idx]
+                if prompt_idx < len(cur_flux_prompt_list)
+                else prompt
+            )
+            entries.append({"image_name": image_name, "prompt": prompt, "flux_prompt": flux_prompt})
 
     immunized_img, immunization_model_path = (
         immunization_mdl.train_immunization_all_images_batch(
-            image_torch_list,
-            mask_torch_list,
-            prompt_train_list,
-            flux_prompt_list=flux_prompt_train_list,
+            entries,
+            data_dir,
+            images_subdir,
+            masks_subdir,
+            size,
             target_image=None,
             alpha=alpha,
             iter_num=iter_num,
