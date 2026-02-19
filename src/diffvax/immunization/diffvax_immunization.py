@@ -217,7 +217,7 @@ class DiffVaxImmunization:
                 if attack_model.loss_uses_mask_weighting:
                     loss1 = (((img_out - target_image) * (mask_batch / resolution)).norm(p=1) / (mask_batch / resolution).sum())
                 else:
-                    loss1 = (img_out - target_image).norm(p=1) / img_out.numel()
+                    loss1 = (img_out - target_image).norm(p=2) / img_out.numel()
 
                 loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / resolution)).norm(p=1) / ((1 - mask_batch) / resolution).sum()
                 loss = loss1 + loss2
