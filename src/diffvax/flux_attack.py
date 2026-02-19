@@ -198,8 +198,8 @@ class FluxAttack(BaseAttack):
         unpatchify → VAE decode → output image.
         """
         device = self.pipe.device
-        dtype = torch.bfloat16
         vae = self.pipe.vae
+        dtype = next(vae.parameters()).dtype
         transformer = self.pipe.transformer
         scheduler = self.pipe.scheduler
 
