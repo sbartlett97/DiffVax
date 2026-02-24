@@ -299,7 +299,7 @@ class DiffVaxImmunization:
                     f"loss2={np.mean(m['loss2']):.4f} "
                     f"(n={len(m['loss'])})"
                 )
-            pbar.write("  ".join(parts))
+            tqdm.write("  ".join(parts))
 
         torch.save(self.model.state_dict(), path_of_models + "_final.pth")
 
