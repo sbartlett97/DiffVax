@@ -90,7 +90,13 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
                 if prompt_idx < len(cur_flux_prompt_list)
                 else prompt
             )
-            entries.append({"image_name": image_name, "prompt": prompt, "flux_prompt": flux_prompt})
+            entry = {"image_name": image_name, "prompt": prompt, "flux_prompt": flux_prompt}
+            if "mask_types_available" in image_prompt_list[image_ind]:
+                entry["mask_types_available"] = image_prompt_list[image_ind]["mask_types_available"]
+            entries.append(entry)
+
+    sd_target_resolutions = config.get("sd_target_resolutions", [512])
+    whole_image_probability = config.get("whole_image_probability", 0.0)
 
     immunized_img, immunization_model_path = (
         immunization_mdl.train_immunization_all_images_batch(
@@ -103,6 +109,8 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             alpha=alpha,
             iter_num=iter_num,
             batch_size=batch_size,
+            sd_target_resolutions=sd_target_resolutions,
+            whole_image_probability=whole_image_probability,
         )
     )
 

@@ -1,5 +1,7 @@
 """DiffVax immunization against diffusion attacks."""
 
+import random
+
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -24,6 +26,9 @@ class ImmunizationDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         entry = self.entries[index]
+        mask_type = None
+        if "mask_types_available" in entry:
+            mask_type = random.choice(entry["mask_types_available"])
         image = load_image(
             entry["image_name"], self.data_dir, is_mask=False,
             images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
@@ -32,7 +37,7 @@ class ImmunizationDataset(torch.utils.data.Dataset):
         image_mask = load_image(
             entry["image_name"], self.data_dir, is_mask=True,
             images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
-            size=self.size,
+            size=self.size, mask_type=mask_type,
         )
         mask_torch, image_torch, _ = prepare_mask_and_masked_image(image, image_mask)
         return image_torch.squeeze(0).half(), mask_torch.squeeze(0).half(), entry["prompt"], entry["flux_prompt"]
@@ -116,7 +121,11 @@ class DiffVaxImmunization:
         batch_size=2,
         alpha=1,
         loss_type="l2",
+        sd_target_resolutions=None,
+        whole_image_probability=0.0,
     ):
+        if sd_target_resolutions is None:
+            sd_target_resolutions = [512]
         set_seed_lib(SEED)
         total_iter = 0
 
@@ -173,50 +182,74 @@ class DiffVaxImmunization:
                 mask_batch.requires_grad = False
                 img_batch.requires_grad_()
 
+                # Whole-image dice roll: decide mask tensors for this batch
+                ones = torch.ones_like(mask_batch)
+                if random.random() < whole_image_probability:
+                    perturbation_mask = ones
+                    attack_mask = ones
+                    loss_mask = ones
+                    loss2_weight = ones
+                else:
+                    perturbation_mask = 1 - mask_batch
+                    attack_mask = mask_batch
+                    loss_mask = mask_batch
+                    loss2_weight = 1 - mask_batch
+
                 img_f = img_batch.float().cuda()
                 unet_out = self.unetmodel.forward(img_f)
 
-                unet_out = unet_out.half().cuda() * (1 - mask_batch)
+                unet_out = unet_out.half().cuda() * perturbation_mask
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
 
-                # Differentiable resize for SD at resolutions > 512
+                # Differentiable resize for attack models
                 h, w = img_batch.shape[2], img_batch.shape[3]
                 actual_bs = img_batch.shape[0]
-                if model_name == "sd" and h > 512:
-                    img_adv_resized = F.interpolate(img_adv, (512, 512), mode='bilinear', align_corners=False)
-                    mask_resized = F.interpolate(mask_batch, (512, 512), mode='nearest')
-                    img_out_small = attack_model.attack(
-                        prompt=cur_prompt,
-                        image=img_adv_resized,
-                        mask=mask_resized,
-                        height=512,
-                        width=512,
-                        num_inference_steps=4,
-                        batch_size=actual_bs,
-                    )
-                    img_out = F.interpolate(img_out_small, (h, w), mode='bilinear', align_corners=False)
+                if model_name == "sd":
+                    sd_target = random.choice(sd_target_resolutions)
+                    if sd_target < h:
+                        img_adv_resized = F.interpolate(img_adv, (sd_target, sd_target), mode='bilinear', align_corners=False)
+                        mask_resized = F.interpolate(attack_mask, (sd_target, sd_target), mode='nearest')
+                        img_out_small = attack_model.attack(
+                            prompt=cur_prompt,
+                            image=img_adv_resized,
+                            mask=mask_resized,
+                            height=sd_target,
+                            width=sd_target,
+                            num_inference_steps=4,
+                            batch_size=actual_bs,
+                        )
+                        img_out = F.interpolate(img_out_small, (h, w), mode='bilinear', align_corners=False)
+                    else:
+                        img_out = attack_model.attack(
+                            prompt=cur_prompt,
+                            image=img_adv,
+                            mask=attack_mask,
+                            height=h,
+                            width=w,
+                            num_inference_steps=4,
+                            batch_size=actual_bs,
+                        )
                 else:
+                    # FLUX or other models: attack at native resolution
                     img_out = attack_model.attack(
                         prompt=cur_prompt,
                         image=img_adv,
-                        mask=mask_batch,
+                        mask=attack_mask,
                         height=h,
                         width=w,
                         num_inference_steps=4,
                         batch_size=actual_bs,
                     )
 
-                # Model-aware loss with dynamic resolution normalization
+                # Loss computation with dynamic resolution normalization
                 resolution = h
                 target_image = torch.zeros_like(img_out).cuda()
 
-                # FLUX affects the full image; SD only fills the masked region.
-                loss_mask = torch.ones_like(mask_batch) if model_name == "flux" else mask_batch
                 loss1 = (((img_out - target_image) * (loss_mask / resolution)).norm(p=2) / (loss_mask / resolution).sum())
 
-                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / resolution)).norm(p=2) / ((1 - mask_batch) / resolution).sum()
+                loss2 = (alpha * (img_adv - img_batch) * (loss2_weight / resolution)).norm(p=2) / (loss2_weight / resolution).sum()
                 loss = loss1 + loss2
 
                 loss1 = loss1.item()
