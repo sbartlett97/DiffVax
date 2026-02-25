@@ -263,7 +263,7 @@ def immunize_image(
     # Convert [-1, 1] tensor to PIL
     imm_pil = to_pil((img_adv / 2 + 0.5).clamp(0, 1)[0]).convert("RGB")
     # Restore background outside mask from original
-    imm_pil = recover_image(imm_pil, image_pil, mask_pil, background=True)
+    # imm_pil = recover_image(imm_pil, image_pil, mask_pil, background=True)
     return imm_pil
 
 
