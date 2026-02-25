@@ -734,6 +734,15 @@ def main():
             mask_pil = Image.open(entry.mask_path).convert("RGB")
             imm_pil = immunized_images[img_idx]
 
+            # Ensure all inputs are at dataset resolution
+            res = (resolution, resolution)
+            if image_pil.size != res:
+                image_pil = image_pil.resize(res, Image.LANCZOS)
+            if mask_pil.size != res:
+                mask_pil = mask_pil.resize(res, Image.NEAREST)
+            if imm_pil.size != res:
+                imm_pil = imm_pil.resize(res, Image.LANCZOS)
+
             # Select prompt based on model type
             if model_cfg.prompt_key == "flux_prompts":
                 prompts = entry.flux_prompts
@@ -755,6 +764,12 @@ def main():
             edited_imm = run_model(
                 pipe, model_cfg, imm_pil, mask_pil, prompt, args.seed, resolution
             )
+
+            # Ensure outputs match dataset resolution for metrics
+            if edited_orig.size != res:
+                edited_orig = edited_orig.resize(res, Image.LANCZOS)
+            if edited_imm.size != res:
+                edited_imm = edited_imm.resize(res, Image.LANCZOS)
 
             edited_pairs.append((edited_orig, edited_imm))
 
