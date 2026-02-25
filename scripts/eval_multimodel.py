@@ -67,9 +67,9 @@ class ModelConfig:
     model_id: str
     pipeline_type: PipelineType
     native_resolution: int
-    num_inference_steps: int = 30
-    guidance_scale: float = 7.5
-    strength: float = 0.75
+    num_inference_steps: int | None = None  # None = use pipeline default
+    guidance_scale: float | None = None     # None = use pipeline default
+    strength: float | None = None           # None = use pipeline default
     uses_mask: bool = True
     prompt_key: str = "prompts"  # "prompts" for SD, "flux_prompts" for FLUX
     enabled: bool = True
@@ -108,7 +108,6 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.2-klein-4B",
         pipeline_type=PipelineType.FLUX_KLEIN,
         native_resolution=1088,
-        guidance_scale=3.5,
         uses_mask=False,
         prompt_key="flux_prompts",
     ),
@@ -117,7 +116,6 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.1-dev",
         pipeline_type=PipelineType.FLUX_IMG2IMG,
         native_resolution=1024,
-        guidance_scale=3.5,
         uses_mask=False,
         prompt_key="flux_prompts",
     ),
@@ -126,7 +124,6 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.2-dev",
         pipeline_type=PipelineType.FLUX_IMG2IMG,
         native_resolution=1024,
-        guidance_scale=3.5,
         uses_mask=False,
         prompt_key="flux_prompts",
         enabled=False,
@@ -350,17 +347,18 @@ def run_model(
 
     generator = torch.Generator(device="cuda").manual_seed(seed)
 
+    # Build kwargs, omitting None values so pipeline defaults are used
+    kwargs = {"prompt": prompt, "image": img_native, "generator": generator}
+    if config.num_inference_steps is not None:
+        kwargs["num_inference_steps"] = config.num_inference_steps
+    if config.guidance_scale is not None:
+        kwargs["guidance_scale"] = config.guidance_scale
+
     if config.pipeline_type == PipelineType.SD_INPAINTING:
-        result = pipe(
-            prompt=prompt,
-            image=img_native,
-            mask_image=mask_native,
-            height=native,
-            width=native,
-            num_inference_steps=config.num_inference_steps,
-            guidance_scale=config.guidance_scale,
-            generator=generator,
-        ).images[0]
+        kwargs["mask_image"] = mask_native
+        kwargs["height"] = native
+        kwargs["width"] = native
+        result = pipe(**kwargs).images[0]
         # Composite with input (recover masked region from result, bg from input)
         result = recover_image(result, img_native, mask_native, background=False)
 
@@ -369,24 +367,13 @@ def run_model(
         PipelineType.SDXL_IMG2IMG,
         PipelineType.FLUX_IMG2IMG,
     ):
-        result = pipe(
-            prompt=prompt,
-            image=img_native,
-            strength=config.strength,
-            num_inference_steps=config.num_inference_steps,
-            guidance_scale=config.guidance_scale,
-            generator=generator,
-        ).images[0]
+        if config.strength is not None:
+            kwargs["strength"] = config.strength
+        result = pipe(**kwargs).images[0]
 
     elif config.pipeline_type == PipelineType.FLUX_KLEIN:
         # Flux2KleinPipeline: image for img2img, no strength parameter
-        result = pipe(
-            prompt=prompt,
-            image=img_native,
-            num_inference_steps=config.num_inference_steps,
-            guidance_scale=config.guidance_scale,
-            generator=generator,
-        ).images[0]
+        result = pipe(**kwargs).images[0]
     else:
         raise ValueError(f"Unknown pipeline type: {config.pipeline_type}")
 
@@ -806,9 +793,9 @@ def main():
                 "model_id": model_cfg.model_id,
                 "pipeline_type": model_cfg.pipeline_type.value,
                 "native_resolution": model_cfg.native_resolution,
-                "num_inference_steps": model_cfg.num_inference_steps,
-                "guidance_scale": model_cfg.guidance_scale,
-                "strength": model_cfg.strength,
+                "num_inference_steps": model_cfg.num_inference_steps or "default",
+                "guidance_scale": model_cfg.guidance_scale if model_cfg.guidance_scale is not None else "default",
+                "strength": model_cfg.strength if model_cfg.strength is not None else "default",
                 "uses_mask": model_cfg.uses_mask,
             },
             "per_image": per_image_metrics,
