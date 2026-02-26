@@ -54,9 +54,12 @@ class Attack(BaseAttack):
         guidance_scale: float = 7.5,
         eta: float = 0.0,
         batch_size: int = 1,
+        strength: float = 1.0,
     ):
         """Differentiable forward pass of the inpainting stable diffusion model."""
         diffusion_model = self.model
+        device = diffusion_model.device
+        dtype = next(diffusion_model.unet.parameters()).dtype
 
         text_embeddings = self.tokenize_prompt(
             diffusion_model, prompt, batch_size=batch_size
@@ -70,11 +73,6 @@ class Attack(BaseAttack):
             height // 8,
             width // 8,
         )
-        latents = torch.randn(
-            latents_shape,
-            device=diffusion_model.device,
-            dtype=text_embeddings.dtype,
-        )
 
         mask = torch.nn.functional.interpolate(mask, size=(height // 8, width // 8))
         mask = torch.cat([mask] * 2)
@@ -85,12 +83,25 @@ class Attack(BaseAttack):
         masked_image_latents = 0.18215 * masked_image_latents
         masked_image_latents = torch.cat([masked_image_latents] * 2)
 
-        latents = latents * diffusion_model.scheduler.init_noise_sigma
-
         diffusion_model.scheduler.set_timesteps(num_inference_steps)
-        timesteps_tensor = diffusion_model.scheduler.timesteps.to(
-            diffusion_model.device
-        )
+        timesteps_tensor = diffusion_model.scheduler.timesteps.to(device)
+
+        if strength < 1.0:
+            # Partial denoising: encode image, add noise at appropriate level
+            init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
+            t_start = max(num_inference_steps - init_timestep, 0)
+            timesteps_tensor = timesteps_tensor[t_start:]
+
+            image_latents = diffusion_model.vae.encode(image).latent_dist.sample()
+            image_latents = 0.18215 * image_latents
+            noise = torch.randn_like(image_latents)
+            latents = diffusion_model.scheduler.add_noise(
+                image_latents, noise, timesteps_tensor[:1]
+            )
+        else:
+            # Full noise start (original behavior)
+            latents = torch.randn(latents_shape, device=device, dtype=dtype)
+            latents = latents * diffusion_model.scheduler.init_noise_sigma
 
         for i, t in enumerate(timesteps_tensor):
             latent_model_input = torch.cat([latents] * 2)

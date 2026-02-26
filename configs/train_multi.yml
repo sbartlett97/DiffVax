@@ -1,0 +1,39 @@
+# DiffVax 1024x1024 fine-tuning configuration (Stage 2)
+# Loads a 512-trained checkpoint and fine-tunes at 1024x1024
+
+# Training
+iter_num: 150
+learning_rate: 0.00001
+batch_size: 1
+alpha: 4
+
+# Model
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_1088"
+
+# Resolution
+resolution: 1088
+
+# Load 512-trained checkpoint
+load_existing: false
+load_path: "checkpoints/diffvax_trained.pth"
+
+# Attack model: Stable Diffusion Inpainting
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.5
+
+# Attack model: FLUX.2 Klein 4B
+flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_probability: 0.5
+
+# Multi-resolution SD attack targets (differentiable downscale from native)
+sd_target_resolutions: [512, 1024]
+
+# Probability of whole-image immunization per batch (0.0 = never, 1.0 = always)
+whole_image_probability: 0.1
+
+# Dataset paths for 1024 images (relative to data_dir)
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"

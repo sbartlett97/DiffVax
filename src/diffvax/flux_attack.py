@@ -165,6 +165,7 @@ class FluxAttack(BaseAttack):
         width: int = 512,
         num_inference_steps: int = 4,
         batch_size: int = 1,
+        strength: float = 1.0,
     ) -> torch.Tensor:
         """Differentiable FLUX.2 Klein img2img forward pass.
 
@@ -214,7 +215,7 @@ class FluxAttack(BaseAttack):
         except TypeError:
             scheduler.set_timesteps(num_inference_steps, device=device)
 
-        init_timestep = min(int(num_inference_steps * self.strength), num_inference_steps)
+        init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
         t_start = max(num_inference_steps - init_timestep, 0)
         timesteps = scheduler.timesteps[t_start:]
 

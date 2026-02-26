@@ -96,7 +96,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             entries.append(entry)
 
     sd_target_resolutions = config.get("sd_target_resolutions", [512])
-    whole_image_probability = config.get("whole_image_probability", 0.0)
+    strength_range = config.get("strength_range", [0.5, 1.0])
 
     immunized_img, immunization_model_path = (
         immunization_mdl.train_immunization_all_images_batch(
@@ -110,7 +110,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             iter_num=iter_num,
             batch_size=batch_size,
             sd_target_resolutions=sd_target_resolutions,
-            whole_image_probability=whole_image_probability,
+            strength_range=strength_range,
         )
     )
 

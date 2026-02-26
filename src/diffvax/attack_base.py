@@ -21,6 +21,7 @@ class BaseAttack(ABC):
         width: int = 512,
         num_inference_steps: int = 4,
         batch_size: int = 1,
+        strength: float = 1.0,
     ) -> Tensor:
         """Run differentiable forward pass of the attack model.
 
@@ -32,6 +33,7 @@ class BaseAttack(ABC):
             width: Output width.
             num_inference_steps: Number of diffusion steps.
             batch_size: Batch size.
+            strength: Denoising strength (1.0 = full noise, <1.0 = partial).
 
         Returns:
             Generated image tensor with gradient flow from input image.

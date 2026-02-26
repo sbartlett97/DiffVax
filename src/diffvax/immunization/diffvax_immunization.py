@@ -102,7 +102,7 @@ class DiffVaxImmunization:
         """Apply immunization perturbation to image."""
         img_f = img.float().cuda()
         unet_out = self.unetmodel.forward(img_f)
-        unet_out = unet_out.half().cuda() * (1 - img_mask)
+        unet_out = unet_out.half().cuda()
 
         img_adv = torch.clamp(img + unet_out, self.clamp_min, self.clamp_max)
 
@@ -122,10 +122,12 @@ class DiffVaxImmunization:
         alpha=1,
         loss_type="l2",
         sd_target_resolutions=None,
-        whole_image_probability=0.0,
+        strength_range=None,
     ):
         if sd_target_resolutions is None:
             sd_target_resolutions = [512]
+        if strength_range is None:
+            strength_range = [0.5, 1.0]
         set_seed_lib(SEED)
         total_iter = 0
 
@@ -182,31 +184,25 @@ class DiffVaxImmunization:
                 mask_batch.requires_grad = False
                 img_batch.requires_grad_()
 
-                # Whole-image dice roll: decide mask tensors for this batch
                 ones = torch.ones_like(mask_batch)
-                if random.random() < whole_image_probability:
-                    perturbation_mask = ones
-                    attack_mask = ones
-                    loss_mask = ones
-                    loss2_weight = ones
-                else:
-                    perturbation_mask = 1 - mask_batch
-                    attack_mask = mask_batch
-                    loss_mask = mask_batch
-                    loss2_weight = 1 - mask_batch
 
+                # Perturbation: always full image (no mask gating)
                 img_f = img_batch.float().cuda()
                 unet_out = self.unetmodel.forward(img_f)
-
-                unet_out = unet_out.half().cuda() * perturbation_mask
+                unet_out = unet_out.half().cuda()
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
 
-                # Differentiable resize for attack models
+                # Sample strength for this batch
+                strength = random.uniform(*strength_range)
+
+                # Differentiable resize and attack
                 h, w = img_batch.shape[2], img_batch.shape[3]
                 actual_bs = img_batch.shape[0]
                 if model_name == "sd":
+                    # SD inpainting still needs a mask
+                    attack_mask = mask_batch
                     sd_target = random.choice(sd_target_resolutions)
                     if sd_target < h:
                         img_adv_resized = F.interpolate(img_adv, (sd_target, sd_target), mode='bilinear', align_corners=False)
@@ -219,6 +215,7 @@ class DiffVaxImmunization:
                             width=sd_target,
                             num_inference_steps=4,
                             batch_size=actual_bs,
+                            strength=strength,
                         )
                         img_out = F.interpolate(img_out_small, (h, w), mode='bilinear', align_corners=False)
                     else:
@@ -230,24 +227,35 @@ class DiffVaxImmunization:
                             width=w,
                             num_inference_steps=4,
                             batch_size=actual_bs,
+                            strength=strength,
                         )
                 else:
-                    # FLUX or other models: attack at native resolution
+                    # FLUX or other models: no mask, full-image attack
                     img_out = attack_model.attack(
                         prompt=cur_prompt,
                         image=img_adv,
-                        mask=attack_mask,
+                        mask=ones,
                         height=h,
                         width=w,
                         num_inference_steps=4,
                         batch_size=actual_bs,
+                        strength=strength,
                     )
 
                 # Loss computation with dynamic resolution normalization
                 resolution = h
                 target_image = torch.zeros_like(img_out).cuda()
 
-                loss1 = (((img_out - target_image) * (loss_mask / resolution)).norm(p=2) / (loss_mask / resolution).sum())
+                # loss1: use model's loss_uses_mask_weighting property
+                if attack_model.loss_uses_mask_weighting:
+                    loss1_weight = mask_batch
+                else:
+                    loss1_weight = ones
+
+                # loss2: always full image
+                loss2_weight = ones
+
+                loss1 = (((img_out - target_image) * (loss1_weight / resolution)).norm(p=2) / (loss1_weight / resolution).sum())
 
                 loss2 = (alpha * (img_adv - img_batch) * (loss2_weight / resolution)).norm(p=2) / (loss2_weight / resolution).sum()
                 loss = loss1 + loss2
