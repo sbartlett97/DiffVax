@@ -115,3 +115,8 @@ image_prompt_json: "image_prompt_pairs_with_validation.json"
 # Can also be set via CLI: --checkpoint path/to/model.pth
 load_existing: false
 # load_path: "outputs/models/1/sd15_all_images_DiffVaxImmunization_iter_1000000_alpha_4_loss_l2_batch_5_final.pth"
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4      # CPU workers prefetching batches; 0 = main process only
+  prefetch_factor: 4  # Batches preloaded per worker (ignored when num_workers=0)

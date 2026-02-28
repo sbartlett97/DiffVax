@@ -132,21 +132,17 @@ class AttackModelManager:
 
         grads = {n: self.gradient_history[n] for n in names}
 
-        # Compute pairwise cosine similarity
-        disparity: Dict[str, float] = {}
-        for n_i in names:
-            g_i = grads[n_i]
-            similarities = []
-            for n_j in names:
-                if n_i == n_j:
-                    continue
-                g_j = grads[n_j]
-                cos_sim = torch.nn.functional.cosine_similarity(
-                    g_i.unsqueeze(0), g_j.unsqueeze(0)
-                ).item()
-                # Disparity = 1 - cosine_similarity (range [0, 2])
-                similarities.append(1.0 - cos_sim)
-            disparity[n_i] = sum(similarities) / max(len(similarities), 1)
+        # Compute pairwise cosine disparity via batched matrix multiply — O(N*D)
+        # instead of O(N^2) sequential cosine_similarity calls.
+        grad_matrix = torch.stack([grads[n] for n in names], dim=0)  # (N, D)
+        norms = grad_matrix.norm(dim=1, keepdim=True).clamp(min=1e-8)
+        grad_normed = grad_matrix / norms  # unit vectors (N, D)
+        cos_sim_matrix = torch.mm(grad_normed, grad_normed.t())  # (N, N)
+        n = len(names)
+        # Diagonal is self-similarity = 1.0; sum off-diagonal per row
+        mean_cos = (cos_sim_matrix.sum(dim=1) - 1.0) / max(n - 1, 1)
+        mean_disp = (1.0 - mean_cos).tolist()  # disparity = 1 - mean_cos_sim
+        disparity: Dict[str, float] = dict(zip(names, mean_disp))
 
         # Higher disparity → more unique gradient → higher weight
         total_disparity = sum(disparity.values())

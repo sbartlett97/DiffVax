@@ -65,14 +65,6 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             "flux_model_link/sd3_model_link with their probabilities."
         )
 
-    # Validate probabilities sum to 1.0
-    total_prob = sum(probabilities.values())
-    if abs(total_prob - 1.0) > 1e-6:
-        raise ValueError(
-            f"Model probabilities must sum to 1.0, got {total_prob}. "
-            f"Probabilities: {probabilities}"
-        )
-
     # Phase 5: adaptive ensemble weighting
     adaptive_cfg = config.get("adaptive_ensemble", {})
     adaptive_enabled = adaptive_cfg.get("enabled", False)
@@ -98,6 +90,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "adaptive_ensemble": adaptive_cfg,
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
+        "dataloader": config.get("dataloader", {}),
     }
 
     load_existing = config.get("load_existing", False)

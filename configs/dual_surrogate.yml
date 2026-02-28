@@ -103,3 +103,8 @@ masks_subdir: "train/masks"
 image_prompt_json: "image_prompt_pairs_with_validation.json"
 
 load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4

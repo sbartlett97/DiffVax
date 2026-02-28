@@ -45,41 +45,42 @@ class DifferentiableEoT:
         self.p_resize = cfg.get("p_resize", 0.5)
         self.p_blur = cfg.get("p_blur", 0.3)
         self.p_noise = cfg.get("p_noise", 0.3)
-        self._jpeg_available = None  # lazy-checked on first use
+        # Cache one DiffJPEG module per (height, width) to avoid re-instantiating
+        # and moving to GPU on every call. None sentinel means DiffJPEG is absent.
+        self._jpeg_modules: dict = {}
 
-    def _check_jpeg(self) -> bool:
-        if self._jpeg_available is None:
+    def _get_jpeg_module(self, height: int, width: int):
+        """Return a cached DiffJPEG module for this resolution, creating if needed."""
+        key = (height, width)
+        if key not in self._jpeg_modules:
             try:
-                import DiffJPEG  # noqa: F401
-                self._jpeg_available = True
+                from DiffJPEG import DiffJPEG
+                self._jpeg_modules[key] = DiffJPEG(
+                    height=height, width=width, differentiable=True, quality=80
+                ).cuda()
             except ImportError:
-                self._jpeg_available = False
-        return self._jpeg_available
+                self._jpeg_modules[key] = None
+        return self._jpeg_modules[key]
 
     def _apply_jpeg(self, x: Tensor) -> Tensor:
         """Apply differentiable JPEG compression via DiffJPEG (straight-through).
 
         Falls back to identity if DiffJPEG is not installed.
         Expects input in [-1, 1]; converts to [0, 1] internally.
+        Quality is sampled each call and passed to the module's forward method,
+        so the cached module is reused across different quality levels.
         """
-        if not self._check_jpeg():
+        h, w = x.shape[2], x.shape[3]
+        module = self._get_jpeg_module(h, w)
+        if module is None:
             return x
 
-        from DiffJPEG import DiffJPEG
-
-        h, w = x.shape[2], x.shape[3]
         quality = random.randint(
             int(self.jpeg_quality_range[0]), int(self.jpeg_quality_range[1])
         )
-
-        jpeg_module = DiffJPEG(
-            height=h, width=w, differentiable=True, quality=quality
-        ).to(x.device)
-        jpeg_module = jpeg_module.to(x.dtype)
-
-        # DiffJPEG expects [0, 1] range
+        # DiffJPEG expects [0, 1] range; quality overrides the constructor value
         x_01 = (x.float() + 1.0) / 2.0
-        x_jpg = jpeg_module(x_01)
+        x_jpg = module(x_01, quality=quality)
         return ((x_jpg * 2.0) - 1.0).to(x.dtype)
 
     def _apply_resize(self, x: Tensor) -> Tensor:

@@ -22,7 +22,7 @@ import os
 from tqdm import tqdm
 
 from diffvax.model import NestedUNet
-from diffvax.utils import set_seed_lib, load_image, prepare_mask_and_masked_image
+from diffvax.utils import set_seed_lib, load_image
 
 scaler = torch.cuda.amp.GradScaler()
 
@@ -69,10 +69,13 @@ class ImmunizationDataset(torch.utils.data.Dataset):
             images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
             size=self._current_size, mask_type=mask_type,
         )
-        mask_torch, image_torch, _ = prepare_mask_and_masked_image(image, image_mask)
+            img_np = np.array(image.convert("RGB"), dtype=np.float32)
+        img_t = torch.from_numpy(img_np.transpose(2, 0, 1)) / 127.5 - 1.0
+        mask_np = np.array(image_mask.convert("L"), dtype=np.uint8)
+        mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32)[None])
         return (
-            image_torch.squeeze(0).half(),
-            mask_torch.squeeze(0).half(),
+            img_t.half(),
+            mask_t.half(),
             entry["prompt"],
             entry["flux_prompt"],
         )
@@ -248,9 +251,13 @@ class DiffVaxImmunization:
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size
         )
+        dl_cfg = self._config.get("dataloader", {})
+        num_workers = int(dl_cfg.get("num_workers", 4))
+        prefetch_factor = int(dl_cfg.get("prefetch_factor", 4)) if num_workers > 0 else None
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_size=batch_size, shuffle=True,
-            num_workers=2, pin_memory=True,
+            num_workers=num_workers, pin_memory=True,
+            prefetch_factor=prefetch_factor,
         )
 
         batch_iter_count = 0  # global batch counter for adaptive weight updates
@@ -326,6 +333,8 @@ class DiffVaxImmunization:
 
                 if model_name == "sd":
                     # SD inpainting: mask-conditioned, multi-resolution downsample
+                    # Apply mask on GPU: zero out inpaint region so SD sees a
+                    # masked image (inpaint region = 0) as expected by inpainting pipeline.
                     attack_mask = mask_batch
                     sd_target = random.choice(sd_target_resolutions)
                     if sd_target < h:
@@ -336,9 +345,10 @@ class DiffVaxImmunization:
                         mask_resized = F.interpolate(
                             attack_mask, (sd_target, sd_target), mode="nearest"
                         )
+                        img_adv_sd = img_adv_resized * (1.0 - mask_resized)
                         img_out_small = attack_model.attack(
                             prompt=cur_prompt,
-                            image=img_adv_resized,
+                            image=img_adv_sd,
                             mask=mask_resized,
                             height=sd_target,
                             width=sd_target,
@@ -350,9 +360,10 @@ class DiffVaxImmunization:
                             img_out_small, (h, w), mode="bilinear", align_corners=False
                         )
                     else:
+                        img_adv_sd = img_adv_aug * (1.0 - attack_mask)
                         img_out = attack_model.attack(
                             prompt=cur_prompt,
-                            image=img_adv_aug,
+                            image=img_adv_sd,
                             mask=attack_mask,
                             height=h,
                             width=w,
@@ -434,6 +445,10 @@ class DiffVaxImmunization:
                 loss_attn = torch.tensor(0.0, device="cuda")
                 if attn_active:
                     loss_attn = self._attention_loss.compute()
+                # Always remove hooks after the forward pass to avoid
+                # stale hooks accumulating when the next batch uses a different model.
+                if self._attention_loss is not None:
+                    self._attention_loss.remove_hooks()
 
                 # Aggregate base loss
                 loss_base = loss1 + loss2 + loss_extra + attn_weight * loss_attn
@@ -499,6 +514,8 @@ class DiffVaxImmunization:
                 pbar.update(1)
 
                 if torch.isnan(loss):
+                    if self._attention_loss is not None:
+                        self._attention_loss.remove_hooks()
                     torch.save(
                         self.model.state_dict(),
                         path_of_models + f"iter_{cur_iter}_early.pth",
