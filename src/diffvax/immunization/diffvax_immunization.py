@@ -69,7 +69,7 @@ class ImmunizationDataset(torch.utils.data.Dataset):
             images_subdir=self.images_subdir, masks_subdir=self.masks_subdir,
             size=self._current_size, mask_type=mask_type,
         )
-            img_np = np.array(image.convert("RGB"), dtype=np.float32)
+        img_np = np.array(image.convert("RGB"), dtype=np.float32)
         img_t = torch.from_numpy(img_np.transpose(2, 0, 1)) / 127.5 - 1.0
         mask_np = np.array(image_mask.convert("L"), dtype=np.uint8)
         mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32)[None])
