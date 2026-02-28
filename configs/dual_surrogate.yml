@@ -1,0 +1,105 @@
+# =======================================================
+# DiffVax v2 — Dual Surrogate: SD 1.5 + FLUX (Phases 1–2, 5)
+# =======================================================
+# Combines the 4-channel SD 1.5 VAE family with the 16-channel FLUX VAE
+# family, plus EoT augmentation, CLIP loss, and adaptive ensemble weighting.
+#
+# Use when:
+#   - Protecting against both SD 1.x class and FLUX-class models
+#   - 24 GB GPU available (RTX 4090, A5000, or larger)
+#   - SD3 weights are not accessible or download cost is prohibitive
+#
+# Key improvements over eot_clip.yml:
+#   FLUX surrogate adds 16-ch VAE gradient signal — perturbations learn to
+#   disrupt a fundamentally different latent space, improving transfer to
+#   all FLUX variants (FLUX.1 Dev/Schnell, FLUX.2 Klein, etc.)
+#   Adaptive ensemble (Phase 5) dynamically up-weights whichever surrogate
+#   is contributing more unique gradient signal each batch.
+#
+# Estimated VRAM:  ~18–20 GB
+#   NestedUNet:      ~40 MB
+#   SD 1.5 fp16:     ~3.5 GB
+#   FLUX.2 Klein fp16: ~8 GB
+#   CLIP ViT-B/32:   ~0.4 GB
+#   Activations:     ~6–8 GB
+# New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
+# Expected protection rate vs SD 1.5:  >75%
+# Expected protection rate vs FLUX.1:  >55% (vs ~25% SD-only baseline)
+
+# -- Core Training --
+iter_num: 1000000
+learning_rate: 0.00001
+batch_size: 4    # Reduced from 5 to accommodate FLUX VRAM overhead
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-dual"
+
+# -- Resolution --
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 + FLUX --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.6
+sd3_model_link: null
+sd3_probability: 0.0
+flux_model_link: "black-forest-labs/FLUX.2-klein"
+flux_probability: 0.4
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.5, 2.0]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: true
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Curriculum disabled (fixed 512 for VRAM safety) --
+curriculum:
+  enabled: false
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+# With two surrogates from different VAE families, gradient disparity
+# tracking ensures neither model dominates training.
+adaptive_ensemble:
+  enabled: true
+  update_period: 50    # Recompute weights every 50 batches
+  min_weight: 0.15     # Neither surrogate drops below 15%
+  smoothing: 0.9       # EMA coefficient for gradient history
+
+# -- Phase 6: Flat-Minima (disabled to save memory) --
+flat_minima:
+  enabled: false
+
+# -- Phase 7: Attention Disruption --
+# Only activates when FLUX is the selected surrogate (only_with_dit: true)
+attention_loss:
+  enabled: true
+  target_blocks: "early"
+  num_hooks: 4
+  weight: 0.3
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false

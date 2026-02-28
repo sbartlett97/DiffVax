@@ -1,0 +1,86 @@
+# =======================================================
+# DiffVax v2 — Preprocessing Robustness (Phases 1 + 2)
+# =======================================================
+# SD 1.5 surrogate with EoT augmentation and CLIP loss.
+# No additional model downloads beyond SD 1.5 + CLIP ViT-B/32.
+#
+# Use when:
+#   - Primary concern is social-media / API pipeline robustness
+#     (JPEG compression, resize-on-upload, WebP conversion)
+#   - Limited VRAM or no access to SD3 / FLUX weights
+#   - Want a meaningful improvement over v1 with minimal overhead
+#
+# Key improvements over sd_only.yml:
+#   Phase 1 (EoT): perturbations survive JPEG Q=75+ and 0.5–2x resize
+#   Phase 2 (CLIP): architecture-agnostic signal improves transfer
+#     to closed-source models (gpt-image-1, DALL·E 3, Midjourney)
+#
+# Estimated VRAM:  ~6 GB (SD 1.5 + CLIP ViT-B/32 + EoT overhead)
+# New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
+# Expected protection rate vs SD 1.5: 80–90%
+# Expected protection rate after JPEG Q=80: >60% (vs ~30% baseline)
+
+# -- Core Training --
+iter_num: 1000000
+learning_rate: 0.00001
+batch_size: 5
+alpha: 4
+beta: 0.5    # CLIP loss weight in total loss
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-eot-clip"
+
+# -- Resolution --
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 only --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 1.0
+sd3_model_link: null
+sd3_probability: 0.0
+flux_model_link: null
+flux_probability: 0.0
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.5, 2.0]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: true
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phases 4–7: disabled for this config --
+curriculum:
+  enabled: false
+
+adaptive_ensemble:
+  enabled: false
+
+flat_minima:
+  enabled: false
+
+attention_loss:
+  enabled: false
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
