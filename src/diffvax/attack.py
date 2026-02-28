@@ -135,6 +135,14 @@ class Attack(BaseAttack):
     def loss_uses_mask_weighting(self) -> bool:
         return True
 
+    @property
+    def vae_channels(self) -> int:
+        return 4
+
+    @property
+    def native_resolution(self) -> int:
+        return 512
+
     def tokenize_prompt(
         self, diffusion_model, prompt, batch_size=1, tokenize_negative=False
     ):

@@ -84,6 +84,14 @@ class FluxAttack(BaseAttack):
     def loss_uses_mask_weighting(self) -> bool:
         return False
 
+    @property
+    def vae_channels(self) -> int:
+        return 16
+
+    @property
+    def native_resolution(self) -> int:
+        return 1024
+
     # ------------------------------------------------------------------
     # Internal helpers — matching pipeline_flux2_klein.py
     # ------------------------------------------------------------------

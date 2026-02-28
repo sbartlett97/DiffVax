@@ -33,7 +33,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     models = {}
     probabilities = {}
 
-    # SD attack (always created)
+    # SD attack (always created if probability > 0)
     sd_prob = config.get("sd_probability", 1.0)
     if sd_prob > 0:
         sd_attack = Attack(attack_model_link)
@@ -49,12 +49,55 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         models["flux"] = flux_attack
         probabilities["flux"] = flux_prob
 
-    attack_manager = AttackModelManager(models, probabilities)
+    # SD3 / SD3.5 attack (Phase 3)
+    sd3_model_link = config.get("sd3_model_link")
+    sd3_prob = config.get("sd3_probability", 0.0)
+    if sd3_model_link and sd3_prob > 0:
+        from diffvax.sd3_attack import SD3Attack
+        sd3_attack = SD3Attack(sd3_model_link)
+        models["sd3"] = sd3_attack
+        probabilities["sd3"] = sd3_prob
+
+    # Validate that at least one model is configured
+    if not models:
+        raise ValueError(
+            "No attack models configured. Set sd_probability > 0 or provide "
+            "flux_model_link/sd3_model_link with their probabilities."
+        )
+
+    # Validate probabilities sum to 1.0
+    total_prob = sum(probabilities.values())
+    if abs(total_prob - 1.0) > 1e-6:
+        raise ValueError(
+            f"Model probabilities must sum to 1.0, got {total_prob}. "
+            f"Probabilities: {probabilities}"
+        )
+
+    # Phase 5: adaptive ensemble weighting
+    adaptive_cfg = config.get("adaptive_ensemble", {})
+    adaptive_enabled = adaptive_cfg.get("enabled", False)
+
+    attack_manager = AttackModelManager(
+        models,
+        probabilities,
+        adaptive=adaptive_enabled,
+        adaptive_cfg=adaptive_cfg,
+    )
 
     immunization_config = {
         "iter_num": iter_num,
         "learning_rate": config["learning_rate"],
         "immunization_model": immunization_model_name,
+        # Pass through all v2 phase configs so DiffVaxImmunization can read them
+        "eot": config.get("eot", {}),
+        "clip_loss": config.get("clip_loss", {}),
+        "beta": config.get("beta", 0.5),
+        "curriculum": config.get("curriculum", {}),
+        "resolution": resolution,
+        "batch_size": batch_size,
+        "adaptive_ensemble": adaptive_cfg,
+        "flat_minima": config.get("flat_minima", {}),
+        "attention_loss": config.get("attention_loss", {}),
     }
 
     load_existing = config.get("load_existing", False)
@@ -74,7 +117,10 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
 
     image_name_list = [image_prompt["image"][:-4] for image_prompt in image_prompt_list]
     prompt_list = [image_prompt["prompts"] for image_prompt in image_prompt_list]
-    flux_prompt_list = [image_prompt.get("flux_prompts", image_prompt["prompts"]) for image_prompt in image_prompt_list]
+    flux_prompt_list = [
+        image_prompt.get("flux_prompts", image_prompt["prompts"])
+        for image_prompt in image_prompt_list
+    ]
 
     images_subdir = config.get("images_subdir", "train/images")
     masks_subdir = config.get("masks_subdir", "train/masks")
@@ -90,9 +136,15 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
                 if prompt_idx < len(cur_flux_prompt_list)
                 else prompt
             )
-            entry = {"image_name": image_name, "prompt": prompt, "flux_prompt": flux_prompt}
+            entry = {
+                "image_name": image_name,
+                "prompt": prompt,
+                "flux_prompt": flux_prompt,
+            }
             if "mask_types_available" in image_prompt_list[image_ind]:
-                entry["mask_types_available"] = image_prompt_list[image_ind]["mask_types_available"]
+                entry["mask_types_available"] = image_prompt_list[image_ind][
+                    "mask_types_available"
+                ]
             entries.append(entry)
 
     sd_target_resolutions = config.get("sd_target_resolutions", [512])

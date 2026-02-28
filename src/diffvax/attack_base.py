@@ -55,3 +55,22 @@ class BaseAttack(ABC):
     def loss_uses_mask_weighting(self) -> bool:
         """Whether loss should be weighted by mask (True) or computed over full image (False)."""
         ...
+
+    @property
+    def vae_channels(self) -> int:
+        """Number of latent channels (4 for SD1.x, 16 for SD3/FLUX).
+
+        Override in subclasses that use a non-standard VAE.
+        Default returns 4 for backward compatibility with SD 1.5 subclasses.
+        """
+        return 4
+
+    @property
+    def native_resolution(self) -> int:
+        """Preferred training resolution for this model (width == height).
+
+        The training loop uses this to decide whether to differentiably
+        resize the input before passing it to the attack forward pass.
+        Default returns 512 for backward compatibility with SD 1.5 subclasses.
+        """
+        return 512
