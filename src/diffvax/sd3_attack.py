@@ -73,6 +73,11 @@ class SD3Attack(BaseAttack):
         return False
 
     @property
+    def is_inpainting(self) -> bool:
+        # SD3 is a full-image img2img model; no mask is used.
+        return False
+
+    @property
     def vae_channels(self) -> int:
         """SD3 uses a 16-channel VAE."""
         return 16
@@ -90,7 +95,7 @@ class SD3Attack(BaseAttack):
         self,
         prompt: Union[str, List[str]],
         image: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        mask: torch.FloatTensor = None,
         height: int = 1024,
         width: int = 1024,
         num_inference_steps: int = 4,
@@ -106,7 +111,8 @@ class SD3Attack(BaseAttack):
         Args:
             prompt:             Edit prompts (list of strings, length batch_size).
             image:              Adversarial image tensor (B, 3, H, W), in [-1, 1].
-            mask:               Not used (SD3 img2img edits the full image).
+            mask:               Not used; defaults to None. SD3 img2img edits
+                                the full image without a mask.
             height, width:      Output resolution. SD3 supports 512/768/1024.
             num_inference_steps:Number of rectified-flow denoising steps.
             batch_size:         Number of images in the batch.

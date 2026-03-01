@@ -331,10 +331,10 @@ class DiffVaxImmunization:
                 h, w = img_batch.shape[2], img_batch.shape[3]
                 actual_bs = img_batch.shape[0]
 
-                if model_name == "sd":
-                    # SD inpainting: mask-conditioned, multi-resolution downsample
-                    # Apply mask on GPU: zero out inpaint region so SD sees a
-                    # masked image (inpaint region = 0) as expected by inpainting pipeline.
+                if attack_model.is_inpainting:
+                    # Inpainting model: mask-conditioned, multi-resolution downsample.
+                    # Apply mask on GPU: zero out inpaint region so the pipeline sees a
+                    # masked image (inpaint region = 0) as expected by inpainting models.
                     attack_mask = mask_batch
                     sd_target = random.choice(sd_target_resolutions)
                     if sd_target < h:
@@ -384,7 +384,6 @@ class DiffVaxImmunization:
                         img_out_native = attack_model.attack(
                             prompt=cur_prompt,
                             image=img_input,
-                            mask=ones,
                             height=native_res,
                             width=native_res,
                             num_inference_steps=4,
@@ -398,7 +397,6 @@ class DiffVaxImmunization:
                         img_out = attack_model.attack(
                             prompt=cur_prompt,
                             image=img_adv_aug,
-                            mask=ones,
                             height=h,
                             width=w,
                             num_inference_steps=4,

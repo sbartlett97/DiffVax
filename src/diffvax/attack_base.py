@@ -1,7 +1,7 @@
 """Abstract base class for differentiable attack models."""
 
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import Union, List, Optional
 
 import torch
 from torch import Tensor
@@ -16,7 +16,7 @@ class BaseAttack(ABC):
         self,
         prompt: Union[str, List[str]],
         image: Union[torch.FloatTensor, Image.Image],
-        mask: Union[torch.FloatTensor, Image.Image],
+        mask: Optional[Union[torch.FloatTensor, Image.Image]] = None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 4,
@@ -28,7 +28,8 @@ class BaseAttack(ABC):
         Args:
             prompt: Text prompt(s) for the attack.
             image: Input image tensor (adversarially perturbed).
-            mask: Binary mask tensor.
+            mask: Binary mask tensor. Required for inpainting models; None
+                for img2img / full-image models which do not use a mask.
             height: Output height.
             width: Output width.
             num_inference_steps: Number of diffusion steps.
@@ -74,3 +75,15 @@ class BaseAttack(ABC):
         Default returns 512 for backward compatibility with SD 1.5 subclasses.
         """
         return 512
+
+    @property
+    def is_inpainting(self) -> bool:
+        """Whether this model is a mask-conditioned inpainting model.
+
+        Inpainting models (e.g. SD 1.5 inpaint) expect the masked image and
+        the raw mask as separate inputs, and the loss is weighted by the mask
+        region. Full-image img2img models (SD3, FLUX) receive no mask.
+
+        Default returns False. Override to True in inpainting subclasses.
+        """
+        return False

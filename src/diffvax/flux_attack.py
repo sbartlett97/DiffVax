@@ -85,6 +85,11 @@ class FluxAttack(BaseAttack):
         return False
 
     @property
+    def is_inpainting(self) -> bool:
+        # FLUX is a full-image img2img model; no mask is used.
+        return False
+
+    @property
     def vae_channels(self) -> int:
         return 16
 
@@ -168,7 +173,7 @@ class FluxAttack(BaseAttack):
         self,
         prompt: Union[str, List[str]],
         image: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        mask: torch.FloatTensor = None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 4,
