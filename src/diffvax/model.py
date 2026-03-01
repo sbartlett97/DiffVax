@@ -2,6 +2,7 @@
 
 import torch
 from torch import nn
+from huggingface_hub import PyTorchModelHubMixin
 
 
 class VGGBlock(nn.Module):
@@ -63,8 +64,22 @@ class UNet(nn.Module):
         return output
 
 
-class NestedUNet(nn.Module):
-    def __init__(self, num_classes, input_channels=3, deep_supervision=False, **kwargs):
+class NestedUNet(nn.Module, PyTorchModelHubMixin):
+    """Nested U-Net (UNet++) perturbation generator.
+
+    Inherits ``PyTorchModelHubMixin`` to enable ``save_pretrained()`` /
+    ``push_to_hub()`` / ``from_pretrained()`` for HuggingFace Hub integration.
+    Constructor arguments are serialised to ``config.json`` so the model
+    can be reconstructed exactly from a Hub checkpoint.
+    """
+
+    def __init__(
+        self,
+        num_classes: int = 3,
+        input_channels: int = 3,
+        deep_supervision: bool = False,
+        **kwargs,
+    ):
         super().__init__()
 
         nb_filter = [32, 64, 128, 256, 512]

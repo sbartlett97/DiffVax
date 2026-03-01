@@ -15,7 +15,14 @@
 #   Phase 2 (CLIP): architecture-agnostic signal improves transfer
 #     to closed-source models (gpt-image-1, DALL·E 3, Midjourney)
 #
-# Estimated VRAM:  ~6 GB (SD 1.5 + CLIP ViT-B/32 + EoT overhead)
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all active model layers:
+#   NestedUNet (fp32, 1088px input):              ~1 GB
+#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#   CLIP ViT-B/32:                                ~0.4 GB
+#   SD 1.5 activations (512px via downsample,     ~3–4 GB
+#     4 denoising steps, full gradient flow):
+#   Minimum total:                                ~9–10 GB
 # New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
 # Expected protection rate vs SD 1.5: 80–90%
 # Expected protection rate after JPEG Q=80: >60% (vs ~30% baseline)
@@ -89,3 +96,16 @@ load_existing: false
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

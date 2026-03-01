@@ -17,7 +17,14 @@
 #     (e.g., fine-tune towards SD3.5 before deploying to that platform)
 #   - Testing EoT or flat-minima changes without retraining from scratch
 #
-# Estimated VRAM: ~30–40 GB at 1024px
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow (SD 1.5 + FLUX.2 Klein loaded simultaneously):
+#   NestedUNet (fp32, 1088px):                    ~1 GB
+#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#   FLUX.2 Klein weights (fp16):                  ~8 GB
+#   FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB  ← dominant cost
+#   SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
+#   Minimum total:                                ~24–29 GB
 # Recommended hardware: A6000 (48 GB) or H100 (80 GB)
 
 # -- Core Training --
@@ -109,3 +116,16 @@ load_path: "outputs/models/1/sd15_all_images_DiffVaxImmunization_iter_1000000_al
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

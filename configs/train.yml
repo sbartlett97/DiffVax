@@ -120,3 +120,21 @@ load_existing: false
 dataloader:
   num_workers: 4      # CPU workers prefetching batches; 0 = main process only
   prefetch_factor: 4  # Batches preloaded per worker (ignored when num_workers=0)
+
+# -- HuggingFace Hub Checkpointing --
+# Requires a HF write token: set 'token' here or export HF_TOKEN in your shell.
+# push_to_hub() uploads model weights + config.json to a private/public repo.
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true              # Create/use a private repository
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000  # Periodic upload interval (on top of best-model uploads)
+
+# -- Training Reporter --
+# Writes a JSON event log to <output_dir>/training_log.json every epoch.
+# Optional webhook fires on new best-model checkpoints and training completion.
+# Compatible with Discord incoming webhooks and generic HTTP POST endpoints.
+reporting:
+  webhook_url: null           # e.g. "https://discord.com/api/webhooks/..."
+  checkpoint_every_n_epochs: 10000  # Local .pth save interval

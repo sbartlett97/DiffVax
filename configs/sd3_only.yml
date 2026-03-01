@@ -14,11 +14,14 @@
 # protection against SD 1.5 (different VAE family). For deployment,
 # use dual_surrogate.yml or full_v2.yml instead.
 #
-# Estimated VRAM: ~18 GB
-#   NestedUNet:          ~40 MB
-#   SD3.5 Medium fp16:   ~10 GB
-#   CLIP ViT-B/32:       ~0.4 GB
-#   Activations:         ~6–8 GB
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all MM-DiT layers:
+#   NestedUNet (fp32, 1088px):                    ~1 GB
+#   SD3.5 Medium weights (fp16):                  ~10 GB
+#   CLIP ViT-B/32:                                ~0.4 GB
+#   SD3.5 activations (1088px, 4 steps, grad):    ~12–16 GB
+#     (18,496-token joint attention sequence is the primary cost)
+#   Minimum total:                                ~24–28 GB
 
 # -- Core Training --
 iter_num: 1000000
@@ -104,3 +107,16 @@ load_existing: false
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

@@ -16,12 +16,15 @@
 #   Adaptive ensemble (Phase 5) dynamically up-weights whichever surrogate
 #   is contributing more unique gradient signal each batch.
 #
-# Estimated VRAM:  ~18–20 GB
-#   NestedUNet:      ~40 MB
-#   SD 1.5 fp16:     ~3.5 GB
-#   FLUX.2 Klein fp16: ~8 GB
-#   CLIP ViT-B/32:   ~0.4 GB
-#   Activations:     ~6–8 GB
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all active model layers:
+#   NestedUNet (fp32, 1088px):                    ~1 GB
+#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#   FLUX.2 Klein weights (fp16):                  ~8 GB
+#   CLIP ViT-B/32:                                ~0.4 GB
+#   FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB  ← worst case
+#   SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
+#   Minimum total (FLUX active at 1088px):        ~22–26 GB
 # New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
 # Expected protection rate vs SD 1.5:  >75%
 # Expected protection rate vs FLUX.1:  >55% (vs ~25% SD-only baseline)
@@ -108,3 +111,16 @@ load_existing: false
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

@@ -9,7 +9,13 @@
 #   - Quick iteration with minimal VRAM and dependency requirements
 #   - The target deployment only uses SD 1.x class models
 #
-# Estimated VRAM:  ~5 GB (SD 1.5 fp16 + NestedUNet + activations)
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all active model layers:
+#   NestedUNet (fp32, 1088px input):              ~1 GB
+#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#   SD 1.5 activations (512px via downsample,     ~3–4 GB
+#     4 denoising steps, full gradient flow):
+#   Minimum total:                                ~8–9 GB
 # New dependencies: none
 # Expected protection rate vs SD 1.5: 75–85%
 
@@ -68,3 +74,16 @@ load_existing: false
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null           # Discord/Slack/generic HTTP POST webhook
+  checkpoint_every_n_epochs: 10000

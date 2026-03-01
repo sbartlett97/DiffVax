@@ -91,6 +91,8 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
         "dataloader": config.get("dataloader", {}),
+        "hub": config.get("hub", {}),
+        "reporting": config.get("reporting", {}),
     }
 
     load_existing = config.get("load_existing", False)

@@ -260,6 +260,21 @@ class DiffVaxImmunization:
             prefetch_factor=prefetch_factor,
         )
 
+        # ---- Hub + reporting setup ----
+        from diffvax.reporter import TrainingReporter
+        reporter = TrainingReporter(self._config, self.output_dir)
+
+        hub_cfg = self._config.get("hub", {})
+        hub_enabled = hub_cfg.get("enabled", False)
+        hub_repo_id = hub_cfg.get("repo_id") or None
+        hub_private = bool(hub_cfg.get("private", True))
+        hub_token = hub_cfg.get("token") or os.environ.get("HF_TOKEN") or None
+        hub_upload_every_n = int(hub_cfg.get("upload_every_n_epochs", 10000))
+
+        best_loss = float("inf")
+        best_model_path: str = path_of_models + "_best.pth"
+        epoch_avg_loss = float("inf")  # updated each epoch for use after the loop
+
         batch_iter_count = 0  # global batch counter for adaptive weight updates
 
         for epoch_i in range(iter_num):
@@ -524,8 +539,14 @@ class DiffVaxImmunization:
                 losses1 = []
                 losses2 = []
 
-            # Per-model loss summary for this epoch
-            parts = [f"Epoch {epoch_i}"]
+            # ---- Per-epoch summary ----
+            epoch_avg_loss = float(np.mean(epoch_losses)) if epoch_losses else float("inf")
+            per_model_avg = {
+                mn: float(np.mean(per_model_losses[mn]["loss"]))
+                for mn in per_model_losses
+                if per_model_losses[mn]["loss"]
+            }
+            parts = [f"Epoch {epoch_i}  avg={epoch_avg_loss:.5f}"]
             for mn in sorted(per_model_losses):
                 m = per_model_losses[mn]
                 parts.append(
@@ -535,10 +556,71 @@ class DiffVaxImmunization:
                     f"(n={len(m['loss'])})"
                 )
             tqdm.write("  ".join(parts))
+            reporter.report_epoch(epoch_i, epoch_avg_loss, per_model_avg)
 
-        torch.save(self.model.state_dict(), path_of_models + "_final.pth")
+            # ---- Periodic local checkpoint ----
+            if (epoch_i + 1) % reporter.checkpoint_every == 0:
+                ckpt_path = path_of_models + f"_epoch{epoch_i}.pth"
+                torch.save(self.model.state_dict(), ckpt_path)
+                reporter.report_checkpoint(epoch_i, epoch_avg_loss, ckpt_path, is_best=False)
+                tqdm.write(f"[Checkpoint] Saved periodic checkpoint: {ckpt_path}")
 
-        return img_adv, path_of_models + "_final.pth"
+            # ---- Best-model checkpoint + Hub upload ----
+            if epoch_avg_loss < best_loss:
+                best_loss = epoch_avg_loss
+                torch.save(self.model.state_dict(), best_model_path)
+                reporter.report_checkpoint(epoch_i, best_loss, best_model_path, is_best=True)
+                tqdm.write(f"[Checkpoint] New best model (loss={best_loss:.5f}): {best_model_path}")
+                if hub_enabled and hub_repo_id:
+                    try:
+                        self.unetmodel.push_to_hub(
+                            repo_id=hub_repo_id,
+                            private=hub_private,
+                            token=hub_token,
+                            commit_message=(
+                                f"Epoch {epoch_i}: best checkpoint (loss={best_loss:.5f})"
+                            ),
+                        )
+                        tqdm.write(f"[Hub] Uploaded best checkpoint to {hub_repo_id}")
+                    except Exception as exc:
+                        tqdm.write(f"[Hub] Best-model upload failed: {exc}")
+
+            # ---- Periodic Hub upload ----
+            if hub_enabled and hub_repo_id and (epoch_i + 1) % hub_upload_every_n == 0:
+                try:
+                    self.unetmodel.push_to_hub(
+                        repo_id=hub_repo_id,
+                        private=hub_private,
+                        token=hub_token,
+                        commit_message=(
+                            f"Epoch {epoch_i}: periodic checkpoint (loss={epoch_avg_loss:.5f})"
+                        ),
+                    )
+                    tqdm.write(f"[Hub] Uploaded periodic checkpoint to {hub_repo_id}")
+                except Exception as exc:
+                    tqdm.write(f"[Hub] Periodic upload failed: {exc}")
+
+        # ---- Final save ----
+        final_path = path_of_models + "_final.pth"
+        torch.save(self.model.state_dict(), final_path)
+        if hub_enabled and hub_repo_id:
+            try:
+                self.unetmodel.push_to_hub(
+                    repo_id=hub_repo_id,
+                    private=hub_private,
+                    token=hub_token,
+                    commit_message=f"Training complete: final model (loss={epoch_avg_loss:.5f})",
+                )
+                tqdm.write(f"[Hub] Uploaded final model to {hub_repo_id}")
+            except Exception as exc:
+                tqdm.write(f"[Hub] Final upload failed: {exc}")
+        reporter.report_complete(iter_num, epoch_avg_loss, final_path)
+        tqdm.write(
+            f"[Training complete] {iter_num} epochs | final loss={epoch_avg_loss:.5f} | "
+            f"best loss={best_loss:.5f} | model: {final_path}"
+        )
+
+        return img_adv, final_path
 
     def edit_image(
         self,

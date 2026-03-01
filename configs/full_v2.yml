@@ -11,14 +11,28 @@
 #   - 48+ GB GPU (A6000, A40, H100, or dual-GPU if using model offloading)
 #   - All three model families are accessible (SD, SD3.5, FLUX)
 #
-# Estimated VRAM: ~40–48 GB (all surrogates loaded simultaneously)
-#   NestedUNet:           ~40 MB
-#   SD 1.5 inpainting:   ~3.5 GB
-#   SD3.5 Medium fp16:   ~10 GB
-#   FLUX.2 Klein fp16:   ~8 GB
-#   CLIP ViT-B/32:       ~0.4 GB
-#   Activations (512px): ~8–12 GB
-#   Activations (1024px): ~18–24 GB (at curriculum end)
+# Estimated VRAM — all weights loaded simultaneously (AttackModelManager).
+# Reference case: batch_size=1, 1088×1088 input, 4 denoising steps with
+# gradient flow through all layers of the active surrogate.
+#
+#   Static weights (always resident):
+#     NestedUNet (fp32):        ~0.04 GB
+#     SD 1.5 inpainting fp16:  ~3.5 GB
+#     SD3.5 Medium fp16:       ~10 GB
+#     FLUX.2 Klein fp16:        ~8 GB
+#     CLIP ViT-B/32:            ~0.4 GB
+#     Total weights:           ~22 GB
+#
+#   Activation memory (only active surrogate; worst case per-surrogate):
+#     SD 1.5 active  (512px via downsample, 4 steps):   ~3–4 GB
+#     FLUX.2 active  (1088px, 4 denoising steps, grad): ~8–12 GB
+#     SD3.5 active   (1088px, 4 denoising steps, grad): ~12–16 GB
+#       18,496-token joint attention sequence drives SD3 cost
+#     NestedUNet activations (1088px):                  ~1 GB
+#
+#   Minimum VRAM (SD 1.5 active):    22 + 4 + 1 ≈ 27 GB
+#   Typical VRAM (FLUX.2 active):    22 + 10 + 1 ≈ 33–35 GB
+#   Peak VRAM    (SD3.5 active):     22 + 14 + 1 ≈ 37–39 GB
 #
 # New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
 #
@@ -43,7 +57,7 @@ project_name: "diffvax-v2-full"
 
 # -- Base resolution (overridden by curriculum) --
 resolution: 512
-sd_target_resolutions: [512, 1024]    # SD downscale targets used during 1024 stage
+sd_target_resolutions: [512, 1024]    # SD downscale targets used during high-res stages
 strength_range: [0.5, 1.0]
 
 # -- Attack ensemble: SD 1.5 + SD3.5 + FLUX --
@@ -78,8 +92,10 @@ clip_loss:
   semantic_weight: 0.5
 
 # -- Phase 4: Multi-Resolution Curriculum --
-# Gradually increases from 512 to 1024 over 1M iterations.
-# Batch size decreases at each stage to fit the larger activations in VRAM.
+# Gradually increases from 512 → 768 → 1024 → 1088 over 1M iterations.
+# Batch size decreases at each stage to fit larger activations in VRAM.
+# The 1088px final stage (batch_size=1) is the minimum reference configuration
+# for VRAM planning: all VRAM estimates above are computed at this setting.
 curriculum:
   enabled: true
   resolution_jitter: 0.0
@@ -88,11 +104,14 @@ curriculum:
       until_epoch: 500000
       batch_size: 5
     - resolution: 768
-      until_epoch: 750000
+      until_epoch: 700000
       batch_size: 3
     - resolution: 1024
-      until_epoch: 1000000
+      until_epoch: 900000
       batch_size: 2
+    - resolution: 1088
+      until_epoch: 1000000
+      batch_size: 1
 
 # -- Phase 5: Adaptive Ensemble Weighting --
 adaptive_ensemble:
@@ -129,3 +148,16 @@ load_existing: false
 dataloader:
   num_workers: 4
   prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null           # Discord/Slack/generic HTTP POST webhook
+  checkpoint_every_n_epochs: 10000
