@@ -11,6 +11,7 @@ behaviour exactly.
 """
 
 import logging
+import math
 import random
 from typing import Dict, Tuple, Optional
 
@@ -93,6 +94,10 @@ class AttackModelManager:
         """
         names = list(self.probabilities.keys())
         weights = [self.probabilities[n] for n in names]
+        if not all(math.isfinite(w) for w in weights):
+            # Probabilities corrupted (NaN/Inf) — reset to uniform
+            weights = [1.0 / len(names)] * len(names)
+            self.probabilities = dict(zip(names, weights))
         selected_name = random.choices(names, weights=weights, k=1)[0]
 
         if selected_name != self._current_gpu_model:
@@ -171,6 +176,10 @@ class AttackModelManager:
 
         raw_weights = {n: disparity[n] / total_disparity for n in names}
 
+        # Guard against NaN/Inf from degenerate gradients
+        if any(not math.isfinite(v) for v in raw_weights.values()):
+            return
+
         # Apply min_weight floor and renormalize
         floored = {n: max(raw_weights[n], self.min_weight) for n in names}
         # Also include models with no gradient history yet (keep their weight)
@@ -179,4 +188,6 @@ class AttackModelManager:
                 floored[n] = self.probabilities[n]
 
         total = sum(floored.values())
+        if not math.isfinite(total) or total < 1e-8:
+            return
         self.probabilities = {n: floored[n] / total for n in floored}
