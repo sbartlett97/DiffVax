@@ -253,12 +253,27 @@ class DiffVaxImmunization:
         )
         dl_cfg = self._config.get("dataloader", {})
         num_workers = int(dl_cfg.get("num_workers", 4))
-        prefetch_factor = int(dl_cfg.get("prefetch_factor", 4)) if num_workers > 0 else None
-        dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True,
-            num_workers=num_workers, pin_memory=True,
-            prefetch_factor=prefetch_factor,
-        )
+
+        def _make_dataloader(ds, bs):
+            """Create a fresh DataLoader with the given dataset and batch size.
+
+            Must be recreated on every curriculum stage change so that:
+            1. Worker subprocesses are forked after set_resolution() and pick up
+               the new _current_size (stale workers hold the old value).
+            2. The new per-stage batch size is applied immediately.
+            """
+            pf = int(dl_cfg.get("prefetch_factor", 4)) if num_workers > 0 else None
+            return torch.utils.data.DataLoader(
+                ds, batch_size=bs, shuffle=True,
+                num_workers=num_workers, pin_memory=True,
+                prefetch_factor=pf,
+            )
+
+        # Initialise with the epoch-0 curriculum resolution and batch size.
+        _curr_resolution = self._curriculum.get_resolution(0)
+        _curr_dl_batch = self._curriculum.get_batch_size(0)
+        dataset.set_resolution(_curr_resolution)
+        dataloader = _make_dataloader(dataset, _curr_dl_batch)
 
         # ---- Hub + reporting setup ----
         from diffvax.reporter import TrainingReporter
@@ -278,10 +293,21 @@ class DiffVaxImmunization:
         batch_iter_count = 0  # global batch counter for adaptive weight updates
 
         for epoch_i in range(iter_num):
-            # ---- Phase 4: update dataset resolution from curriculum ----
+            # ---- Phase 4: curriculum resolution + batch-size update ----
             curriculum_resolution = self._curriculum.get_resolution(epoch_i)
-            if dataset.size != (curriculum_resolution, curriculum_resolution):
+            curriculum_batch_size = self._curriculum.get_batch_size(epoch_i)
+            if (curriculum_resolution != _curr_resolution
+                    or curriculum_batch_size != _curr_dl_batch):
                 dataset.set_resolution(curriculum_resolution)
+                _curr_resolution = curriculum_resolution
+                _curr_dl_batch = curriculum_batch_size
+                # Recreate DataLoader: spawns fresh workers that inherit the
+                # updated _current_size, and applies the new per-stage batch size.
+                dataloader = _make_dataloader(dataset, _curr_dl_batch)
+                tqdm.write(
+                    f"[Curriculum] Stage change → {curriculum_resolution}px "
+                    f"batch={curriculum_batch_size}"
+                )
 
             pbar = tqdm(enumerate(dataloader), total=len(dataloader))
             epoch_losses = []
