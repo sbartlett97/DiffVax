@@ -470,7 +470,7 @@ class DiffVaxImmunization:
                     / loss1_weight_norm.sum()
                 )
                 loss2 = (
-                    (alpha * (img_adv - img_batch) * loss2_weight_norm).norm(p=2)
+                    (alpha * (img_adv - img_batch) * loss2_weight_norm).norm(p=1)
                     / loss2_weight_norm.sum()
                 )
 
