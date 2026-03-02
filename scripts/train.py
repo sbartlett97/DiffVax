@@ -4,6 +4,7 @@
 import argparse
 import os
 import sys
+import traceback
 import yaml
 
 # Add src to path for package imports
@@ -145,21 +146,29 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     sd_target_resolutions = config.get("sd_target_resolutions", [512])
     strength_range = config.get("strength_range", [0.5, 1.0])
 
-    immunized_img, immunization_model_path = (
-        immunization_mdl.train_immunization_all_images_batch(
-            entries,
-            data_dir,
-            images_subdir,
-            masks_subdir,
-            size,
-            target_image=None,
-            alpha=alpha,
-            iter_num=iter_num,
-            batch_size=batch_size,
-            sd_target_resolutions=sd_target_resolutions,
-            strength_range=strength_range,
+    try:
+        immunized_img, immunization_model_path = (
+            immunization_mdl.train_immunization_all_images_batch(
+                entries,
+                data_dir,
+                images_subdir,
+                masks_subdir,
+                size,
+                target_image=None,
+                alpha=alpha,
+                iter_num=iter_num,
+                batch_size=batch_size,
+                sd_target_resolutions=sd_target_resolutions,
+                strength_range=strength_range,
+            )
         )
-    )
+    except Exception as exc:
+        tb_str = traceback.format_exc()
+        immunization_mdl.reporter.report_error(
+            "fatal",
+            f"{type(exc).__name__}: {exc}\n\n{tb_str}",
+        )
+        raise
 
     return immunization_model_path
 

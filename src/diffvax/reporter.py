@@ -7,9 +7,13 @@ Configure via the 'reporting' section of the training YAML:
       checkpoint_every_n_epochs: 10000
 
 The JSON event log is always written to <output_dir>/training_log.json.
-Webhook notifications fire for new best-model checkpoints and training
-completion. All network failures are silently ignored so a bad webhook URL
-never aborts training.
+Webhook notifications fire for:
+  - New best-model checkpoints
+  - Training completion
+  - Critical errors (CUDA OOM, NaN loss, unhandled exceptions)
+
+All network failures are silently ignored so a bad webhook URL never
+aborts training.
 """
 
 import json
@@ -98,6 +102,51 @@ class TrainingReporter:
         self._send(
             f"**[DiffVax] Training complete** — {total_epochs} epochs, "
             f"final loss={final_loss:.5f}\n`{path}`"
+        )
+
+    def report_error(
+        self,
+        error_type: str,
+        message: str,
+        epoch: Optional[int] = None,
+        batch: Optional[int] = None,
+    ) -> None:
+        """Record a critical error to the log and notify via webhook immediately.
+
+        Unlike report_epoch/report_checkpoint, this always fires the webhook
+        regardless of any thresholds, since critical errors require immediate
+        attention.
+
+        Args:
+            error_type: Short category string, e.g. ``"cuda_oom"``,
+                        ``"nan_loss"``, ``"fatal"``.
+            message:    Full error message or traceback (truncated to 1 500 chars
+                        in the webhook payload).
+            epoch:      Epoch index at time of error (if known).
+            batch:      Batch index within the epoch (if known).
+        """
+        event: Dict[str, Any] = {
+            "type": "error",
+            "error_type": error_type,
+            "message": message,
+            "ts": time.time(),
+        }
+        if epoch is not None:
+            event["epoch"] = epoch
+        if batch is not None:
+            event["batch"] = batch
+        self._append(event)
+
+        location = ""
+        if epoch is not None:
+            location += f" epoch={epoch}"
+        if batch is not None:
+            location += f" batch={batch}"
+        # Truncate message so oversized tracebacks don't blow past webhook limits
+        snippet = message[:1500] + ("…" if len(message) > 1500 else "")
+        self._send(
+            f"**[DiffVax] \u26a0\ufe0f {error_type.upper()}**{location}\n"
+            f"```\n{snippet}\n```"
         )
 
     # ------------------------------------------------------------------

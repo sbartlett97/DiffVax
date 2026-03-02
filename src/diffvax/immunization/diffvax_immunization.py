@@ -14,6 +14,7 @@ reproduces the original v1 behaviour exactly (loss1 + loss2 only).
 """
 
 import random
+import traceback
 
 import torch
 import torch.nn.functional as F
@@ -22,6 +23,7 @@ import os
 from tqdm import tqdm
 
 from diffvax.model import NestedUNet
+from diffvax.reporter import TrainingReporter
 from diffvax.utils import set_seed_lib, load_image
 
 scaler = torch.cuda.amp.GradScaler()
@@ -102,6 +104,7 @@ class DiffVaxImmunization:
         self.clamp_max = 1
         self.output_dir = output_dir or "outputs"
         self._config = config or {}
+        self.reporter = TrainingReporter(self._config, self.output_dir)
 
         # Support both single attack_model (backward compat) and attack_manager
         if attack_manager is not None:
@@ -283,8 +286,9 @@ class DiffVaxImmunization:
         dataloader = _make_dataloader(dataset, _curr_dl_batch)
 
         # ---- Hub + reporting setup ----
-        from diffvax.reporter import TrainingReporter
-        reporter = TrainingReporter(self._config, self.output_dir)
+        # self.reporter is initialised in __init__; reset events for this run
+        # so the JSON log reflects only the current training session.
+        self.reporter._events = []
 
         hub_cfg = self._config.get("hub", {})
         hub_enabled = hub_cfg.get("enabled", False)
@@ -516,7 +520,27 @@ class DiffVaxImmunization:
                 per_model_losses[model_name]["loss1"].append(loss1_val)
                 per_model_losses[model_name]["loss2"].append(loss2_val)
 
-                scaler.scale(loss).backward()
+                try:
+                    scaler.scale(loss).backward()
+                except RuntimeError as _bwd_exc:
+                    _is_oom = "out of memory" in str(_bwd_exc).lower()
+                    if not _is_oom:
+                        raise
+                    # OOM during backward: free state, skip this batch, notify.
+                    self.optimizer.zero_grad(set_to_none=True)
+                    torch.cuda.empty_cache()
+                    if self._attention_loss is not None:
+                        self._attention_loss.remove_hooks()
+                    _oom_msg = (
+                        f"CUDA OOM during backward pass "
+                        f"(epoch={epoch_i}, batch={i}): {_bwd_exc}"
+                    )
+                    tqdm.write(f"[OOM] {_oom_msg} — skipping batch")
+                    self.reporter.report_error(
+                        "cuda_oom", _oom_msg, epoch=epoch_i, batch=i
+                    )
+                    pbar.update(1)
+                    continue
 
                 # ---- Phase 6: Flat-minima regularization (post-backward) ----
                 # Applied after backward so only first-order derivatives are
@@ -561,9 +585,19 @@ class DiffVaxImmunization:
                 if torch.isnan(loss):
                     if self._attention_loss is not None:
                         self._attention_loss.remove_hooks()
-                    torch.save(
-                        self.model.state_dict(),
-                        path_of_models + f"iter_{cur_iter}_early.pth",
+                    nan_path = path_of_models + f"iter_{cur_iter}_early.pth"
+                    torch.save(self.model.state_dict(), nan_path)
+                    self.reporter.report_error(
+                        "nan_loss",
+                        f"NaN loss detected at epoch={epoch_i} batch={i} "
+                        f"(global iter={cur_iter}). "
+                        f"Emergency checkpoint saved: {nan_path}",
+                        epoch=epoch_i,
+                        batch=i,
+                    )
+                    tqdm.write(
+                        f"[NaN] Loss is NaN at epoch={epoch_i} batch={i} — "
+                        f"aborting. Checkpoint: {nan_path}"
                     )
                     return
 
@@ -588,20 +622,20 @@ class DiffVaxImmunization:
                     f"(n={len(m['loss'])})"
                 )
             tqdm.write("  ".join(parts))
-            reporter.report_epoch(epoch_i, epoch_avg_loss, per_model_avg)
+            self.reporter.report_epoch(epoch_i, epoch_avg_loss, per_model_avg)
 
             # ---- Periodic local checkpoint ----
-            if (epoch_i + 1) % reporter.checkpoint_every == 0:
+            if (epoch_i + 1) % self.reporter.checkpoint_every == 0:
                 ckpt_path = path_of_models + f"_epoch{epoch_i}.pth"
                 torch.save(self.model.state_dict(), ckpt_path)
-                reporter.report_checkpoint(epoch_i, epoch_avg_loss, ckpt_path, is_best=False)
+                self.reporter.report_checkpoint(epoch_i, epoch_avg_loss, ckpt_path, is_best=False)
                 tqdm.write(f"[Checkpoint] Saved periodic checkpoint: {ckpt_path}")
 
             # ---- Best-model checkpoint + Hub upload ----
             if epoch_avg_loss < best_loss:
                 best_loss = epoch_avg_loss
                 torch.save(self.model.state_dict(), best_model_path)
-                reporter.report_checkpoint(epoch_i, best_loss, best_model_path, is_best=True)
+                self.reporter.report_checkpoint(epoch_i, best_loss, best_model_path, is_best=True)
                 tqdm.write(f"[Checkpoint] New best model (loss={best_loss:.5f}): {best_model_path}")
                 if hub_enabled and hub_repo_id:
                     try:
@@ -646,7 +680,7 @@ class DiffVaxImmunization:
                 tqdm.write(f"[Hub] Uploaded final model to {hub_repo_id}")
             except Exception as exc:
                 tqdm.write(f"[Hub] Final upload failed: {exc}")
-        reporter.report_complete(iter_num, epoch_avg_loss, final_path)
+        self.reporter.report_complete(iter_num, epoch_avg_loss, final_path)
         tqdm.write(
             f"[Training complete] {iter_num} epochs | final loss={epoch_avg_loss:.5f} | "
             f"best loss={best_loss:.5f} | model: {final_path}"
