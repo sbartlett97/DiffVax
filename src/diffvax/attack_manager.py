@@ -10,6 +10,7 @@ adaptive_ensemble config section) restores the original static random.choices
 behaviour exactly.
 """
 
+import logging
 import random
 from typing import Dict, Tuple, Optional
 
@@ -17,6 +18,9 @@ import torch
 from torch import Tensor
 
 from diffvax.attack_base import BaseAttack
+
+# Suppress diffusers warnings about CPU device transfers during model offloading
+logging.getLogger("diffusers").setLevel(logging.ERROR)
 
 
 class AttackModelManager:

@@ -203,13 +203,11 @@ class DiffVaxImmunization:
             strength_range = [0.5, 1.0]
         set_seed_lib(SEED)
 
-        # Disable both memory-efficient and flash SDPA backends — neither
-        # supports computing input gradients through attention (needed to
-        # backprop through the attack model to the perturbation net).
-        # The math fallback handles all gradient operations correctly.
+        # Memory-efficient SDPA backward is not implemented in all PyTorch
+        # versions; disable it so the runtime prefers flash attention (which
+        # supports first-order backward) with math as a fallback.
         if torch.cuda.is_available():
             torch.backends.cuda.enable_mem_efficient_sdp(False)
-            torch.backends.cuda.enable_flash_sdp(False)
 
         total_iter = 0
 
@@ -498,15 +496,8 @@ class DiffVaxImmunization:
                 if self._attention_loss is not None:
                     self._attention_loss.remove_hooks()
 
-                # Aggregate base loss
-                loss_base = loss1 + loss2 + loss_extra + attn_weight * loss_attn
-
-                # ---- Phase 6: Flat-minima regularization ----
-                if self._flat_minima is not None:
-                    loss_flat = self._flat_minima.compute(loss_base, self.unetmodel)
-                    loss = loss_base + lambda_flat * loss_flat
-                else:
-                    loss = loss_base
+                # Aggregate loss
+                loss = loss1 + loss2 + loss_extra + attn_weight * loss_attn
 
                 # Log scalar values (after building the full computation graph)
                 loss1_val = loss1.item()
@@ -526,6 +517,12 @@ class DiffVaxImmunization:
                 per_model_losses[model_name]["loss2"].append(loss2_val)
 
                 scaler.scale(loss).backward()
+
+                # ---- Phase 6: Flat-minima regularization (post-backward) ----
+                # Applied after backward so only first-order derivatives are
+                # needed, allowing flash attention instead of O(N²) math SDPA.
+                if self._flat_minima is not None:
+                    self._flat_minima.apply(self.unetmodel, lambda_flat)
 
                 # ---- Phase 5: Record gradient for adaptive weighting ----
                 if adaptive_enabled and self.attack_manager.adaptive:

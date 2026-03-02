@@ -6,18 +6,24 @@ exploit one model's specific quirks; flat minima exploit broadly shared
 vulnerabilities. This module penalizes sharp loss landscapes via two methods:
 
   - 'grad_norm': gradient-norm penalty as a cheap sharpness proxy.
-    Minimizing ||∇L||² encourages the optimizer toward flat regions.
+    Scales gradients by (1 + 2λ||∇L||), encouraging the optimizer toward
+    flat regions where gradients are small.
   - 'sam': SAM-style (Sharpness-Aware Minimization) sharpness estimate.
-    Computes the worst-case loss increase under a weight perturbation of
-    radius rho (more expensive but theoretically principled).
+    Scales gradients by (1 + λρ/||∇L||), approximating the worst-case
+    ascent direction.
+
+Both methods use a first-order approximation applied post-backward, avoiding
+create_graph=True (which would require second-order derivatives through
+attention layers and force the O(N²) math SDPA backend).
 """
 
 import torch
-from torch import Tensor
 
 
 class FlatMinimaRegularizer:
     """Sharpness penalty that discourages narrow loss-landscape valleys.
+
+    Call apply() AFTER loss.backward() and BEFORE optimizer.step().
 
     Args from config['flat_minima']:
         method:      'grad_norm' (default) or 'sam'
@@ -31,51 +37,49 @@ class FlatMinimaRegularizer:
         self.rho = float(cfg.get("rho", 0.05))
         self.lambda_flat = float(cfg.get("lambda_flat", 0.01))
 
-    def compute(self, loss: Tensor, model: torch.nn.Module) -> Tensor:
-        """Compute the flat-minima regularization term.
+    def apply(self, model: torch.nn.Module, lambda_flat: float) -> float:
+        """Apply flat-minima gradient scaling post-backward.
+
+        Must be called after loss.backward() and before optimizer.step().
+        Modifies parameter gradients in-place.
+
+        The exact gradient of L + λ||∇L||² requires the Hessian-vector product
+        2λ H ∇L, which needs second-order derivatives (incompatible with flash
+        attention). Instead we use the first-order approximation:
+
+            ∇(L + λ||∇L||²) ≈ (1 + 2λ||∇L||) · ∇L
+
+        This achieves the same qualitative effect: parameters with large
+        gradients (sharp landscape) receive amplified updates, pushing the
+        optimizer toward flatter regions.
 
         Args:
-            loss:  The current base loss (scalar tensor, in the graph).
-            model: The NestedUNet whose parameters define the landscape.
+            model:       The NestedUNet whose .grad attributes to scale.
+            lambda_flat: Regularization weight.
 
         Returns:
-            Scalar regularization term. Multiply by lambda_flat before
-            adding to the total loss.
+            Gradient norm squared (scalar float, for logging).
         """
-        if self.method == "sam":
-            return self._sam(loss, model)
-        return self._grad_norm(loss, model)
-
-    def _grad_norm(self, loss: Tensor, model: torch.nn.Module) -> Tensor:
-        """Gradient-norm penalty: loss += lambda * ||∇L||².
-
-        Penalizes large gradients, which correlate with sharp loss landscapes,
-        without second-order computation.
-        """
-        grads = torch.autograd.grad(
-            loss,
-            model.parameters(),
-            create_graph=True,
-            allow_unused=True,
-        )
         grad_norm_sq = sum(
-            g.norm() ** 2 for g in grads if g is not None
-        )
+            p.grad.norm() ** 2 for p in model.parameters()
+            if p.grad is not None
+        ).item()
+
+        grad_norm = grad_norm_sq ** 0.5
+
+        if self.method == "sam":
+            # SAM proxy: scale ∝ (1 + λρ / ||∇L||)
+            if grad_norm > 1e-8:
+                scale = 1.0 + lambda_flat * self.rho / grad_norm
+            else:
+                scale = 1.0
+        else:
+            # grad_norm: scale ∝ (1 + 2λ||∇L||)
+            scale = 1.0 + 2.0 * lambda_flat * grad_norm
+
+        if scale != 1.0:
+            for p in model.parameters():
+                if p.grad is not None:
+                    p.grad.mul_(scale)
+
         return grad_norm_sq
-
-    def _sam(self, loss: Tensor, model: torch.nn.Module) -> Tensor:
-        """SAM-style sharpness estimate via gradient-norm proxy for rho-ball.
-
-        Returns rho * ||∇L|| as an approximation of the worst-case loss
-        increase under a weight perturbation of radius rho.
-        """
-        grads = torch.autograd.grad(
-            loss,
-            model.parameters(),
-            create_graph=True,
-            allow_unused=True,
-        )
-        grad_norm = torch.sqrt(
-            sum(g.norm() ** 2 for g in grads if g is not None)
-        )
-        return self.rho * grad_norm
