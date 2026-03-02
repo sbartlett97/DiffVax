@@ -65,9 +65,10 @@ class AttackModelManager:
                 f"probability keys {set(probabilities.keys())}"
             )
 
-        # Load all models to GPU upfront
-        for model in models.values():
-            model.to_device("cuda")
+        # Models are loaded on demand in select_and_load() to avoid holding
+        # multiple large models (SD3 T5-XXL, FLUX Qwen3, etc.) in GPU memory
+        # simultaneously.  Only the currently-selected model is resident on GPU.
+        self._current_gpu_model: Optional[str] = None
 
         # Adaptive weighting state
         # gradient_history: name → latest flattened gradient vector (detached)
@@ -76,7 +77,12 @@ class AttackModelManager:
         }
 
     def select_and_load(self) -> Tuple[str, BaseAttack]:
-        """Randomly select a model by the current (possibly adaptive) weights.
+        """Randomly select a model and ensure it is on GPU.
+
+        Only the selected model is kept on GPU at any time.  If the selection
+        changes, the previous model is moved back to CPU first so that the two
+        large text-encoder stacks (T5-XXL for SD3, Qwen3 for FLUX) are never
+        resident in VRAM simultaneously.
 
         Returns:
             Tuple of (model_name, attack_model).
@@ -84,6 +90,16 @@ class AttackModelManager:
         names = list(self.probabilities.keys())
         weights = [self.probabilities[n] for n in names]
         selected_name = random.choices(names, weights=weights, k=1)[0]
+
+        if selected_name != self._current_gpu_model:
+            # Offload the model that was previously on GPU
+            if self._current_gpu_model is not None:
+                self.models[self._current_gpu_model].to_cpu()
+                torch.cuda.empty_cache()
+            # Load the newly selected model to GPU
+            self.models[selected_name].to_device("cuda")
+            self._current_gpu_model = selected_name
+
         return selected_name, self.models[selected_name]
 
     # ------------------------------------------------------------------

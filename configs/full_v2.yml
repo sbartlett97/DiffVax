@@ -8,31 +8,35 @@
 #
 # Use when:
 #   - Maximum protection across the widest range of target architectures
-#   - 48+ GB GPU (A6000, A40, H100, or dual-GPU if using model offloading)
+#   - 24+ GB GPU for typical case; 40 GB recommended for SD3.5 peak
 #   - All three model families are accessible (SD, SD3.5, FLUX)
 #
-# Estimated VRAM — all weights loaded simultaneously (AttackModelManager).
+# Estimated VRAM — on-demand loading (AttackModelManager swaps models).
+# Only one attack surrogate is resident on GPU at any time; non-active
+# models are offloaded to CPU between iterations.
 # Reference case: batch_size=1, 1088×1088 input, 4 denoising steps with
 # gradient flow through all layers of the active surrogate.
 #
-#   Static weights (always resident):
-#     NestedUNet (fp32):        ~0.04 GB
-#     SD 1.5 inpainting fp16:  ~3.5 GB
-#     SD3.5 Medium fp16:       ~10 GB
-#     FLUX.2 Klein fp16:        ~8 GB
-#     CLIP ViT-B/32:            ~0.4 GB
-#     Total weights:           ~22 GB
+#   Always-resident weights:
+#     NestedUNet (fp32):    ~0.04 GB
+#     CLIP ViT-B/32:         ~0.4 GB
 #
-#   Activation memory (only active surrogate; worst case per-surrogate):
-#     SD 1.5 active  (512px via downsample, 4 steps):   ~3–4 GB
-#     FLUX.2 active  (1088px, 4 denoising steps, grad): ~8–12 GB
-#     SD3.5 active   (1088px, 4 denoising steps, grad): ~12–16 GB
-#       18,496-token joint attention sequence drives SD3 cost
-#     NestedUNet activations (1088px):                  ~1 GB
+#   Per-surrogate GPU footprint when active (weights + activations):
+#     SD 1.5 inpainting fp16 weights:           ~3.5 GB
+#       + activations (512px, 4 steps, grad):   ~3–4 GB
+#       Total SD 1.5:                           ~7–8 GB
+#     FLUX.2 Klein fp16 weights:                ~8 GB
+#       + activations (1088px, 4 steps, grad):  ~8–12 GB
+#       Total FLUX.2:                           ~16–20 GB
+#     SD3.5 Medium fp16 weights:                ~10 GB
+#       + activations (1088px, 4 steps, grad):  ~12–16 GB
+#         (18,496-token joint attention drives SD3 cost)
+#       Total SD3.5:                            ~22–26 GB
 #
-#   Minimum VRAM (SD 1.5 active):    22 + 4 + 1 ≈ 27 GB
-#   Typical VRAM (FLUX.2 active):    22 + 10 + 1 ≈ 33–35 GB
-#   Peak VRAM    (SD3.5 active):     22 + 14 + 1 ≈ 37–39 GB
+#   Peak VRAM per configuration:
+#     SD 1.5 active:    0.44 + 8   ≈ 9–10 GB    (24 GB GPU: feasible)
+#     FLUX.2 active:    0.44 + 20  ≈ 20–22 GB   (24 GB GPU: feasible)
+#     SD3.5 active:     0.44 + 26  ≈ 26–28 GB   (40 GB GPU: recommended)
 #
 # New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
 #

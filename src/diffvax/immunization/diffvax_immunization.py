@@ -202,6 +202,16 @@ class DiffVaxImmunization:
         if strength_range is None:
             strength_range = [0.5, 1.0]
         set_seed_lib(SEED)
+
+        # Disable memory-efficient SDPA (no backward pass) and prefer Flash
+        # Attention instead.  SD3 and FLUX transformers hit
+        # "derivative for aten::_scaled_dot_product_efficient_attention_backward
+        # is not implemented" without this.  Flash Attention supports backward;
+        # math fallback is kept as a safety net for GPUs without FA support.
+        if torch.cuda.is_available():
+            torch.backends.cuda.enable_mem_efficient_sdp(False)
+            torch.backends.cuda.enable_flash_sdp(True)
+
         total_iter = 0
 
         models_dir = os.path.join(self.output_dir, "models")

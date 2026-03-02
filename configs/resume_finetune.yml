@@ -17,15 +17,20 @@
 #     (e.g., fine-tune towards SD3.5 before deploying to that platform)
 #   - Testing EoT or flat-minima changes without retraining from scratch
 #
-# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
-# with gradient flow (SD 1.5 + FLUX.2 Klein loaded simultaneously):
-#   NestedUNet (fp32, 1088px):                    ~1 GB
-#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
-#   FLUX.2 Klein weights (fp16):                  ~8 GB
-#   FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB  ← dominant cost
-#   SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
-#   Minimum total:                                ~24–29 GB
-# Recommended hardware: A6000 (48 GB) or H100 (80 GB)
+# Estimated VRAM — on-demand loading; only one surrogate on GPU at a time.
+# Reference: batch_size=1, 1088×1088 input, 4 denoising steps, full grad flow.
+#   Always-resident:
+#     NestedUNet (fp32, 1088px activations):        ~1 GB
+#   SD 1.5 active (weights + activations):
+#     SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#     SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
+#     Total SD 1.5 peak:                            ~8–9 GB
+#   FLUX.2 active (weights + activations):
+#     FLUX.2 Klein weights (fp16):                  ~8 GB
+#     FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB
+#     Total FLUX.2 peak:                            ~17–21 GB   ← dominant
+#   Peak VRAM (FLUX.2 active):                      ~18–22 GB
+# Recommended hardware: RTX 3090/4090 (24 GB) or larger
 
 # -- Core Training --
 # Short fine-tune: 150 epochs over the full dataset at 1024px

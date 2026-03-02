@@ -6,7 +6,7 @@
 #
 # Use when:
 #   - Protecting against both SD 1.x class and FLUX-class models
-#   - 24 GB GPU available (RTX 4090, A5000, or larger)
+#   - 20 GB GPU available (RTX 3090 / 4090, A5000, or larger)
 #   - SD3 weights are not accessible or download cost is prohibitive
 #
 # Key improvements over eot_clip.yml:
@@ -16,15 +16,20 @@
 #   Adaptive ensemble (Phase 5) dynamically up-weights whichever surrogate
 #   is contributing more unique gradient signal each batch.
 #
-# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
-# with gradient flow through all active model layers:
-#   NestedUNet (fp32, 1088px):                    ~1 GB
-#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
-#   FLUX.2 Klein weights (fp16):                  ~8 GB
-#   CLIP ViT-B/32:                                ~0.4 GB
-#   FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB  ← worst case
-#   SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
-#   Minimum total (FLUX active at 1088px):        ~22–26 GB
+# Estimated VRAM — on-demand loading; only one surrogate on GPU at a time.
+# Reference: batch_size=1, 1088×1088 input, 4 denoising steps, full grad flow.
+#   Always-resident:
+#     NestedUNet (fp32, 1088px activations):        ~1 GB
+#     CLIP ViT-B/32:                                ~0.4 GB
+#   SD 1.5 active (weights + activations):
+#     SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#     SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
+#     Total SD 1.5 peak:                            ~8–9 GB
+#   FLUX.2 active (weights + activations):
+#     FLUX.2 Klein weights (fp16):                  ~8 GB
+#     FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB
+#     Total FLUX.2 peak:                            ~17–21 GB   ← dominant
+#   Peak VRAM (FLUX.2 active):                      ~18–22 GB
 # New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
 # Expected protection rate vs SD 1.5:  >75%
 # Expected protection rate vs FLUX.1:  >55% (vs ~25% SD-only baseline)
