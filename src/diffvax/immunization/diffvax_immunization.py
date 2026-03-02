@@ -466,7 +466,7 @@ class DiffVaxImmunization:
 
                 # Existing losses (unchanged)
                 loss1 = (
-                    ((img_out - target_image_t) * loss1_weight_norm).norm(p=2)
+                    ((img_out - target_image_t) * loss1_weight_norm).norm(p=1)
                     / loss1_weight_norm.sum()
                 )
                 loss2 = (
