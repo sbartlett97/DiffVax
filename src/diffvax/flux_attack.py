@@ -84,6 +84,19 @@ class FluxAttack(BaseAttack):
     def loss_uses_mask_weighting(self) -> bool:
         return False
 
+    @property
+    def is_inpainting(self) -> bool:
+        # FLUX is a full-image img2img model; no mask is used.
+        return False
+
+    @property
+    def vae_channels(self) -> int:
+        return 16
+
+    @property
+    def native_resolution(self) -> int:
+        return 1024
+
     # ------------------------------------------------------------------
     # Internal helpers — matching pipeline_flux2_klein.py
     # ------------------------------------------------------------------
@@ -160,7 +173,7 @@ class FluxAttack(BaseAttack):
         self,
         prompt: Union[str, List[str]],
         image: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        mask: torch.FloatTensor = None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 4,

@@ -15,3 +15,6 @@ matplotlib
 optimum
 optimum-quanto
 bitsandbytes
+# DiffVax v2 additions
+DiffJPEG>=1.0             # Phase 1: differentiable JPEG for EoT augmentation
+open-clip-torch>=2.20.0   # Phase 2: CLIP-based architecture-agnostic loss

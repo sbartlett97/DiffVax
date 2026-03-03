@@ -1,0 +1,122 @@
+# =======================================================
+# DiffVax v2 — SD3 / SD3.5 Single Surrogate (16-ch VAE)
+# =======================================================
+# Trains exclusively against the SD3.5 MM-DiT architecture.
+# Useful for diagnosing SD3-specific protection behaviour in isolation
+# before combining with SD 1.5 in a multi-surrogate run.
+#
+# Use when:
+#   - Ablating the SD3 surrogate contribution independent of SD 1.5
+#   - Building a checkpoint specialised for SD3/SD3.5 deployments
+#   - Debugging SD3 gradient flow or loss landscape issues
+#
+# Note: A checkpoint trained solely against SD3 will have reduced
+# protection against SD 1.5 (different VAE family). For deployment,
+# use dual_surrogate.yml or full_v2.yml instead.
+#
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all MM-DiT layers:
+#   NestedUNet (fp32, 1088px):                    ~1 GB
+#   SD3.5 Medium weights (fp16):                  ~10 GB
+#   CLIP ViT-B/32:                                ~0.4 GB
+#   SD3.5 activations (1088px, 4 steps, grad):    ~12–16 GB
+#     (18,496-token joint attention sequence is the primary cost)
+#   Minimum total:                                ~24–28 GB
+
+# -- Core Training --
+iter_num: 1000000
+learning_rate: 0.00001
+batch_size: 3    # SD3.5 is larger than SD 1.5; reduce batch size accordingly
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-sd3"
+
+# -- Resolution --
+# SD3 operates natively at 1024; training can start at 512 and scale up.
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD3.5 only --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.0    # SD 1.5 disabled
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 1.0
+
+flux_model_link: null
+flux_probability: 0.0
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.5, 2.0]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: true
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Curriculum disabled (single surrogate; start simple) --
+curriculum:
+  enabled: false
+
+# -- Phase 5: Adaptive ensemble disabled (single model) --
+adaptive_ensemble:
+  enabled: false
+
+# -- Phase 6: Flat-Minima Regularization --
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.01
+
+# -- Phase 7: Cross-Attention Disruption Loss --
+# SD3 uses MM-DiT so this is always active (only_with_dit: true is a no-op
+# here since SD3 is the only surrogate, but kept for consistency).
+attention_loss:
+  enabled: true
+  target_blocks: "early"
+  num_hooks: 4
+  weight: 0.3
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

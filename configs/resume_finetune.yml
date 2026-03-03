@@ -1,0 +1,136 @@
+# =======================================================
+# DiffVax v2 — Resume / Fine-Tune from Checkpoint
+# =======================================================
+# Fine-tunes an existing checkpoint at 1024px with FLUX + SD3 surrogates.
+# Intended as a second training stage after an initial 512px run.
+#
+# Typical workflow:
+#   Stage 1: python scripts/train.py --config configs/full_v2.yml
+#   Stage 2: python scripts/train.py --config configs/resume_finetune.yml \
+#              --checkpoint outputs/models/1/..._final.pth
+#
+# The --checkpoint CLI flag overrides load_path in this file.
+#
+# Use when:
+#   - You have a 512px checkpoint and want to extend it to 1024px
+#   - Adapting a general-purpose checkpoint to a specific model family
+#     (e.g., fine-tune towards SD3.5 before deploying to that platform)
+#   - Testing EoT or flat-minima changes without retraining from scratch
+#
+# Estimated VRAM — on-demand loading; only one surrogate on GPU at a time.
+# Reference: batch_size=1, 1088×1088 input, 4 denoising steps, full grad flow.
+#   Always-resident:
+#     NestedUNet (fp32, 1088px activations):        ~1 GB
+#   SD 1.5 active (weights + activations):
+#     SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#     SD 1.5 activations (512px, 4 steps, grad):    ~3–4 GB
+#     Total SD 1.5 peak:                            ~8–9 GB
+#   FLUX.2 active (weights + activations):
+#     FLUX.2 Klein weights (fp16):                  ~8 GB
+#     FLUX.2 activations (1088px, 4 steps, grad):   ~8–12 GB
+#     Total FLUX.2 peak:                            ~17–21 GB   ← dominant
+#   Peak VRAM (FLUX.2 active):                      ~18–22 GB
+# Recommended hardware: RTX 3090/4090 (24 GB) or larger
+
+# -- Core Training --
+# Short fine-tune: 150 epochs over the full dataset at 1024px
+iter_num: 150
+learning_rate: 0.000005    # Lower LR for fine-tuning
+batch_size: 2              # 1024px requires reduced batch size
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-finetune-1024"
+
+# -- Resolution: fixed at 1024 for this stage --
+resolution: 1024
+sd_target_resolutions: [512, 1024]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 + FLUX (SD3 optional) --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.5
+
+sd3_model_link: null      # Set to model path to include SD3
+sd3_probability: 0.0
+
+flux_model_link: "black-forest-labs/FLUX.2-klein"
+flux_probability: 0.5
+
+# -- Phase 1: EoT Augmentation --
+# Slightly tighter ranges for fine-tuning stability
+eot:
+  enabled: true
+  jpeg_quality_range: [80, 95]
+  resize_range: [0.75, 1.5]
+  blur_sigma_range: [0.0, 1.0]
+  noise_std_range: [0.0, 0.02]
+  p_jpeg: 0.7
+  p_resize: 0.4
+  p_blur: 0.2
+  p_noise: 0.2
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: true
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Curriculum disabled — fixed at 1024 for the whole run --
+curriculum:
+  enabled: false
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+adaptive_ensemble:
+  enabled: true
+  update_period: 25    # More frequent updates for short fine-tune
+  min_weight: 0.2
+  smoothing: 0.85
+
+# -- Phase 6: Flat-Minima Regularization --
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.005    # Half the default — gentler for fine-tuning
+
+# -- Phase 7: Cross-Attention Disruption Loss --
+attention_loss:
+  enabled: true
+  target_blocks: "early"
+  num_hooks: 4
+  weight: 0.3
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+# -- Checkpoint to resume from --
+# Override via CLI: --checkpoint path/to/checkpoint.pth
+load_existing: true
+load_path: "outputs/models/1/sd15_all_images_DiffVaxImmunization_iter_1000000_alpha_4_loss_l2_batch_5_final.pth"
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

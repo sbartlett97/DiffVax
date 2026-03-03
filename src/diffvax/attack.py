@@ -47,7 +47,7 @@ class Attack(BaseAttack):
         self,
         prompt: Union[str, List[str]],
         image: Union[torch.FloatTensor, Image.Image],
-        mask: Union[torch.FloatTensor, Image.Image],
+        mask: Optional[Union[torch.FloatTensor, Image.Image]] = None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 50,
@@ -134,6 +134,18 @@ class Attack(BaseAttack):
     @property
     def loss_uses_mask_weighting(self) -> bool:
         return True
+
+    @property
+    def is_inpainting(self) -> bool:
+        return True
+
+    @property
+    def vae_channels(self) -> int:
+        return 4
+
+    @property
+    def native_resolution(self) -> int:
+        return 512
 
     def tokenize_prompt(
         self, diffusion_model, prompt, batch_size=1, tokenize_negative=False

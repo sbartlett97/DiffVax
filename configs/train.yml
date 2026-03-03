@@ -1,36 +1,140 @@
-# DiffVax training configuration
+# =======================================================
+# DiffVax v2 Training Configuration
+# =======================================================
+# All new v2 phase sections are opt-in via 'enabled: true/false'.
+# Setting all enabled flags to false reproduces identical v1 behaviour.
 
-# Training
+# -- Core Training --
 iter_num: 1000000
 learning_rate: 0.00001
 batch_size: 5
 alpha: 4
+beta: 0.5                # Weight for total CLIP loss in the final sum (Phase 2)
 
-# Model
+# -- Model --
 immunization_model: "diffvax"
 train_all: true
-project_name: "diffvax"
+project_name: "diffvax-v2"
 
-# Resolution (512 or 1024)
+# -- Resolution (base; overridden by curriculum when enabled) --
 resolution: 512
 
-# Attack model (Stable Diffusion Inpainting)
+# -- Attack Model: Stable Diffusion Inpainting --
 attack_model_link: "runwayml/stable-diffusion-inpainting"
-sd_probability: 0
+sd_probability: 0.4
 
-# FLUX attack model (null = disabled)
+# -- Attack Model: SD3 / SD3.5 (Phase 3) --
+# Set sd3_model_link to null to disable SD3 surrogate.
+sd3_model_link: null
+# sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 0.0
+
+# -- Attack Model: FLUX.2 Klein --
+# Set flux_model_link to null to disable FLUX surrogate.
 flux_model_link: null
+# flux_model_link: "black-forest-labs/FLUX.2-klein"
 flux_probability: 0.0
 
-# Dataset paths (relative to data_dir)
+# When all three models are enabled, probabilities must sum to 1.0:
+#   sd_probability: 0.4
+#   sd3_probability: 0.35
+#   flux_probability: 0.25
+
+# Multi-resolution SD attack targets (differentiable downscale from native)
+sd_target_resolutions: [512]
+
+# Denoising strength range — sampled per batch
+strength_range: [0.5, 1.0]
+
+# -- Phase 1: Expectation over Transformations (EoT) --
+eot:
+  enabled: false
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.5, 2.0]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: false
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Multi-Resolution Curriculum --
+curriculum:
+  enabled: false
+  resolution_jitter: 0.0
+  stages:
+    - resolution: 512
+      until_epoch: 500000
+      batch_size: 5
+    - resolution: 768
+      until_epoch: 750000
+      batch_size: 3
+    - resolution: 1024
+      until_epoch: 1000000
+      batch_size: 2
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+adaptive_ensemble:
+  enabled: false
+  update_period: 50
+  min_weight: 0.1
+  smoothing: 0.9
+
+# -- Phase 6: Flat-Minima Regularization --
+flat_minima:
+  enabled: false
+  method: "grad_norm"     # or "sam"
+  rho: 0.05               # SAM perturbation radius (only used when method: "sam")
+  lambda_flat: 0.01       # Weight in total loss
+
+# -- Phase 7: Cross-Attention Disruption Loss --
+attention_loss:
+  enabled: false
+  target_blocks: "early"  # or "late" or list of block indices [0, 1, 2, 3]
+  num_hooks: 4
+  weight: 0.3
+  only_with_dit: true     # Skip when SD1.5 is the selected surrogate
+
+# -- Dataset paths (relative to data_dir) --
 images_subdir: "train/images"
 masks_subdir: "train/masks"
 image_prompt_json: "image_prompt_pairs_with_validation.json"
 
-# Optional: train on specific image indices only
+# -- Optional: train on specific image indices only --
 # image_index_list: [0]
 
-# Resume from an existing perturbation net checkpoint
+# -- Resume from an existing perturbation net checkpoint --
 # Can also be set via CLI: --checkpoint path/to/model.pth
 load_existing: false
 # load_path: "outputs/models/1/sd15_all_images_DiffVaxImmunization_iter_1000000_alpha_4_loss_l2_batch_5_final.pth"
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4      # CPU workers prefetching batches; 0 = main process only
+  prefetch_factor: 4  # Batches preloaded per worker (ignored when num_workers=0)
+
+# -- HuggingFace Hub Checkpointing --
+# Requires a HF write token: set 'token' here or export HF_TOKEN in your shell.
+# push_to_hub() uploads model weights + config.json to a private/public repo.
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true              # Create/use a private repository
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000  # Periodic upload interval (on top of best-model uploads)
+
+# -- Training Reporter --
+# Writes a JSON event log to <output_dir>/training_log.json every epoch.
+# Optional webhook fires on new best-model checkpoints and training completion.
+# Compatible with Discord incoming webhooks and generic HTTP POST endpoints.
+reporting:
+  webhook_url: null           # e.g. "https://discord.com/api/webhooks/..."
+  checkpoint_every_n_epochs: 10000  # Local .pth save interval

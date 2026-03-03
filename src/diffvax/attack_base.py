@@ -1,7 +1,7 @@
 """Abstract base class for differentiable attack models."""
 
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import Union, List, Optional
 
 import torch
 from torch import Tensor
@@ -16,7 +16,7 @@ class BaseAttack(ABC):
         self,
         prompt: Union[str, List[str]],
         image: Union[torch.FloatTensor, Image.Image],
-        mask: Union[torch.FloatTensor, Image.Image],
+        mask: Optional[Union[torch.FloatTensor, Image.Image]] = None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 4,
@@ -28,7 +28,8 @@ class BaseAttack(ABC):
         Args:
             prompt: Text prompt(s) for the attack.
             image: Input image tensor (adversarially perturbed).
-            mask: Binary mask tensor.
+            mask: Binary mask tensor. Required for inpainting models; None
+                for img2img / full-image models which do not use a mask.
             height: Output height.
             width: Output width.
             num_inference_steps: Number of diffusion steps.
@@ -55,3 +56,34 @@ class BaseAttack(ABC):
     def loss_uses_mask_weighting(self) -> bool:
         """Whether loss should be weighted by mask (True) or computed over full image (False)."""
         ...
+
+    @property
+    def vae_channels(self) -> int:
+        """Number of latent channels (4 for SD1.x, 16 for SD3/FLUX).
+
+        Override in subclasses that use a non-standard VAE.
+        Default returns 4 for backward compatibility with SD 1.5 subclasses.
+        """
+        return 4
+
+    @property
+    def native_resolution(self) -> int:
+        """Preferred training resolution for this model (width == height).
+
+        The training loop uses this to decide whether to differentiably
+        resize the input before passing it to the attack forward pass.
+        Default returns 512 for backward compatibility with SD 1.5 subclasses.
+        """
+        return 512
+
+    @property
+    def is_inpainting(self) -> bool:
+        """Whether this model is a mask-conditioned inpainting model.
+
+        Inpainting models (e.g. SD 1.5 inpaint) expect the masked image and
+        the raw mask as separate inputs, and the loss is weighted by the mask
+        region. Full-image img2img models (SD3, FLUX) receive no mask.
+
+        Default returns False. Override to True in inpainting subclasses.
+        """
+        return False

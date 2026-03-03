@@ -1,0 +1,167 @@
+# =======================================================
+# DiffVax v2 — Full Triple-Surrogate Configuration
+# =======================================================
+# All seven phases enabled. SD 1.5 (4-ch VAE), SD3.5 (16-ch VAE, MM-DiT),
+# and FLUX.2 Klein (16-ch VAE, single-stream transformer) trained jointly
+# with EoT augmentation, CLIP loss, multi-resolution curriculum, adaptive
+# ensemble weighting, flat-minima regularization, and attention disruption.
+#
+# Use when:
+#   - Maximum protection across the widest range of target architectures
+#   - 24+ GB GPU for typical case; 40 GB recommended for SD3.5 peak
+#   - All three model families are accessible (SD, SD3.5, FLUX)
+#
+# Estimated VRAM — on-demand loading (AttackModelManager swaps models).
+# Only one attack surrogate is resident on GPU at any time; non-active
+# models are offloaded to CPU between iterations.
+# Reference case: batch_size=1, 1088×1088 input, 4 denoising steps with
+# gradient flow through all layers of the active surrogate.
+#
+#   Always-resident weights:
+#     NestedUNet (fp32):    ~0.04 GB
+#     CLIP ViT-B/32:         ~0.4 GB
+#
+#   Per-surrogate GPU footprint when active (weights + activations):
+#     SD 1.5 inpainting fp16 weights:           ~3.5 GB
+#       + activations (512px, 4 steps, grad):   ~3–4 GB
+#       Total SD 1.5:                           ~7–8 GB
+#     FLUX.2 Klein fp16 weights:                ~8 GB
+#       + activations (1088px, 4 steps, grad):  ~8–12 GB
+#       Total FLUX.2:                           ~16–20 GB
+#     SD3.5 Medium fp16 weights:                ~10 GB
+#       + activations (1088px, 4 steps, grad):  ~12–16 GB
+#         (18,496-token joint attention drives SD3 cost)
+#       Total SD3.5:                            ~22–26 GB
+#
+#   Peak VRAM per configuration:
+#     SD 1.5 active:    0.44 + 8   ≈ 9–10 GB    (24 GB GPU: feasible)
+#     FLUX.2 active:    0.44 + 20  ≈ 20–22 GB   (24 GB GPU: feasible)
+#     SD3.5 active:     0.44 + 26  ≈ 26–28 GB   (40 GB GPU: recommended)
+#
+# New dependencies: DiffJPEG>=1.0, open-clip-torch>=2.20.0
+#
+# Target protection rates (after full training):
+#   SD 1.5 Inpainting:  >75%
+#   SDXL Inpainting:    >65%
+#   SD3.5 Medium:       >65%
+#   FLUX.1 Dev:         >60%
+#   FLUX.2 Klein:       >65%
+
+# -- Core Training --
+iter_num: 1000000
+learning_rate: 0.00001
+batch_size: 5    # Overridden by curriculum stages at higher resolutions
+alpha: 4
+beta: 0.5        # CLIP loss weight
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-full"
+
+# -- Base resolution (overridden by curriculum) --
+resolution: 512
+sd_target_resolutions: [512, 1024]    # SD downscale targets used during high-res stages
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 + SD3.5 + FLUX --
+# Probabilities must sum to 1.0
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.40
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 0.35
+
+flux_model_link: "black-forest-labs/FLUX.2-klein"
+flux_probability: 0.25
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.5, 2.0]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- Phase 2: CLIP Disruption Loss --
+clip_loss:
+  enabled: true
+  model: "ViT-B/32"
+  pretrained: "laion2b_s34b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Multi-Resolution Curriculum --
+# Gradually increases from 512 → 768 → 1024 → 1088 over 1M iterations.
+# Batch size decreases at each stage to fit larger activations in VRAM.
+# The 1088px final stage (batch_size=1) is the minimum reference configuration
+# for VRAM planning: all VRAM estimates above are computed at this setting.
+curriculum:
+  enabled: true
+  resolution_jitter: 0.0
+  stages:
+    - resolution: 512
+      until_epoch: 500000
+      batch_size: 5
+    - resolution: 768
+      until_epoch: 700000
+      batch_size: 3
+    - resolution: 1024
+      until_epoch: 900000
+      batch_size: 2
+    - resolution: 1088
+      until_epoch: 1000000
+      batch_size: 1
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+adaptive_ensemble:
+  enabled: true
+  update_period: 50
+  min_weight: 0.10    # No surrogate drops below 10%
+  smoothing: 0.9
+
+# -- Phase 6: Flat-Minima Regularization --
+# grad_norm is recommended over sam for stability; sam adds ~20% compute cost.
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.01
+
+# -- Phase 7: Cross-Attention Disruption Loss --
+# Activates only when SD3 or FLUX is the selected surrogate.
+attention_loss:
+  enabled: true
+  target_blocks: "early"
+  num_hooks: 4
+  weight: 0.3
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null           # Discord/Slack/generic HTTP POST webhook
+  checkpoint_every_n_epochs: 10000

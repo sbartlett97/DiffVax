@@ -1,0 +1,89 @@
+# =======================================================
+# DiffVax v2 — SD 1.5 Baseline (v1-compatible)
+# =======================================================
+# Single SD 1.5 inpainting surrogate. No v2 phases enabled.
+# Reproduces the original v1 training behaviour exactly.
+#
+# Use when:
+#   - Validating that v2 code changes don't regress v1 protection rates
+#   - Quick iteration with minimal VRAM and dependency requirements
+#   - The target deployment only uses SD 1.x class models
+#
+# Estimated VRAM — reference: batch_size=1, 1088×1088 input, 4 denoising steps
+# with gradient flow through all active model layers:
+#   NestedUNet (fp32, 1088px input):              ~1 GB
+#   SD 1.5 inpainting weights (fp16):             ~3.5 GB
+#   SD 1.5 activations (512px via downsample,     ~3–4 GB
+#     4 denoising steps, full gradient flow):
+#   Minimum total:                                ~8–9 GB
+# New dependencies: none
+# Expected protection rate vs SD 1.5: 75–85%
+
+# -- Core Training --
+iter_num: 1000000
+learning_rate: 0.00001
+batch_size: 5
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v2-baseline"
+
+# -- Resolution --
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 only --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 1.0
+sd3_model_link: null
+sd3_probability: 0.0
+flux_model_link: null
+flux_probability: 0.0
+
+# -- All v2 phases disabled --
+eot:
+  enabled: false
+
+clip_loss:
+  enabled: false
+
+curriculum:
+  enabled: false
+
+adaptive_ensemble:
+  enabled: false
+
+flat_minima:
+  enabled: false
+
+attention_loss:
+  enabled: false
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null              # e.g. "username/diffvax-immunization-v2"
+  private: true
+  token: null                # HF write token (or set HF_TOKEN env var)
+  upload_every_n_epochs: 10000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null           # Discord/Slack/generic HTTP POST webhook
+  checkpoint_every_n_epochs: 10000
