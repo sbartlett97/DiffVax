@@ -1,13 +1,15 @@
 # =======================================================
-# DiffVax v2 — Full Triple-Surrogate Configuration
+# DiffVax v2 — DiT Fine-Tune Configuration (FLUX + SD3 only)
 # =======================================================
-# All seven phases enabled. SD 1.5 (4-ch VAE), SD3.5 (16-ch VAE, MM-DiT),
-# and FLUX.2 Klein (16-ch VAE, single-stream transformer) trained jointly
-# with EoT augmentation, CLIP loss, multi-resolution curriculum, adaptive
-# ensemble weighting, flat-minima regularization, and attention disruption.
+# Fine-tuning config targeting FLUX.2 Klein and SD3.5 Medium exclusively.
+# SD 1.5 is excluded (sd_probability: 0.00) to eliminate gradient conflict
+# between the 4-ch inpainting UNet and the 16-ch VAE transformer surrogates.
+# LR raised 3× from the base training value to drive loss1 down from the
+# ~1.6 plateau. Load an existing checkpoint before starting this run.
 #
 # Use when:
-#   - Maximum protection across the widest range of target architectures
+#   - Continuing from a base checkpoint where SD 1.5 is already well-disrupted
+#   - FLUX/SD3 loss1 has plateaued and SD 1.5's gradient is suspected dominant
 #   - 24+ GB GPU for typical case; 40 GB recommended for SD3.5 peak
 #   - All three model families are accessible (SD, SD3.5, FLUX)
 #
@@ -49,7 +51,7 @@
 
 # -- Core Training --
 iter_num: 1000000
-learning_rate: 0.00001
+learning_rate: 0.00003    # 3× base LR; safe given stable FLUX/SD3 gradients
 batch_size: 5    # Overridden by curriculum stages at higher resolutions
 alpha: 4
 beta: 0.5        # CLIP loss weight
@@ -57,23 +59,25 @@ beta: 0.5        # CLIP loss weight
 # -- Model --
 immunization_model: "diffvax"
 train_all: true
-project_name: "diffvax-v2-full"
+project_name: "diffvax-v2-dit-finetune"
 
 # -- Base resolution (overridden by curriculum) --
 resolution: 512
 sd_target_resolutions: [512, 1024]    # SD downscale targets used during high-res stages
 strength_range: [0.5, 1.0]
 
-# -- Attack ensemble: SD 1.5 + SD3.5 + FLUX --
-# Probabilities must sum to 1.0
+# -- Attack ensemble: SD3.5 + FLUX only (SD 1.5 excluded) --
+# Probabilities must sum to 1.0.
+# SD 1.5 disabled (prob=0.00) to remove gradient conflict with 16-ch VAE models.
+# SD3/FLUX weights redistributed proportionally from base config (0.35/0.25 → 0.58/0.42).
 attack_model_link: "runwayml/stable-diffusion-inpainting"
-sd_probability: 0.40
+sd_probability: 0.00    # Excluded — model will not be loaded
 
 sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
-sd3_probability: 0.35
+sd3_probability: 0.58
 
 flux_model_link: "black-forest-labs/FLUX.2-klein"
-flux_probability: 0.25
+flux_probability: 0.42
 
 # -- Phase 1: EoT Augmentation --
 eot:
