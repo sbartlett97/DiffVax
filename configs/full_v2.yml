@@ -93,7 +93,7 @@ eot:
 
 # -- Phase 2: CLIP Disruption Loss --
 clip_loss:
-  enabled: true
+  enabled: false   # Disabled: isolating loss1+loss2 to diagnose FLUX/SD3 edit-loss plateau
   model: "ViT-B/32"
   pretrained: "laion2b_s34b_b79k"
   feature_weight: 1.0
