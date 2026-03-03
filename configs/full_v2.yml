@@ -139,7 +139,7 @@ flat_minima:
 # -- Phase 7: Cross-Attention Disruption Loss --
 # Activates only when SD3 or FLUX is the selected surrogate.
 attention_loss:
-  enabled: true
+  enabled: false   # Disabled: entropy gradient (~2× loss1 magnitude) was suppressing edit-loss learning
   target_blocks: "early"
   num_hooks: 4
   weight: 0.3
