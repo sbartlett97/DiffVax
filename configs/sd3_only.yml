@@ -24,10 +24,10 @@
 #   Minimum total:                                ~24–28 GB
 
 # -- Core Training --
-iter_num: 1000000
-learning_rate: 0.00001
+iter_num: 100
+learning_rate: 0.00005
 batch_size: 3    # SD3.5 is larger than SD 1.5; reduce batch size accordingly
-alpha: 4
+alpha: 2
 beta: 0.5
 
 # -- Model --
@@ -37,12 +37,12 @@ project_name: "diffvax-v2-sd3"
 
 # -- Resolution --
 # SD3 operates natively at 1024; training can start at 512 and scale up.
-resolution: 512
-sd_target_resolutions: [512]
+resolution: 1088
+sd_target_resolutions: [1088]
 strength_range: [0.5, 1.0]
 
 # -- Attack ensemble: SD3.5 only --
-attack_model_link: "runwayml/stable-diffusion-inpainting"
+attack_model_link: null
 sd_probability: 0.0    # SD 1.5 disabled
 
 sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
@@ -65,7 +65,7 @@ eot:
 
 # -- Phase 2: CLIP Disruption Loss --
 clip_loss:
-  enabled: true
+  enabled: false
   model: "ViT-B/32"
   pretrained: "laion2b_s34b_b79k"
   feature_weight: 1.0
@@ -101,7 +101,7 @@ images_subdir: "train/images"
 masks_subdir: "train/masks"
 image_prompt_json: "image_prompt_pairs_with_validation.json"
 
-load_existing: false
+load_existing: true
 
 # -- DataLoader --
 dataloader:
@@ -110,13 +110,13 @@ dataloader:
 
 # -- HuggingFace Hub Checkpointing --
 hub:
-  enabled: false
+  enabled: true
   repo_id: null
   private: true
   token: null
-  upload_every_n_epochs: 10000
+  upload_every_n_epochs: 5
 
 # -- Training Reporter --
 reporting:
   webhook_url: null
-  checkpoint_every_n_epochs: 10000
+  checkpoint_every_n_epochs: 5
