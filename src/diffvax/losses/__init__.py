@@ -41,6 +41,15 @@ class LossComposer:
             beta = float(config.get("beta", 0.5))
             self._terms["clip"] = (CLIPDisruptionLoss(config), beta)
 
+        # H5: Spectral frequency-domain perturbation concentration loss
+        if config.get("spectral_loss", {}).get("enabled", False):
+            from diffvax.losses.spectral_loss import SpectralLoss
+
+            spectral_weight = float(
+                config.get("spectral_loss", {}).get("weight", 0.5)
+            )
+            self._terms["spectral"] = (SpectralLoss(config), spectral_weight)
+
     def has_terms(self) -> bool:
         """Return True if any optional loss terms are active."""
         return bool(self._terms)

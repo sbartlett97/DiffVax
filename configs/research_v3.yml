@@ -86,6 +86,15 @@ clip_loss:
   feature_weight: 1.0
   semantic_weight: 0.5
 
+# -- H5: Spectral frequency-domain perturbation concentration loss --
+# Penalises low-frequency (visible) energy in delta = img_adv - img_orig.
+# Basis: DDAP (arXiv:2407.20141), AdvAD (NeurIPS 2024).
+# Prediction: SSIM +0.02-0.05, PSNR +1-3 dB at same epsilon budget.
+spectral_loss:
+  enabled: true
+  low_freq_radius: 0.1    # penalise central 10% of normalised frequency space
+  weight: 0.5             # multiplier applied by LossComposer
+
 # -- Phase 4: Multi-Resolution Curriculum (abridged for research runs) --
 curriculum:
   enabled: true
