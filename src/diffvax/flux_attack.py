@@ -101,6 +101,10 @@ class FluxAttack(BaseAttack):
     def vae_channels(self) -> int:
         return 16
 
+    def get_vae(self):
+        """Return the 16-channel VAE for latent-space disruption loss."""
+        return self.pipe.vae
+
     @property
     def native_resolution(self) -> int:
         return 1024

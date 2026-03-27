@@ -135,6 +135,10 @@ class SD3Attack(BaseAttack):
         """SD3 uses a 16-channel VAE."""
         return 16
 
+    def get_vae(self):
+        """Return the 16-channel VAE for latent-space disruption loss."""
+        return self.pipe.vae
+
     @property
     def native_resolution(self) -> int:
         """SD3 operates natively at 1024×1024."""

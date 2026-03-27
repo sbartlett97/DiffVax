@@ -143,6 +143,10 @@ class Attack(BaseAttack):
     def vae_channels(self) -> int:
         return 4
 
+    def get_vae(self):
+        """Return the 4-channel VAE for latent-space disruption loss."""
+        return self.model.vae
+
     @property
     def native_resolution(self) -> int:
         return 512

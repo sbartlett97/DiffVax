@@ -91,6 +91,15 @@ clip_loss:
   feature_weight: 1.0
   semantic_weight: 0.5
 
+# -- H8: VAE latent-space disruption loss --
+# Maximises cosine distance between vae.encode(img_adv) and vae.encode(img_orig).
+# Basis: PhotoGuard encoder attack (Salman 2023) — latent-space attacks transfer better.
+# ~10x cheaper than full denoising pass; runs on every batch.
+# Prediction: +8-15% protection on SD3.5/FLUX vs no latent loss.
+latent_loss:
+  enabled: true
+  weight: 1.0
+
 # -- H5: Spectral frequency-domain perturbation concentration loss --
 # Penalises low-frequency (visible) energy in delta = img_adv - img_orig.
 # Basis: DDAP (arXiv:2407.20141), AdvAD (NeurIPS 2024).

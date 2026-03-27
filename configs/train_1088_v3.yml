@@ -73,6 +73,11 @@ clip_loss:
   feature_weight: 1.0
   semantic_weight: 0.5
 
+# -- H8: VAE latent-space disruption loss --
+latent_loss:
+  enabled: true
+  weight: 1.0
+
 # -- H5: Spectral frequency-domain perturbation concentration loss --
 spectral_loss:
   enabled: true

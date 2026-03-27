@@ -76,6 +76,19 @@ class BaseAttack(ABC):
         """
         return 512
 
+    def get_vae(self):
+        """Return the VAE encoder module for latent-space loss computation.
+
+        Returns None by default.  Subclasses that expose a VAE should override
+        to return the diffusers ``AutoencoderKL`` (or equivalent) module so
+        that the training loop can compute a latent-space disruption loss without
+        having to inspect the concrete attack class.
+
+        The returned module must be on the same device as the attack model
+        and must not require gradients (frozen weights).
+        """
+        return None
+
     @property
     def is_inpainting(self) -> bool:
         """Whether this model is a mask-conditioned inpainting model.

@@ -510,6 +510,33 @@ class DiffVaxImmunization:
                 else:
                     loss_extra = torch.tensor(0.0, device="cuda")
 
+                # ---- H8: VAE latent-space disruption loss ----
+                # Compute in latent space using the active attack model's VAE.
+                # VAE encode-only is ~10x cheaper than a full denoising pass —
+                # this can run on every batch regardless of which surrogate is active.
+                loss_latent = torch.tensor(0.0, device="cuda")
+                latent_loss_weight = float(
+                    self._config.get("latent_loss", {}).get("weight", 1.0)
+                )
+                if self._config.get("latent_loss", {}).get("enabled", False):
+                    _vae = attack_model.get_vae()
+                    if _vae is not None:
+                        _dtype = next(_vae.parameters()).dtype
+                        _orig_in = img_batch.to(dtype=_dtype)
+                        _adv_in  = img_adv.to(dtype=_dtype)
+                        with torch.no_grad():
+                            _lat_orig = _vae.encode(_orig_in).latent_dist.mode().detach()
+                        _lat_adv = _vae.encode(_adv_in).latent_dist.mode()
+                        # Maximise cosine distance between adversarial and original latents.
+                        # 1 - cosine_similarity → 0 means identical, 2 means opposite.
+                        _lat_orig_flat = _lat_orig.flatten(1)
+                        _lat_adv_flat  = _lat_adv.flatten(1)
+                        loss_latent = (
+                            1.0 - F.cosine_similarity(
+                                _lat_orig_flat, _lat_adv_flat, dim=1
+                            )
+                        ).mean()
+
                 # ---- Phase 7: Attention disruption loss ----
                 loss_attn = torch.tensor(0.0, device="cuda")
                 if attn_active:
@@ -520,11 +547,18 @@ class DiffVaxImmunization:
                     self._attention_loss.remove_hooks()
 
                 # Aggregate loss
-                loss = loss1 + loss2 + loss_extra + attn_weight * loss_attn
+                loss = (
+                    loss1
+                    + loss2
+                    + loss_extra
+                    + attn_weight * loss_attn
+                    + latent_loss_weight * loss_latent
+                )
 
                 # Log scalar values (after building the full computation graph)
                 loss1_val = loss1.item()
                 loss2_val = loss2.item()
+                loss_latent_val = loss_latent.item()
 
                 losses.append(loss.item())
                 losses1.append(loss1_val)
@@ -599,6 +633,7 @@ class DiffVaxImmunization:
                     f"Loss2: {np.mean(losses2):.5f}"
                     + (f" CLIP: {loss_clip_val:.5f}" if loss_clip_val else "")
                     + (f" Spec: {loss_spectral_val:.5f}" if loss_spectral_val else "")
+                    + (f" Lat: {loss_latent_val:.5f}" if loss_latent_val else "")
                 )
                 pbar.update(1)
 

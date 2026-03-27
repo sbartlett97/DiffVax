@@ -103,6 +103,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "attention_loss": config.get("attention_loss", {}),
         "noise_target": config.get("noise_target", {}),
         "spectral_loss": config.get("spectral_loss", {}),
+        "latent_loss": config.get("latent_loss", {}),
         "nb_filter": config.get("nb_filter"),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
