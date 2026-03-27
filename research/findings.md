@@ -1,7 +1,7 @@
 # DiffVax Research Findings
 
-**Last updated:** 2026-03-26
-**Status:** Bootstrap complete — hypotheses formed from literature survey
+**Last updated:** 2026-03-27
+**Status:** Inner loop cycle 2 complete — all 7 hypotheses implemented, awaiting training validation
 
 ---
 
@@ -101,13 +101,35 @@ Literature (Hönig et al. ICLR2025):
 
 ---
 
+## Implementation Status (as of 2026-03-27)
+
+All 7 research hypotheses implemented and config-gated. Awaiting training runs for
+quantitative validation. Key implementation decisions and surprises:
+
+| Hypothesis | Status | Key Implementation Note |
+|-----------|--------|------------------------|
+| H7 noise target | Implemented | `torch.randint(0,2,...)*2-1` in loss computation |
+| H1 middle-block attn | Implemented | Changed `target_blocks: "early"→"middle"` (was a bug in v2) |
+| H2 partial-timestep | Implemented | `gradient_timestep_fraction=0.5` — backprop only early steps |
+| H3 CLIP-H/14 | Implemented | Config change only: `model: ViT-B/32→ViT-H-14` |
+| H4 TGR hooks | Implemented | Backward hooks on DiT blocks, normalize per-token gradient |
+| H5 spectral loss | Implemented | `rfft2` low-freq penalty, `SpectralLoss` in `LossComposer` |
+| H6 larger model | Implemented | `nb_filter` param in `NestedUNet`; actual params 9M→37M (not 7M) |
+
+**Surprise**: NestedUNet++ actual parameter count is ~9M (not ~1.8M as estimated).
+Dense skip connections at each resolution create many more connections than a plain
+U-Net. The larger variant is ~37M parameters. Both are still negligible VRAM vs
+attack surrogates.
+
 ## Experiment Trajectory
 
-*(Populated as experiments run)*
+*(Quantitative results pending first training run)*
 
 | Run | Hypothesis | Key Change | Proxy Metric | Δ vs Baseline |
 |-----|-----------|------------|--------------|---------------|
-| — | — | Baseline TBD | — | — |
+| bundle-01 | H1+H2+H4+H7 | noise target, middle-attn, TGR, partial-timestep | loss1, loss_attn | pending |
+| spectral-01 | H5 | spectral_loss rfft2 low-freq penalty weight=0.5 | SSIM, PSNR | pending |
+| large-net-01 | H6 | nb_filter [64,128,256,512,1024] | loss1 convergence speed | pending |
 
 ---
 
@@ -140,10 +162,11 @@ Literature (Hönig et al. ICLR2025):
 - **Change**: Add DCT high-frequency penalty to loss2 (penalize low-frequency perturbation energy)
 - **Prediction**: Improved SSIM/PSNR at same epsilon budget; better imperceptibility at 1088px
 
-### H6: Scaled-up NestedUNet [64,128,256,512,1024] [LOW PRIORITY — explore after H1-H4]
+### H6: Scaled-up NestedUNet [64,128,256,512,1024] [LOW PRIORITY — ablation ready]
 - **Basis**: Capacity argument; TGR suggests gradient quality is the bottleneck, not network capacity
-- **Change**: Double filter counts in NestedUNet, ~7M parameters
-- **Prediction**: Modest improvement (+3-5%) at high resolution; larger improvement than capacity alone justifies
+- **Change**: Double filter counts in NestedUNet — actual params 9M→37M (dense skip connections)
+- **Prediction**: Modest improvement (+3-5%) at high resolution
+- **Status**: Implemented via `nb_filter` config key; uncomment in research_v3.yml to test
 
 ### H7: Sharp/noise target image for loss1 [EASY WIN — validate first]
 - **Basis**: Mist (2305.12683) target image selection insight

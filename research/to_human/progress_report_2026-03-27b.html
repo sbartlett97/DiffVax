@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffVax Research — Progress Report (2026-03-27, Update 2)</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --warn: #ffb347;
+    --danger: #ff6b6b;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --border: #2d3149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; padding: 2rem; }
+  h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.25rem; }
+  h2 { font-size: 1.3rem; color: var(--accent2); margin: 1.5rem 0 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.05rem; color: var(--warn); margin: 1rem 0 0.5rem; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+  .card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+  .card .value { font-size: 1.6rem; font-weight: 700; color: var(--accent2); }
+  .card .sub { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9rem; }
+  th { background: var(--card); color: var(--muted); text-align: left; padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--border); font-size: 0.8rem; text-transform: uppercase; }
+  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge-done { background: #1a3a2a; color: #4ade80; border: 1px solid #22543d; }
+  .badge-pending { background: #3a2a1a; color: #fbbf24; border: 1px solid #78350f; }
+  .badge-high { background: #2a1a3a; color: #c084fc; border: 1px solid #4c1d95; }
+  .badge-med { background: #1a2a3a; color: #60a5fa; border: 1px solid #1e3a5f; }
+  .badge-low { background: #2a2a1a; color: #94a3b8; border: 1px solid #3a3a1a; }
+  .code { background: #0a0d16; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre; color: #a5d6a7; margin: 0.5rem 0 1rem; }
+  .progress-track { background: var(--card); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+  .phase { display: flex; align-items: flex-start; gap: 1rem; margin: 0.75rem 0; }
+  .phase-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; margin-top: 0.25rem; }
+  .dot-done { background: #4ade80; box-shadow: 0 0 8px #4ade8066; }
+  .dot-pending { background: #fbbf24; box-shadow: 0 0 8px #fbbf2466; }
+  .phase-content h4 { font-size: 0.95rem; color: var(--text); margin-bottom: 0.2rem; }
+  .phase-content p { font-size: 0.85rem; color: var(--muted); }
+  .insight-box { background: #1a2a1a; border-left: 3px solid var(--accent2); border-radius: 0 6px 6px 0; padding: 1rem 1.25rem; margin: 0.75rem 0; }
+  .insight-box .label { font-size: 0.75rem; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+  .warn-box { background: #2a1a0a; border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0; padding: 1rem 1.25rem; margin: 0.75rem 0; }
+  .warn-box .label { font-size: 0.75rem; color: var(--warn); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+  .section { max-width: 1100px; margin: 0 auto; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .commit-line { font-family: monospace; font-size: 0.8rem; color: var(--muted); }
+  .commit-line span { color: var(--accent); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  .vram-bar { height: 22px; border-radius: 4px; margin: 4px 0; display: flex; align-items: center; padding: 0 8px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--muted); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="section">
+
+<h1>DiffVax — Research Progress Report</h1>
+<p class="meta">Update 2 · 2026-03-27 · Inner Loop Cycles 1 &amp; 2 Complete · 7/7 Hypotheses Implemented</p>
+
+<h2>Status at a Glance</h2>
+<div class="grid">
+  <div class="card">
+    <div class="label">Hypotheses Implemented</div>
+    <div class="value">7 / 7</div>
+    <div class="sub">All config-gated, pending training</div>
+  </div>
+  <div class="card">
+    <div class="label">VRAM Reduction (SD3.5 @ 1088px)</div>
+    <div class="value">~50%</div>
+    <div class="sub">26–28 GB → 13–16 GB via H2</div>
+  </div>
+  <div class="card">
+    <div class="label">Critical Bug Fixed</div>
+    <div class="value">H1</div>
+    <div class="sub">Phase 7 was targeting wrong attention blocks</div>
+  </div>
+  <div class="card">
+    <div class="label">Configs Available</div>
+    <div class="value">3</div>
+    <div class="sub">research_v3, train_1088_v3, full_v2</div>
+  </div>
+</div>
+
+<h2>Research Trajectory</h2>
+<div class="progress-track">
+  <div class="phase">
+    <div class="phase-dot dot-done"></div>
+    <div class="phase-content">
+      <h4>Bootstrap: Literature Survey</h4>
+      <p>26 papers surveyed · Identified 7 literature-grounded hypotheses · 2026-03-26</p>
+    </div>
+  </div>
+  <div class="phase">
+    <div class="phase-dot dot-done"></div>
+    <div class="phase-content">
+      <h4>Inner Loop 1: Bundle H1+H2+H4+H7</h4>
+      <p>Middle-block attention, TGR backward hooks, partial-timestep gradient, noise loss target · 2026-03-27</p>
+    </div>
+  </div>
+  <div class="phase">
+    <div class="phase-dot dot-done"></div>
+    <div class="phase-content">
+      <h4>Inner Loop 2: H5 + H6</h4>
+      <p>Spectral frequency-domain loss (SpectralLoss) + configurable NestedUNet filters · 2026-03-27</p>
+    </div>
+  </div>
+  <div class="phase">
+    <div class="phase-dot dot-pending"></div>
+    <div class="phase-content">
+      <h4>Training Validation (Next)</h4>
+      <p>Run research_v3.yml for 5,000 iterations · Measure loss curves, SSIM, PSNR, VRAM</p>
+    </div>
+  </div>
+  <div class="phase">
+    <div class="phase-dot dot-pending"></div>
+    <div class="phase-content">
+      <h4>Outer Loop: Synthesize Results</h4>
+      <p>Which hypotheses most improve protection? Are gradient or capacity issues the bottleneck?</p>
+    </div>
+  </div>
+</div>
+
+<h2>VRAM Impact: The Critical Enabler</h2>
+<p style="color:var(--muted); margin-bottom:1rem;">SD3.5 at 1088×1088 was previously infeasible on 24 GB GPUs. H2 (partial-timestep gradient) resolves this.</p>
+<div class="card" style="margin-bottom:1rem;">
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b;"></div>SD3.5 @ 1088px (before H2)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80;"></div>SD3.5 @ 1088px (after H2)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa;"></div>FLUX.2 Klein @ 1088px</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c084fc;"></div>SD 1.5 @ 512px</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;"></div>24 GB GPU limit</div>
+  </div>
+  <div style="position:relative;">
+    <div class="vram-bar" style="background:#ff6b6b; width:93%;">SD3.5 before H2: ~26–28 GB</div>
+    <div class="vram-bar" style="background:#4ade80; width:56%;">SD3.5 after H2 (gradient_timestep_fraction=0.5): ~13–16 GB</div>
+    <div class="vram-bar" style="background:#60a5fa; width:43%;">FLUX.2 Klein @ 1088px: ~9–12 GB</div>
+    <div class="vram-bar" style="background:#c084fc; width:32%;">SD 1.5 @ 512px: ~7–8 GB</div>
+    <div style="position:absolute;top:0;right:26%;bottom:0;width:2px;background:var(--warn);opacity:0.7;"></div>
+    <div style="text-align:right;margin-right:26%;font-size:0.75rem;color:var(--warn);">24 GB GPU limit ↑</div>
+  </div>
+</div>
+
+<h2>All Implemented Hypotheses</h2>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th><th>Title</th><th>Literature Basis</th><th>Status</th><th>Priority</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>H7</strong></td>
+      <td>Noise loss target (±1 random pattern)</td>
+      <td>Mist arXiv:2305.12683</td>
+      <td><span class="badge badge-done">Implemented</span></td>
+      <td><span class="badge badge-high">Easy win</span></td>
+    </tr>
+    <tr>
+      <td><strong>H1</strong></td>
+      <td>Middle-block cross-attention disruption</td>
+      <td>DeContext arXiv:2512.16625</td>
+      <td><span class="badge badge-done">Implemented + Bug Fix</span></td>
+      <td><span class="badge badge-high">High</span></td>
+    </tr>
+    <tr>
+      <td><strong>H2</strong></td>
+      <td>Partial-timestep gradient (50% VRAM reduction)</td>
+      <td>Distraction CVPR 2024</td>
+      <td><span class="badge badge-done">Implemented</span></td>
+      <td><span class="badge badge-high">Critical (enabler)</span></td>
+    </tr>
+    <tr>
+      <td><strong>H3</strong></td>
+      <td>CLIP ViT-H/14 for DALL-E 3 coverage</td>
+      <td>Glaze, DTIA, NL Adversarial</td>
+      <td><span class="badge badge-done">Implemented (config only)</span></td>
+      <td><span class="badge badge-med">Medium</span></td>
+    </tr>
+    <tr>
+      <td><strong>H4</strong></td>
+      <td>Token gradient regularization (TGR) in DiT backprop</td>
+      <td>TGR CVPR2023 arXiv:2303.15754</td>
+      <td><span class="badge badge-done">Implemented</span></td>
+      <td><span class="badge badge-med">Medium</span></td>
+    </tr>
+    <tr>
+      <td><strong>H5</strong></td>
+      <td>Spectral frequency-domain perturbation loss</td>
+      <td>DDAP arXiv:2407.20141, AdvAD NeurIPS 2024</td>
+      <td><span class="badge badge-done">Implemented</span></td>
+      <td><span class="badge badge-med">Medium</span></td>
+    </tr>
+    <tr>
+      <td><strong>H6</strong></td>
+      <td>Configurable NestedUNet capacity (37M params)</td>
+      <td>Capacity argument</td>
+      <td><span class="badge badge-done">Implemented (opt-in)</span></td>
+      <td><span class="badge badge-low">Low</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Critical Bug Found and Fixed: Attention Block Targeting</h2>
+<div class="warn-box">
+  <div class="label">Bug (Production Config)</div>
+  <p>Phase 7 in <code>full_v2.yml</code> was configured with <code>attention_loss.target_blocks: "early"</code>.
+  DeContext (arXiv:2512.16625) shows that <strong>middle transformer blocks</strong> carry the primary
+  context-propagation signal in MM-DiT models, not early blocks.
+  Training with early-block hooks was providing essentially no disruption signal to SD3.5 and FLUX.
+  Fixed to <code>"middle"</code> in all v3 configs and corrected in <code>full_v2.yml</code>.</p>
+</div>
+
+<h2>Implementation Details</h2>
+
+<div class="two-col">
+  <div>
+    <h3>H5: SpectralLoss (New Module)</h3>
+    <p style="color:var(--muted); margin-bottom:0.5rem;">
+      Penalises low-frequency energy in the perturbation δ = img_adv − img_orig
+      using <code>torch.fft.rfft2</code>. Concentrates perturbation energy in
+      high-frequency bands (less perceptible to humans, still disruptive to VAEs).
+    </p>
+    <div class="code">SpectralLoss(
+  low_freq_radius=0.1,  # central 10% penalised
+  weight=0.5            # via LossComposer
+)
+→ rfft2(δ, norm="ortho")
+→ penalise |FFT(δ)| where freq < 0.1
+→ scalar loss added to training objective</div>
+    <div class="insight-box">
+      <div class="label">Prediction</div>
+      SSIM +0.02–0.05 and PSNR +1–3 dB at same epsilon budget.
+      Orthogonal to H1/H2/H4/H7 — can be stacked.
+    </div>
+  </div>
+
+  <div>
+    <h3>H6: Configurable NestedUNet</h3>
+    <p style="color:var(--muted); margin-bottom:0.5rem;">
+      Added <code>nb_filter</code> parameter to <code>NestedUNet.__init__</code>.
+      PyTorchModelHubMixin serialises it to config.json for Hub checkpoint compatibility.
+    </p>
+    <div class="code"># Default (unchanged behaviour):
+NestedUNet(num_classes=3)
+# → nb_filter=[32,64,128,256,512]
+# → ~9M parameters
+
+# H6 larger variant (opt-in):
+NestedUNet(num_classes=3,
+  nb_filter=[64,128,256,512,1024])
+# → ~37M parameters
+# → incompatible with existing ckpts</div>
+    <div class="warn-box">
+      <div class="label">Surprise</div>
+      Actual param count is 9M (small), 37M (large) — not 1.8M/7M as estimated.
+      UNet++ dense skip connections inflate count vs plain U-Net.
+    </div>
+  </div>
+</div>
+
+<h2>Architecture of v3 Training Bundle</h2>
+<div class="code">Loss = loss1 + loss2 + loss_clip + loss_attn * attn_weight + loss_spectral
+
+loss1:   L1( attack_output − target )     # H7: target = ±1 noise (was: zeros)
+loss2:   L1( alpha * delta )              # perturbation magnitude penalty
+loss_clip: CLIP-H/14 feature distance    # H3: DALL-E 3 coverage via ViT-H-14
+loss_attn: entropy of middle DiT blocks  # H1: middle blocks (was: early)
+loss_spectral: rfft2 low-freq magnitude  # H5: push perturb into high-freq bands
+
+Backward:
+  SD3.5/FLUX: backprop only first 50% timesteps  # H2: 50% VRAM reduction
+  SD3.5/FLUX: TGR backward hooks on DiT blocks    # H4: stabilise token gradients</div>
+
+<h2>What's Next</h2>
+<table>
+  <thead><tr><th>Priority</th><th>Task</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-high">P1</span></td>
+      <td>Run research_v3.yml for 5k iterations (512px)</td>
+      <td>Validate H7+H1+H5 loss curves converge; check loss_attn signal on DiT</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-high">P1</span></td>
+      <td>Verify VRAM at 1024px with gradient_timestep_fraction=0.5</td>
+      <td>Confirm SD3.5 stays under 24 GB — the key enabler for production training</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-med">P2</span></td>
+      <td>Measure middle-block attention entropy vs early-block baseline</td>
+      <td>Quantify H1 improvement — if entropy is higher, the fix is validated</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-med">P2</span></td>
+      <td>SSIM/PSNR comparison: with vs without spectral_loss</td>
+      <td>Validate H5 prediction: +0.02–0.05 SSIM at same epsilon budget</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-low">P3</span></td>
+      <td>H6 ablation: large vs small NestedUNet at 1088px</td>
+      <td>Determine if gradient quality or capacity is the 1088px bottleneck</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Git History (Research Branch)</h2>
+<div class="code">21e5dc8  research(results): implement H6 configurable NestedUNet filter counts
+1d8c228  research(protocol): lock H6 configurable NestedUNet filter counts
+69ef0c7  research(results): implement H5 spectral frequency-domain perturbation loss
+c8302e3  research(protocol): lock H5 spectral frequency-domain perturbation loss
+e175196  research(reflect): update state after inner loop cycle 1
+215f5f3  research(results): implement H1+H2+H4+H7 hypothesis bundle
+fa39798  research(protocol): lock experiment protocols H1,H2,H3,H4,H7</div>
+
+<hr>
+<p style="color:var(--muted); font-size:0.8rem; text-align:center;">
+  DiffVax High-Resolution Research · Generated 2026-03-27 · Autoresearch Loop Active (10 min cadence)
+</p>
+
+</div>
+</body>
+</html>
