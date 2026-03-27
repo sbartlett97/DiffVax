@@ -46,7 +46,12 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     flux_prob = config.get("flux_probability", 0.0)
     if flux_model_link and flux_prob > 0:
         from diffvax.flux_attack import FluxAttack
-        flux_attack = FluxAttack(flux_model_link)
+        flux_cfg = config.get("flux_attack", {})
+        flux_attack = FluxAttack(
+            flux_model_link,
+            gradient_timestep_fraction=flux_cfg.get("gradient_timestep_fraction", 1.0),
+            token_gradient_regularization=flux_cfg.get("token_gradient_regularization", False),
+        )
         models["flux"] = flux_attack
         probabilities["flux"] = flux_prob
 
@@ -55,7 +60,12 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     sd3_prob = config.get("sd3_probability", 0.0)
     if sd3_model_link and sd3_prob > 0:
         from diffvax.sd3_attack import SD3Attack
-        sd3_attack = SD3Attack(sd3_model_link)
+        sd3_cfg = config.get("sd3_attack", {})
+        sd3_attack = SD3Attack(
+            sd3_model_link,
+            gradient_timestep_fraction=sd3_cfg.get("gradient_timestep_fraction", 1.0),
+            token_gradient_regularization=sd3_cfg.get("token_gradient_regularization", False),
+        )
         models["sd3"] = sd3_attack
         probabilities["sd3"] = sd3_prob
 
@@ -91,6 +101,9 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "adaptive_ensemble": adaptive_cfg,
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
+        "noise_target": config.get("noise_target", {}),
+        "spectral_loss": config.get("spectral_loss", {}),
+        "nb_filter": config.get("nb_filter"),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
         "reporting": config.get("reporting", {}),
