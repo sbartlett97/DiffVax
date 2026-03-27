@@ -71,19 +71,34 @@ class NestedUNet(nn.Module, PyTorchModelHubMixin):
     ``push_to_hub()`` / ``from_pretrained()`` for HuggingFace Hub integration.
     Constructor arguments are serialised to ``config.json`` so the model
     can be reconstructed exactly from a Hub checkpoint.
+
+    Args:
+        num_classes:      Number of output channels (default 3 for RGB).
+        input_channels:   Number of input channels (default 3).
+        deep_supervision: If True, return intermediate outputs from each
+                          decoder level for deep-supervision training.
+        nb_filter:        Filter counts at each of the 5 encoder levels.
+                          Default ``[32, 64, 128, 256, 512]`` (~1.8 M params).
+                          Use ``[64, 128, 256, 512, 1024]`` for the H6 larger
+                          variant (~7 M params) for 1088 px training.
     """
+
+    _DEFAULT_NB_FILTER = [32, 64, 128, 256, 512]
 
     def __init__(
         self,
         num_classes: int = 3,
         input_channels: int = 3,
         deep_supervision: bool = False,
+        nb_filter: list | None = None,
         **kwargs,
     ):
         super().__init__()
 
-        nb_filter = [32, 64, 128, 256, 512]
+        if nb_filter is None:
+            nb_filter = list(self._DEFAULT_NB_FILTER)
 
+        self.nb_filter = nb_filter
         self.deep_supervision = deep_supervision
 
         self.pool = nn.MaxPool2d(2, 2)

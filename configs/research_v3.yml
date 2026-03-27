@@ -32,6 +32,11 @@ immunization_model: "diffvax"
 train_all: true
 project_name: "diffvax-v3-research"
 
+# -- H6: NestedUNet filter counts (uncomment for larger model ablation) --
+# Default [32,64,128,256,512] ~1.8M params.  Larger variant adds ~5x capacity.
+# NOTE: incompatible with existing checkpoints — must train from scratch.
+# nb_filter: [64, 128, 256, 512, 1024]
+
 # -- Base resolution --
 resolution: 512
 sd_target_resolutions: [512]

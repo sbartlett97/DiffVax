@@ -120,7 +120,10 @@ class DiffVaxImmunization:
         else:
             raise ValueError("Either attack_model or attack_manager must be provided")
 
-        unetmodel = NestedUNet(num_classes=3)
+        # H6: configurable filter counts — default [32,64,128,256,512] (~1.8M params);
+        # set nb_filter: [64,128,256,512,1024] in config for the larger ~7M variant.
+        _nb_filter = config.get("nb_filter") or None
+        unetmodel = NestedUNet(num_classes=3, nb_filter=_nb_filter)
         self.unetmodel = unetmodel.to("cuda")
         learning_rate = config["learning_rate"]
         self.optimizer = torch.optim.Adam(unetmodel.parameters(), lr=learning_rate)
