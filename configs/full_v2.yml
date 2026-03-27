@@ -134,11 +134,13 @@ flat_minima:
 
 # -- Phase 7: Cross-Attention Disruption Loss --
 # Activates only when SD3 or FLUX is the selected surrogate.
+# RESEARCH FIX: DeContext (arXiv:2512.16625) shows middle blocks carry the
+# strongest context-propagation signal in MM-DiT. Changed from "early" → "middle".
 attention_loss:
   enabled: true
-  target_blocks: "early"
-  num_hooks: 4
-  weight: 0.3
+  target_blocks: "middle"
+  num_hooks: 8
+  weight: 0.4
   only_with_dit: true
 
 # -- Dataset --

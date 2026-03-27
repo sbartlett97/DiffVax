@@ -38,7 +38,9 @@ class FluxAttack(BaseAttack):
     Output is converted to float16 for consistent loss computation with GradScaler.
     """
 
-    def __init__(self, model_link: str, strength: float = 0.75):
+    def __init__(self, model_link: str, strength: float = 0.75,
+                 gradient_timestep_fraction: float = 1.0,
+                 token_gradient_regularization: bool = False):
         # Lazy import — only fail when someone actually uses FLUX
         try:
             from diffusers import Flux2KleinPipeline as PipeClass
@@ -57,6 +59,12 @@ class FluxAttack(BaseAttack):
 
         self.model_link = model_link
         self.strength = strength
+        # H2: partial-timestep gradient — early timesteps carry the most gradient
+        # signal for global structure protection. 0.5 = backprop only first 50%.
+        self._gradient_timestep_fraction = float(gradient_timestep_fraction)
+        # H4: TGR token gradient regularization (CVPR 2023, arXiv:2303.15754)
+        self._tgr_enabled = bool(token_gradient_regularization)
+        self._tgr_hooks: list = []
 
         # vae_scale_factor matches pipeline convention: 2**(len-1)
         # The pipeline then uses vae_scale_factor*2 to account for 2x2 patchification.
@@ -96,6 +104,40 @@ class FluxAttack(BaseAttack):
     @property
     def native_resolution(self) -> int:
         return 1024
+
+    # ------------------------------------------------------------------
+    # H4: Token Gradient Regularization helpers
+    # ------------------------------------------------------------------
+
+    def _register_tgr_hooks(self, transformer) -> None:
+        """Register backward hooks on single_transformer_blocks for TGR."""
+        self._remove_tgr_hooks()
+        # FLUX.2 Klein uses single_transformer_blocks (MMDiT single-stream)
+        blocks = (
+            getattr(transformer, "single_transformer_blocks", None)
+            or getattr(transformer, "transformer_blocks", None)
+            or []
+        )
+        for block in blocks:
+            h = block.register_backward_hook(self._tgr_backward_hook)
+            self._tgr_hooks.append(h)
+
+    @staticmethod
+    def _tgr_backward_hook(module, grad_input, grad_output):
+        """Normalize per-token gradient magnitude (TGR, CVPR 2023)."""
+        normed = []
+        for g in grad_output:
+            if g is None or g.ndim < 3:
+                normed.append(g)
+                continue
+            norm = g.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+            normed.append(g / norm)
+        return tuple(normed)
+
+    def _remove_tgr_hooks(self) -> None:
+        for h in self._tgr_hooks:
+            h.remove()
+        self._tgr_hooks = []
 
     # ------------------------------------------------------------------
     # Internal helpers — matching pipeline_flux2_klein.py
@@ -237,23 +279,37 @@ class FluxAttack(BaseAttack):
         sigma = scheduler.sigmas[t_start].to(dtype)
         noisy_latents = (1.0 - sigma) * packed + sigma * noise
 
+        # H2: partial-timestep gradient — backprop only through early timesteps.
+        n_grad_steps = max(1, int(len(timesteps) * self._gradient_timestep_fraction))
+
+        # H4: register TGR backward hooks on transformer blocks if enabled.
+        if self._tgr_enabled:
+            self._register_tgr_hooks(transformer)
+
         # ----- 9. Denoising loop -----
-        for t in timesteps:
-            timestep = t.expand(batch_size).to(dtype)
+        for step_idx, t in enumerate(timesteps):
+            use_grad = step_idx < n_grad_steps
+            grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
 
-            noise_pred = transformer(
-                hidden_states=noisy_latents,
-                timestep=timestep / 1000,
-                guidance=None,                      # always None for Flux2Klein
-                encoder_hidden_states=prompt_embeds,
-                txt_ids=text_ids,                   # (B, text_seq, 4)
-                img_ids=latent_ids,                 # (B, img_seq, 4)
-                return_dict=False,
-            )[0]
+            with grad_ctx:
+                timestep = t.expand(batch_size).to(dtype)
 
-            noisy_latents = scheduler.step(
-                noise_pred, t, noisy_latents, return_dict=False
-            )[0]
+                noise_pred = transformer(
+                    hidden_states=noisy_latents,
+                    timestep=timestep / 1000,
+                    guidance=None,                      # always None for Flux2Klein
+                    encoder_hidden_states=prompt_embeds,
+                    txt_ids=text_ids,                   # (B, text_seq, 4)
+                    img_ids=latent_ids,                 # (B, img_seq, 4)
+                    return_dict=False,
+                )[0]
+
+                noisy_latents = scheduler.step(
+                    noise_pred, t, noisy_latents, return_dict=False
+                )[0]
+
+        if self._tgr_enabled:
+            self._remove_tgr_hooks()
 
         # ----- 10. Unpack: (B, seq, C*4) -> (B, C*4, H//2, W//2) -----
         # Use differentiable reshape (row-major order is preserved through the loop)

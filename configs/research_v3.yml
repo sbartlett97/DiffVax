@@ -1,0 +1,154 @@
+# =======================================================
+# DiffVax v3 — Research Configuration (Hypothesis Bundle)
+# =======================================================
+# Enables all literature-grounded research improvements:
+#
+#   H7: noise_target.enabled — noise loss1 target (Mist insight)
+#   H1: attention_loss.target_blocks="middle" — DeContext 2512.16625
+#   H2: sd3_attack.gradient_timestep_fraction=0.5 — 50% VRAM reduction
+#       flux_attack.gradient_timestep_fraction=0.5
+#   H3: clip_loss.model="ViT-H-14" — DALL-E 3 coverage via CLIP-H
+#   H4: sd3_attack.token_gradient_regularization=true — TGR CVPR2023
+#       flux_attack.token_gradient_regularization=true
+#
+# VRAM ESTIMATES with H2 (gradient_timestep_fraction=0.5):
+#   SD3.5 at 1088px: ~13-16 GB (down from 22-26 GB)
+#   FLUX.2 at 1088px: ~9-12 GB (down from 16-20 GB)
+#   SD 1.5 at 512px:  ~7-8 GB (unchanged)
+#   Peak:             ~14-17 GB → feasible on 24 GB GPU!
+#
+# Start with this config at 512px to validate H7+H1+H3+H4 convergence,
+# then use full curriculum (train_1088_v3.yml) for production training.
+
+# -- Core Training --
+iter_num: 50000
+learning_rate: 0.00001
+batch_size: 4
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v3-research"
+
+# -- Base resolution --
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD 1.5 + SD3.5 + FLUX --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.40
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 0.35
+
+flux_model_link: "black-forest-labs/FLUX.2-klein"
+flux_probability: 0.25
+
+# -- H2: Partial-timestep gradient settings per attack model --
+# gradient_timestep_fraction: fraction of denoising steps that receive gradients.
+# 0.5 = first 50% of steps (early high-sigma steps carry the most gradient signal).
+# Basis: "Distraction Is All You Need", CVPR 2024.
+sd3_attack:
+  gradient_timestep_fraction: 0.5
+  token_gradient_regularization: true  # H4
+
+flux_attack:
+  gradient_timestep_fraction: 0.5
+  token_gradient_regularization: true  # H4
+
+# -- H7: Noise target image for loss1 --
+# Replaces zero (black) target with random-sign (±1) noise pattern.
+# Basis: Mist (arXiv:2305.12683) target image selection insight.
+noise_target:
+  enabled: true
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.7, 1.5]   # Reduced from [0.5, 2.0] — OOM risk at high-res
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- H3: CLIP ViT-H/14 for DALL-E 3 coverage --
+# Basis: Glaze, DTIA, NL Adversarial — CLIP-H is DALL-E 3's shared semantic interface.
+clip_loss:
+  enabled: true
+  model: "ViT-H-14"
+  pretrained: "laion2b_s32b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Multi-Resolution Curriculum (abridged for research runs) --
+curriculum:
+  enabled: true
+  resolution_jitter: 0.0
+  stages:
+    - resolution: 512
+      until_epoch: 30000
+      batch_size: 4
+    - resolution: 768
+      until_epoch: 40000
+      batch_size: 2
+    - resolution: 1024
+      until_epoch: 48000
+      batch_size: 1
+    - resolution: 1088
+      until_epoch: 50000
+      batch_size: 1
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+adaptive_ensemble:
+  enabled: true
+  update_period: 50
+  min_weight: 0.10
+  smoothing: 0.9
+
+# -- Phase 6: Flat-Minima Regularization --
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.01
+
+# -- H1: Middle-block Cross-Attention Disruption --
+# Basis: DeContext (arXiv:2512.16625) — middle transformer blocks carry
+# the strongest context-propagation signal in MM-DiT models.
+attention_loss:
+  enabled: true
+  target_blocks: "middle"
+  num_hooks: 8
+  weight: 0.4
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 5000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 5000

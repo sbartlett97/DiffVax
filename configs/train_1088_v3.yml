@@ -1,0 +1,131 @@
+# =======================================================
+# DiffVax v3 — Full 1088px Production Training Config
+# =======================================================
+# Stage-2 fine-tuning from a v3 512px checkpoint.
+# All research improvements enabled. Optimized for 24 GB GPU.
+#
+# With gradient_timestep_fraction=0.5 (H2):
+#   SD3.5 peak VRAM at 1088px: ~13-16 GB ← fits 24 GB
+#   FLUX.2 peak VRAM at 1088px: ~9-12 GB ← fits 24 GB
+#   SD 1.5 peak VRAM at 512px: ~7-8 GB ← unchanged
+
+# -- Core Training --
+iter_num: 500000
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+beta: 0.5
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v3-1088"
+
+# -- Resolution: start at 1024 (loaded from 512-trained ckpt), advance to 1088 --
+resolution: 1024
+sd_target_resolutions: [512, 1024]
+strength_range: [0.5, 1.0]
+
+# Load v3 512px checkpoint
+load_existing: true
+load_path: "checkpoints/diffvax_v3_512_best.pth"
+
+# -- Attack ensemble --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.40
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 0.35
+
+flux_model_link: "black-forest-labs/FLUX.2-klein"
+flux_probability: 0.25
+
+# -- H2: Partial-timestep gradient (enables 1088px on 24 GB GPU) --
+sd3_attack:
+  gradient_timestep_fraction: 0.5
+  token_gradient_regularization: true
+
+flux_attack:
+  gradient_timestep_fraction: 0.5
+  token_gradient_regularization: true
+
+# -- H7: Noise target --
+noise_target:
+  enabled: true
+
+# -- Phase 1: EoT (conservative resize to prevent OOM at 1088px) --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.7, 1.5]
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.4
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- H3: CLIP ViT-H/14 --
+clip_loss:
+  enabled: true
+  model: "ViT-H-14"
+  pretrained: "laion2b_s32b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- Phase 4: Curriculum 1024 → 1088 --
+curriculum:
+  enabled: true
+  resolution_jitter: 0.0
+  stages:
+    - resolution: 1024
+      until_epoch: 250000
+      batch_size: 1
+    - resolution: 1088
+      until_epoch: 500000
+      batch_size: 1
+
+# -- Phase 5: Adaptive Ensemble --
+adaptive_ensemble:
+  enabled: true
+  update_period: 50
+  min_weight: 0.10
+  smoothing: 0.9
+
+# -- Phase 6: Flat-Minima --
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.01
+
+# -- H1: Middle-block attention --
+attention_loss:
+  enabled: true
+  target_blocks: "middle"
+  num_hooks: 8
+  weight: 0.4
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train_1024/images"
+masks_subdir: "train_1024/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 2
+
+# -- Hub --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10000
+
+# -- Reporting --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 10000

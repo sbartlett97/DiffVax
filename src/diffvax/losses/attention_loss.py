@@ -43,11 +43,29 @@ class AttentionDisruptionLoss:
         self._attention_maps: List[Tensor] = []
 
     def _should_hook(self, block_idx: int, total_blocks: int) -> bool:
-        """Decide whether to hook block at index block_idx."""
+        """Decide whether to hook block at index block_idx.
+
+        "middle" targets the central third of blocks — the region with the
+        strongest context-propagation signal in MM-DiT models (DeContext,
+        arXiv:2512.16625; Immunizing via Cross-Attention, ACM MM 2025).
+        """
         if self.target_blocks == "early":
             return block_idx < self.num_hooks
         elif self.target_blocks == "late":
             return block_idx >= (total_blocks - self.num_hooks)
+        elif self.target_blocks == "middle":
+            # Hook the central third of the transformer depth.
+            # For SD3.5 (24 blocks) this is blocks 8-15; for FLUX (19 single
+            # blocks) this is blocks 6-12. num_hooks limits the count within
+            # this range to avoid excessive memory overhead.
+            third = total_blocks // 3
+            mid_start = third
+            mid_end = 2 * third
+            mid_indices = list(range(mid_start, mid_end))
+            # Evenly sample num_hooks blocks from the middle range
+            step = max(1, len(mid_indices) // self.num_hooks)
+            sampled = set(mid_indices[::step][: self.num_hooks])
+            return block_idx in sampled
         elif isinstance(self.target_blocks, list):
             return block_idx in self.target_blocks
         # fallback: hook first num_hooks blocks

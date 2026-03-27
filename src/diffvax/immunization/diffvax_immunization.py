@@ -458,7 +458,16 @@ class DiffVaxImmunization:
 
                 # ---- Loss computation ----
                 resolution = h
-                target_image_t = torch.zeros_like(img_out).cuda()
+                # H7: noise target — random-sign (±1) pattern forces harder disruption
+                # than all-zeros (black), especially against DiT models with strong
+                # semantic priors. Basis: Mist (arXiv:2305.12683) target-image insight.
+                if self._config.get("noise_target", {}).get("enabled", False):
+                    target_image_t = (
+                        torch.randint(0, 2, img_out.shape, device="cuda", dtype=img_out.dtype)
+                        * 2 - 1
+                    )
+                else:
+                    target_image_t = torch.zeros_like(img_out).cuda()
 
                 if attack_model.loss_uses_mask_weighting:
                     loss1_weight = mask_batch

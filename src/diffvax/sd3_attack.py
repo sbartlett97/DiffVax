@@ -39,7 +39,9 @@ class SD3Attack(BaseAttack):
                     per-call strength is passed to attack()).
     """
 
-    def __init__(self, model_link: str, strength: float = 0.75):
+    def __init__(self, model_link: str, strength: float = 0.75,
+                 gradient_timestep_fraction: float = 1.0,
+                 token_gradient_regularization: bool = False):
         from diffusers import StableDiffusion3Img2ImgPipeline
 
         self.pipe = StableDiffusion3Img2ImgPipeline.from_pretrained(
@@ -47,6 +49,16 @@ class SD3Attack(BaseAttack):
         )
         self.model_link = model_link
         self.strength = strength
+        # H2: partial-timestep gradient — fraction of timesteps that backprop.
+        # Early (high-sigma) timesteps determine global structure and are most
+        # critical for protection. 0.5 = first 50% of steps get gradients.
+        # Basis: "Distraction Is All You Need" CVPR 2024.
+        self._gradient_timestep_fraction = float(gradient_timestep_fraction)
+        # H4: TGR — token-wise gradient normalization during backward pass.
+        # Reduces gradient variance across the 18k-token joint attention at 1088px.
+        # Basis: Token Gradient Regularization, CVPR 2023 (arXiv:2303.15754).
+        self._tgr_enabled = bool(token_gradient_regularization)
+        self._tgr_hooks: list = []
 
         # Freeze all parameters — gradient flows through activations only
         self.pipe.vae.requires_grad_(False)
@@ -55,6 +67,47 @@ class SD3Attack(BaseAttack):
             enc = getattr(self.pipe, enc_attr, None)
             if enc is not None:
                 enc.requires_grad_(False)
+
+    # ------------------------------------------------------------------
+    # H4: Token Gradient Regularization helpers
+    # ------------------------------------------------------------------
+
+    def _register_tgr_hooks(self, transformer) -> None:
+        """Register backward hooks on transformer blocks for TGR.
+
+        Each hook normalizes the per-token gradient to unit norm, reducing
+        the token-to-token variance that causes poor adversarial transfer
+        in high-token-count attention (TGR, CVPR 2023, arXiv:2303.15754).
+        """
+        self._remove_tgr_hooks()
+        blocks = getattr(transformer, "transformer_blocks", None) or []
+        for block in blocks:
+            # Hook on the block output so gradient normalization applies
+            # to the full residual stream exiting each transformer block.
+            h = block.register_backward_hook(self._tgr_backward_hook)
+            self._tgr_hooks.append(h)
+
+    @staticmethod
+    def _tgr_backward_hook(module, grad_input, grad_output):
+        """Normalize per-token gradient magnitude to reduce variance.
+
+        grad_output[0] shape: (B, seq_len, dim)
+        We normalize across the feature dim so each token's gradient
+        vector has unit L2 norm, following TGR (arXiv:2303.15754).
+        """
+        normed = []
+        for g in grad_output:
+            if g is None or g.ndim < 3:
+                normed.append(g)
+                continue
+            norm = g.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+            normed.append(g / norm)
+        return tuple(normed)
+
+    def _remove_tgr_hooks(self) -> None:
+        for h in self._tgr_hooks:
+            h.remove()
+        self._tgr_hooks = []
 
     # ------------------------------------------------------------------
     # BaseAttack interface
@@ -185,28 +238,49 @@ class SD3Attack(BaseAttack):
 
         guidance_scale = 7.0
 
+        # H2: partial-timestep gradient — how many of the denoising steps receive
+        # gradients. Early steps (high sigma) shape global structure; later steps
+        # refine fine detail. Using only the first k steps for backprop saves VRAM
+        # proportionally to the skipped fraction.
+        n_grad_steps = max(1, int(len(timesteps) * self._gradient_timestep_fraction))
+
+        # H4: TGR — register backward hooks on transformer blocks that normalize
+        # per-token gradient magnitude, reducing variance across the joint-attention
+        # sequence at high resolution (18k+ tokens at 1088px).
+        if self._tgr_enabled:
+            self._register_tgr_hooks(transformer)
+
         # ------ 5. MM-DiT denoising loop ------
-        for t in timesteps:
-            # CFG: duplicate latents for uncond + cond
-            latent_input = torch.cat([noisy_latents] * 2, dim=0)
-            timestep = t.expand(latent_input.shape[0])
+        for step_idx, t in enumerate(timesteps):
+            # Only backpropagate through the first n_grad_steps timesteps.
+            # Later steps run under no_grad to reduce backward-graph VRAM.
+            use_grad = step_idx < n_grad_steps
+            grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
 
-            noise_pred = transformer(
-                hidden_states=latent_input,
-                timestep=timestep,
-                encoder_hidden_states=prompt_embeds_cfg,
-                pooled_projections=pooled_embeds_cfg,
-                return_dict=False,
-            )[0]
+            with grad_ctx:
+                # CFG: duplicate latents for uncond + cond
+                latent_input = torch.cat([noisy_latents] * 2, dim=0)
+                timestep = t.expand(latent_input.shape[0])
 
-            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2, dim=0)
-            noise_pred = noise_pred_uncond + guidance_scale * (
-                noise_pred_text - noise_pred_uncond
-            )
+                noise_pred = transformer(
+                    hidden_states=latent_input,
+                    timestep=timestep,
+                    encoder_hidden_states=prompt_embeds_cfg,
+                    pooled_projections=pooled_embeds_cfg,
+                    return_dict=False,
+                )[0]
 
-            noisy_latents = scheduler.step(
-                noise_pred, t, noisy_latents, return_dict=False
-            )[0]
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2, dim=0)
+                noise_pred = noise_pred_uncond + guidance_scale * (
+                    noise_pred_text - noise_pred_uncond
+                )
+
+                noisy_latents = scheduler.step(
+                    noise_pred, t, noisy_latents, return_dict=False
+                )[0]
+
+        if self._tgr_enabled:
+            self._remove_tgr_hooks()
 
         # ------ 6. VAE decode ------
         latents_out = noisy_latents / vae_scaling_factor + vae_shift_factor
