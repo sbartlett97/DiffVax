@@ -149,9 +149,14 @@ class DiffVaxImmunization:
             from diffvax.eot import DifferentiableEoT
             self._eot = DifferentiableEoT(self._config)
 
-        # ---- Phase 2: CLIP loss via LossComposer ----
+        # ---- Phase 2+: LossComposer (CLIP, spectral, future terms) ----
+        # Instantiate if any optional loss term is enabled.
         self._loss_composer = None
-        if self._config.get("clip_loss", {}).get("enabled", False):
+        _any_extra_loss = (
+            self._config.get("clip_loss", {}).get("enabled", False)
+            or self._config.get("spectral_loss", {}).get("enabled", False)
+        )
+        if _any_extra_loss:
             from diffvax.losses import LossComposer
             self._loss_composer = LossComposer(self._config)
 
@@ -490,16 +495,18 @@ class DiffVaxImmunization:
                     / loss2_weight_norm.sum()
                 )
 
-                # ---- Phase 2: CLIP disruption loss ----
+                # ---- Phase 2+: Extra losses (CLIP, spectral, …) ----
                 loss_clip_val = 0.0
+                loss_spectral_val = 0.0
                 if self._loss_composer is not None and self._loss_composer.has_terms():
-                    loss_extra, clip_breakdown = self._loss_composer.compute(
+                    loss_extra, extra_breakdown = self._loss_composer.compute(
                         img_orig=img_batch,
                         img_adv=img_adv,
                         img_out=img_out,
                         prompts=cur_prompt,
                     )
-                    loss_clip_val = clip_breakdown.get("clip", 0.0)
+                    loss_clip_val = extra_breakdown.get("clip", 0.0)
+                    loss_spectral_val = extra_breakdown.get("spectral", 0.0)
                 else:
                     loss_extra = torch.tensor(0.0, device="cuda")
 
@@ -591,6 +598,7 @@ class DiffVaxImmunization:
                     f"Loss1: {np.mean(losses1):.5f} "
                     f"Loss2: {np.mean(losses2):.5f}"
                     + (f" CLIP: {loss_clip_val:.5f}" if loss_clip_val else "")
+                    + (f" Spec: {loss_spectral_val:.5f}" if loss_spectral_val else "")
                 )
                 pbar.update(1)
 
