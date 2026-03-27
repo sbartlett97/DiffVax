@@ -1,0 +1,173 @@
+project: DiffVax High-Resolution Image Immunization
+date_started: "2026-03-26"
+last_updated: "2026-03-26"
+
+research_question: >
+  How can the DiffVax image immunization framework be adapted to operate effectively
+  at 1088×1088 resolution and disrupt SOTA transformer-based diffusion models
+  (DALL-E 3, Flux 1.x, SD3, SD3.5), given that the current system is only proven
+  at 512×512 against UNet-based diffusers?
+
+status: bootstrap_complete  # bootstrap | inner_loop | outer_loop | conclude
+
+# ============================
+# CURRENT DIRECTION: INNER LOOP
+# ============================
+current_direction: inner_loop
+current_hypothesis: H3  # Starting with the most mechanistically motivated
+
+# ============================
+# HYPOTHESES
+# ============================
+hypotheses:
+  H1:
+    title: "Frequency-domain perturbation regularization"
+    description: >
+      At high resolution, perturbations degrade into low-frequency smooth patterns
+      that don't transfer across model architectures. Adding a wavelet/DCT-based
+      regularization term encouraging mid-frequency perturbation energy should
+      improve cross-architecture transfer and maintain imperceptibility at 1088px.
+    prediction: >
+      Mid-frequency energy regularization will improve SSIM/PSNR while maintaining
+      or improving protection rate on transformer-based models by 5-10%.
+    status: pending
+    priority: medium
+
+  H2:
+    title: "Scaled-up NestedUNet capacity"
+    description: >
+      The current NestedUNet uses [32,64,128,256,512] filters — ~1.8M parameters.
+      At 1088×1088 the receptive field and capacity may be insufficient. Scaling to
+      [64,128,256,512,1024] doubles capacity. The bottleneck (1088/16=68px) may
+      need deeper processing to generate effective perturbations at this scale.
+    prediction: >
+      Larger NestedUNet will reduce training loss at 1088×1088 and improve
+      protection rate by >5% compared to baseline small model.
+    status: pending
+    priority: high
+
+  H3:
+    title: "VAE latent-space disruption loss"
+    description: >
+      Current loss1 pushes pixel-space decoder output to zero (black image).
+      For DiT models, the generative process is governed by latent dynamics.
+      Computing loss in VAE latent space (pushing encode(img_adv) away from
+      encode(img_orig)) should disrupt the image-to-latent mapping more
+      fundamentally, providing a stronger gradient signal against SD3/FLUX.
+    prediction: >
+      Latent-space loss will improve protection rate on SD3.5 and FLUX by 8-15%
+      vs baseline pixel-space loss, with minimal impact on SD 1.5 performance.
+    status: in_progress
+    priority: high
+
+  H4:
+    title: "LPIPS perceptual loss for perturbation imperceptibility"
+    description: >
+      Current noise penalty (loss2) is L1 on perturbation magnitude. At high
+      resolution, L1 suppresses perturbation uniformly across frequencies.
+      LPIPS (perceptual similarity) respects human visual sensitivity, allowing
+      larger perturbations in high-frequency/texture regions (imperceptible to
+      humans) while penalizing low-frequency changes (highly visible).
+    prediction: >
+      Replacing loss2 with LPIPS will improve SSIM by 0.02-0.05 at same
+      epsilon budget, enabling larger effective perturbations at 1088px.
+    status: pending
+    priority: medium
+
+  H5:
+    title: "Prompt-conditioned perturbation network"
+    description: >
+      The NestedUNet is prompt-agnostic. Transformer-based models heavily
+      condition generation on text embeddings. Training a CLIP-conditioned
+      perturbation network that adapts the perturbation to the prompt distribution
+      could produce adversarial examples that disrupt any prompt-driven editing.
+    prediction: >
+      Prompt-conditioned perturbation will show >10% improvement on transformer
+      models where text-image alignment is strong (SD3, FLUX), at cost of
+      higher VRAM and longer training.
+    status: pending
+    priority: medium
+
+  H6:
+    title: "DALL-E 3 surrogate via CLIP-H feature disruption"
+    description: >
+      DALL-E 3 uses a CLIP-H image encoder to condition generation. Without
+      access to the model, disrupting CLIP-H feature extraction serves as a
+      white-box proxy. Adding CLIP ViT-H/14 feature distance as a loss term
+      should improve transfer to DALL-E 3 and other CLIP-conditioned models.
+    prediction: >
+      CLIP-H feature loss will provide measurable protection against DALL-E 3
+      (estimated >40% disruption based on CLIP-H gradient similarity literature).
+    status: pending
+    priority: medium
+
+  H7:
+    title: "Multi-scale simultaneous gradient aggregation"
+    description: >
+      Current curriculum trains at one resolution per batch. A multi-scale
+      training approach computes gradients at 512, 768, and 1088 simultaneously
+      for the same perturbed image (using independent downsampled attack passes)
+      and aggregates. This directly optimizes for cross-resolution robustness.
+    prediction: >
+      Multi-scale gradient aggregation will improve transfer robustness (same
+      perturbation effective at all resolutions) by 10-20% vs curriculum.
+    status: pending
+    priority: high
+
+  H8:
+    title: "Direct latent injection: perturbation in latent space"
+    description: >
+      Instead of perturbing pixels, directly perturb VAE latents with a separate
+      encoder-decoder perturbation network operating in 16-channel latent space.
+      This bypasses resolution scaling issues and directly disrupts the diffusion
+      process at its input. Architecture: small 16-ch UNet++ on latents.
+    prediction: >
+      Latent-space perturbation will be more compute-efficient at 1088px and
+      achieve higher protection rate on 16-ch VAE models (SD3, FLUX) but
+      may degrade on SD 1.5 (4-ch VAE).
+    status: pending
+    priority: medium
+
+# ============================
+# BASELINE METRICS (512px)
+# ============================
+baselines:
+  sd15_512px:
+    protection_rate: ">75% (design target from full_v2.yml)"
+    resolution: 512
+    model: "runwayml/stable-diffusion-inpainting"
+    notes: "Proven working per user"
+  flux_512px:
+    protection_rate: "unknown (curriculum in progress)"
+    resolution: 512
+    model: "black-forest-labs/FLUX.2-klein"
+  sd3_512px:
+    protection_rate: "unknown"
+    resolution: 512
+    model: "stabilityai/stable-diffusion-3.5-medium"
+  target_1088px:
+    protection_rate: ">60% all models"
+    resolution: 1088
+    notes: "Research target"
+
+# ============================
+# EXPERIMENT TRAJECTORY
+# ============================
+experiments: []
+
+# ============================
+# LITERATURE
+# ============================
+key_papers:
+  - title: "PhotoGuard"
+    relevance: "Baseline encoder attack for image immunization"
+    location: "literature/photoguard.md"
+  - title: "DiffVax original"
+    relevance: "Base implementation this project extends"
+    location: "literature/diffvax.md"
+  - title: "DeContext (arXiv:2512.16625)"
+    relevance: "Cross-attention disruption for DiT models — motivates Phase 7"
+    location: "literature/decontext.md"
+  - title: "AdvDiffuser"
+    relevance: "Adversarial perturbations transferring to diffusion models"
+    location: "literature/advdiffuser.md"
