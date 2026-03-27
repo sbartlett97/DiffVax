@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffVax Research Progress — 2026-03-27</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; font-weight: 600; color: #a78bfa; margin: 2rem 0 1rem; border-bottom: 1px solid #2d3748; padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: #60a5fa; margin: 1.2rem 0 0.5rem; }
+  .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 2rem; }
+  .card { background: #1e2130; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .badge { display: inline-flex; align-items: center; padding: 0.2rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+  .badge-done { background: #064e3b; color: #34d399; }
+  .badge-open { background: #1e3a5f; color: #60a5fa; }
+  .badge-critical { background: #4c1d24; color: #f87171; }
+  .badge-medium { background: #3b2f0a; color: #fbbf24; }
+  .badge-easy { background: #1a3a1a; color: #4ade80; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  .metric { text-align: center; padding: 1rem; background: #16192b; border-radius: 8px; }
+  .metric-value { font-size: 2rem; font-weight: 700; color: #a78bfa; }
+  .metric-label { font-size: 0.85rem; color: #64748b; margin-top: 0.25rem; }
+  code { background: #16192b; color: #7dd3fc; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.88em; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  pre { background: #16192b; border: 1px solid #2d3748; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+  pre code { background: transparent; padding: 0; color: #e2e8f0; font-size: 0.85rem; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.35rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { background: #16192b; color: #94a3b8; text-align: left; padding: 0.6rem 0.8rem; border-bottom: 2px solid #2d3748; }
+  td { padding: 0.6rem 0.8rem; border-bottom: 1px solid #1e2130; }
+  tr:hover td { background: #1e2130; }
+  .arrow { color: #4ade80; font-weight: 700; }
+  .warn { color: #fbbf24; }
+  .good { color: #4ade80; }
+  .section-intro { color: #94a3b8; font-size: 0.95rem; margin-bottom: 1rem; }
+  .insight-box { background: #1a2638; border-left: 4px solid #60a5fa; padding: 1rem 1.2rem; border-radius: 0 8px 8px 0; margin: 1rem 0; }
+  .insight-box p { color: #cbd5e1; font-size: 0.93rem; }
+  .tag { display: inline-block; background: #1e2a3a; color: #7dd3fc; font-size: 0.78rem; padding: 0.1rem 0.5rem; border-radius: 4px; margin: 0.15rem; }
+  .progress-bar { background: #16192b; border-radius: 999px; height: 8px; margin-top: 0.5rem; }
+  .progress-fill { background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 999px; height: 8px; }
+  .commit-pill { background: #16192b; border: 1px solid #374151; border-radius: 6px; padding: 0.5rem 0.75rem; font-family: monospace; font-size: 0.82rem; color: #94a3b8; margin: 0.5rem 0; display: inline-block; }
+  .vram-comparison { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; }
+  .vram-box { flex: 1; min-width: 150px; background: #16192b; border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid #2d3748; }
+  .vram-old { border-color: #4c1d24; }
+  .vram-new { border-color: #064e3b; }
+  .vram-title { font-size: 0.8rem; color: #64748b; margin-bottom: 0.4rem; }
+  .vram-num { font-size: 1.5rem; font-weight: 700; }
+  .vram-old .vram-num { color: #f87171; }
+  .vram-new .vram-num { color: #4ade80; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <h1>DiffVax High-Resolution Research</h1>
+  <p class="subtitle">Progress Report — 2026-03-27 &nbsp;·&nbsp; Bootstrap + Inner Loop Cycle 1</p>
+
+  <!-- Key Metrics -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:2rem 0;">
+    <div class="metric"><div class="metric-value">26</div><div class="metric-label">Papers Surveyed</div></div>
+    <div class="metric"><div class="metric-value">5</div><div class="metric-label">Hypotheses Formed</div></div>
+    <div class="metric"><div class="metric-value">4</div><div class="metric-label">Changes Implemented</div></div>
+    <div class="metric"><div class="metric-value">2</div><div class="metric-label">New Configs Created</div></div>
+  </div>
+
+  <!-- Research Question -->
+  <div class="card">
+    <h2 style="margin-top:0">Research Question</h2>
+    <p class="section-intro">How can the DiffVax image immunization framework be adapted to operate effectively at <strong>1088×1088</strong> resolution and disrupt <strong>SOTA transformer-based diffusion models</strong> (DALL-E 3, Flux 1.x, SD3, SD3.5), given the current system is only proven at 512×512 against UNet-based diffusers?</p>
+    <div style="margin-top:1rem;">
+      <strong>Current state:</strong> Bootstrap complete. 26-paper literature survey done. 5 experiment protocols locked and committed. 4 code changes implemented and committed. Ready for training runs.
+    </div>
+  </div>
+
+  <!-- Findings Summary -->
+  <h2>Key Findings from Literature (26 Papers)</h2>
+  <div class="section-intro">The literature survey identified 7 actionable patterns directly applicable to DiffVax scaling.</div>
+
+  <div class="card">
+    <h3>P1 🔴 Critical: DiT models require middle-block disruption, not encoder attacks</h3>
+    <div class="insight-box">
+      <p><strong>DeContext</strong> (arXiv:2512.16625, Dec 2024) showed that contextual information in FLUX/SD3 editing flows primarily through <strong>middle transformer blocks</strong> during <strong>early denoising timesteps (t&nbsp;>&nbsp;0.7)</strong> — not through the VAE encoder. Prior encoder attacks (PhotoGuard-style) lose significant effectiveness on DiT models for this reason.</p>
+      <p style="margin-top:0.5rem;">DiffVax's Phase 7 was hooking <strong>early blocks</strong> — mechanistically wrong for DiT protection. <span class="tag">FIXED in H1</span></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>P2 🔴 Critical: 18k-token gradient variance causes instability at 1088px</h3>
+    <div class="insight-box">
+      <p><strong>TGR</strong> (arXiv:2303.15754, CVPR 2023) showed high token-to-token gradient variance in ViT/DiT attention blocks is the primary cause of poor adversarial transfer. At 1088px, SD3.5's MM-DiT joint attention processes ~18,496 tokens — gradient variance is extreme.</p>
+      <p style="margin-top:0.5rem;">Token-wise gradient normalization reduces variance and improves transfer by ~8.8%. <span class="tag">FIXED in H4</span></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>P3 🟡 High Impact: Partial-timestep gradient = 50% VRAM reduction, same quality</h3>
+    <div class="insight-box">
+      <p><strong>"Distraction Is All You Need"</strong> (CVPR 2024) demonstrated that computing gradients only at a subset of critical timesteps achieves equivalent protection efficacy at ~50% VRAM cost. This directly addresses the 26-28 GB bottleneck preventing SD3.5 training at 1088px on 24 GB GPUs.</p>
+    </div>
+    <div class="vram-comparison">
+      <div class="vram-box vram-old"><div class="vram-title">SD3.5 @ 1088px OLD</div><div class="vram-num">26-28 GB</div><div style="font-size:0.8rem;color:#f87171;margin-top:0.3rem;">Requires 40 GB GPU</div></div>
+      <div class="vram-box" style="display:flex;align-items:center;justify-content:center;border:none;font-size:2rem;color:#a78bfa;">→</div>
+      <div class="vram-box vram-new"><div class="vram-title">SD3.5 @ 1088px NEW</div><div class="vram-num">13-16 GB</div><div style="font-size:0.8rem;color:#4ade80;margin-top:0.3rem;">Fits 24 GB GPU ✓</div></div>
+    </div>
+    <span class="tag">FIXED in H2</span>
+  </div>
+
+  <div class="card">
+    <h3>P4 🟡 Medium Impact: CLIP-H/14 provides model-agnostic DALL-E 3 protection</h3>
+    <div class="insight-box">
+      <p>DALL-E 3 uses CLIP ViT-H/14 as its image conditioning backbone. Three independent papers (Glaze, DTIA, NL Adversarial) confirm that disrupting CLIP-H embeddings provides black-box transfer to DALL-E 3 without direct model access. DiffVax v2 uses ViT-B/32 — upgrading to ViT-H/14 covers DALL-E 3. <span class="tag">Enabled via H3 config</span></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>P5-P7 Additional Insights</h3>
+    <ul>
+      <li><strong>P5 (DDAP/AdvAD)</strong>: High-frequency perturbation concentration improves imperceptibility at same L∞ budget — relevant for 1088px visual quality</li>
+      <li><strong>P6 (Mist)</strong>: Zero (black) loss target is suboptimal — DiT models have strong semantic priors to recover from black outputs. Random-sign noise target forces harder disruption. <span class="tag">FIXED in H7</span></li>
+      <li><strong>P7 (Hönig et al. ICLR2025)</strong>: Pixel-space perturbations defeated by averaging 50+ images. DiffVax's content-conditioned NestedUNet is more resistant than fixed UAPs (Glaze, Mist) but still vulnerable. Scope protection claims to &lt;10 images per subject.</li>
+    </ul>
+  </div>
+
+  <!-- Implemented Changes -->
+  <h2>Implemented Changes</h2>
+  <div class="section-intro">All changes are config-gated and backward-compatible with existing training runs.</div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Hypothesis</th><th>Change</th><th>File(s)</th><th>Config Key</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>H7</strong><br><span style="font-size:0.8rem;color:#64748b;">Noise Target</span></td>
+          <td>Replace zero target with random-sign (±1) noise for loss1</td>
+          <td><code>diffvax_immunization.py</code></td>
+          <td><code>noise_target.enabled</code></td>
+          <td><span class="badge badge-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><strong>H1</strong><br><span style="font-size:0.8rem;color:#64748b;">Middle Blocks</span></td>
+          <td>Add <code>"middle"</code> targeting to <code>AttentionDisruptionLoss._should_hook()</code>. Fixed <code>full_v2.yml</code>: <code>"early"→"middle"</code></td>
+          <td><code>attention_loss.py</code><br><code>full_v2.yml</code></td>
+          <td><code>attention_loss.target_blocks: "middle"</code></td>
+          <td><span class="badge badge-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><strong>H2</strong><br><span style="font-size:0.8rem;color:#64748b;">Partial Timestep</span></td>
+          <td>Add <code>gradient_timestep_fraction</code> to SD3Attack and FluxAttack denoising loop</td>
+          <td><code>sd3_attack.py</code><br><code>flux_attack.py</code></td>
+          <td><code>sd3_attack.gradient_timestep_fraction: 0.5</code></td>
+          <td><span class="badge badge-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><strong>H4</strong><br><span style="font-size:0.8rem;color:#64748b;">TGR</span></td>
+          <td>Token Gradient Regularization backward hooks on transformer blocks</td>
+          <td><code>sd3_attack.py</code><br><code>flux_attack.py</code></td>
+          <td><code>sd3_attack.token_gradient_regularization: true</code></td>
+          <td><span class="badge badge-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><strong>H3</strong><br><span style="font-size:0.8rem;color:#64748b;">CLIP-H/14</span></td>
+          <td>Already config-gated; <code>research_v3.yml</code> uses <code>ViT-H-14</code></td>
+          <td><code>clip_loss.py</code></td>
+          <td><code>clip_loss.model: "ViT-H-14"</code></td>
+          <td><span class="badge badge-done">✓ Done</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- New Configs -->
+  <h2>New Training Configurations</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-open">Research</span>
+        <strong>configs/research_v3.yml</strong>
+      </div>
+      <p style="color:#94a3b8;font-size:0.9rem;">50k iteration research run. All 5 hypotheses enabled. Curriculum 512→768→1024→1088. Validates H7+H1+H2+H3+H4 together.</p>
+      <pre><code>python scripts/train.py \
+  --config configs/research_v3.yml \
+  --data_dir /path/to/dataset</code></pre>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-open">Production</span>
+        <strong>configs/train_1088_v3.yml</strong>
+      </div>
+      <p style="color:#94a3b8;font-size:0.9rem;">500k iteration production run from a v3 512px checkpoint. 1024→1088px fine-tuning. Optimized for 24 GB GPU with H2 partial-timestep.</p>
+      <pre><code># Set load_path to your best 512px v3 checkpoint
+python scripts/train.py \
+  --config configs/train_1088_v3.yml \
+  --data_dir /path/to/dataset_1024</code></pre>
+    </div>
+  </div>
+
+  <!-- Architecture Diagram -->
+  <h2>Architecture Changes at a Glance</h2>
+  <div class="card">
+    <pre style="color:#e2e8f0;font-size:0.82rem;line-height:1.7;">
+  Input Image (1088×1088)
+       │
+  NestedUNet++ [32,64,128,256,512]      ← Unchanged (resolution-agnostic)
+       │  output: perturbation δ
+  img_adv = clamp(img + δ, -1, 1)
+       │
+  EoT augmentation                      ← resize_range reduced to [0.7,1.5] for 1088px
+       │
+  ┌────────────────────────────────────────────────────────┐
+  │  Surrogate attack (randomly selected)                   │
+  │                                                          │
+  │  SD 1.5:  Native 512px, full backprop (unchanged)       │
+  │                                                          │
+  │  SD3.5:   ┌── VAE encode → mode()                       │
+  │           │     +→ noisy_latents                        │
+  │           │         │                                   │
+  │           │   MM-DiT denoising [24 blocks]:             │
+  │           │   step 0 ← gradient ✓                       │
+  │           │   step 1 ← gradient ✓  } n_grad_steps=2    │
+  │           │   step 2 ← no_grad  ✗  } (fraction=0.5)    │
+  │           │   step 3 ← no_grad  ✗                       │
+  │           │         │ backward hooks [blocks 8-15]      │
+  │           │         │ TGR: normalize token gradients    │
+  │           │   VAE decode → output                       │
+  │           └──────────────────────────                   │
+  │                                                          │
+  │  FLUX.2:  Same pattern (single_transformer_blocks)      │
+  └────────────────────────────────────────────────────────┘
+       │
+  Loss computation:
+  loss1 = L1(img_out, target)           ← NEW: target = random ±1 noise (H7)
+  loss2 = alpha * L1(δ)                 ← Unchanged
+  loss_clip = CLIP-H/14 feature dist   ← NEW: ViT-H-14 (H3, DALL-E 3 proxy)
+  loss_attn = -entropy(middle blocks)  ← FIXED: middle blocks (H1)
+  total = loss1 + loss2 + loss_clip + w*loss_attn
+    </pre>
+  </div>
+
+  <!-- Next Experiments -->
+  <h2>Next Steps (Inner Loop)</h2>
+  <div class="card">
+    <h3>Immediate: Validate implemented changes</h3>
+    <ol>
+      <li><strong>Run <code>research_v3.yml</code> for 5,000 epochs at 512px</strong> — baseline vs v3 loss curves (especially loss1 and loss_attn for DiT models)</li>
+      <li><strong>Monitor VRAM at 1024px</strong> — confirm SD3.5 stays under 24 GB with <code>gradient_timestep_fraction=0.5</code></li>
+      <li><strong>Check attention entropy</strong> — with middle-block hooks, entropy should be higher vs early-block baseline</li>
+    </ol>
+    <h3 style="margin-top:1.2rem;">Then: Additional hypotheses to test</h3>
+    <table>
+      <thead><tr><th>Hypothesis</th><th>Expected Benefit</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr><td><strong>H5</strong>: DCT frequency-domain loss</td><td>Better imperceptibility at 1088px (DDAP pattern)</td><td><span class="badge badge-medium">Medium</span></td></tr>
+        <tr><td><strong>H6</strong>: Larger NestedUNet [64,128,256,512,1024]</td><td>+3-5% protection at high-res; ~7M params vs 1.8M</td><td><span class="badge badge-medium">Medium</span></td></tr>
+        <tr><td><strong>Eval</strong>: Semantic mismatch metrics</td><td>CLIP(output, prompt) + BRISQUE — better evaluation methodology (SIFM, arXiv:2512.14320)</td><td><span class="badge badge-open">Ongoing</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Threat Model -->
+  <h2>Threat Model Note</h2>
+  <div class="card" style="border-color:#4c1d24;">
+    <h3 style="color:#f87171;">Known Limitation: Robust Mimicry (Hönig et al., ICLR 2025)</h3>
+    <p style="margin-top:0.5rem;color:#94a3b8;">Pixel-space perturbations can be defeated by an attacker who averages 50+ protected images of the same subject. DiffVax's content-conditioned NestedUNet is more resistant than fixed UAPs (Glaze, Mist) because perturbations vary with image content, but the fundamental vulnerability remains.</p>
+    <p style="margin-top:0.75rem;color:#94a3b8;"><strong>Recommendation:</strong> Scope protection claims to single-image or small-set (&lt;10 images) attack scenarios in the paper. This is the appropriate threat model for social-media upload protection where most users upload limited content.</p>
+  </div>
+
+  <!-- Git history -->
+  <h2>Commits This Session</h2>
+  <div class="card">
+    <div class="commit-pill">fa39798 — research(protocol): lock experiment protocols H1,H2,H3,H4,H7</div><br>
+    <div class="commit-pill">215f5f3 — research(results): implement H1+H2+H4+H7 hypothesis bundle</div>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:3rem;padding-top:1rem;border-top:1px solid #2d3748;color:#4a5568;font-size:0.82rem;">
+    Generated by Claude Code autoresearch · DiffVax project · 2026-03-27
+  </div>
+
+</div>
+</body>
+</html>

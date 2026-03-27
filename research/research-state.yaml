@@ -1,6 +1,6 @@
 project: DiffVax High-Resolution Image Immunization
 date_started: "2026-03-26"
-last_updated: "2026-03-26"
+last_updated: "2026-03-27"
 
 research_question: >
   How can the DiffVax image immunization framework be adapted to operate effectively
@@ -8,13 +8,14 @@ research_question: >
   (DALL-E 3, Flux 1.x, SD3, SD3.5), given that the current system is only proven
   at 512×512 against UNet-based diffusers?
 
-status: bootstrap_complete  # bootstrap | inner_loop | outer_loop | conclude
+status: inner_loop  # bootstrap | inner_loop | outer_loop | conclude
 
 # ============================
 # CURRENT DIRECTION: INNER LOOP
 # ============================
 current_direction: inner_loop
-current_hypothesis: H3  # Starting with the most mechanistically motivated
+current_hypothesis: "H7+H1+H2+H4 bundle — all implemented, awaiting training validation"
+next_hypothesis: "H5 (frequency-domain loss) or H6 (larger NestedUNet)"
 
 # ============================
 # HYPOTHESES
@@ -153,7 +154,18 @@ baselines:
 # ============================
 # EXPERIMENT TRAJECTORY
 # ============================
-experiments: []
+experiments:
+  - id: "bundle-H7-H1-H2-H4"
+    hypotheses: ["H7", "H1", "H2", "H4"]
+    status: "implemented_pending_training"
+    date: "2026-03-27"
+    key_changes:
+      - "noise_target: zero→random±1 (loss1 target)"
+      - "attention_loss.target_blocks: early→middle (DeContext)"
+      - "sd3_attack.gradient_timestep_fraction: 1.0→0.5 (50% VRAM)"
+      - "tgr: token gradient normalization hooks in SD3/FLUX backward"
+    expected_vram_sd35_1088px: "13-16 GB (down from 26-28 GB)"
+    config: "configs/research_v3.yml"
 
 # ============================
 # LITERATURE
