@@ -68,7 +68,27 @@ hypotheses:
     prediction: "Frequency-constrained training improves SSIM of immunized image by >2dB while maintaining edit disruption"
     metric: [immunized_SSIM, edit_disruption_rate]
 
-current_focus: "Bootstrap — literature survey and workspace setup"
+  H6:
+    title: "Multi-model immunization resists FLUX-based purification attacks"
+    status: untested
+    priority: 2
+    rationale: >
+      "Purify Once, Edit Freely" (arXiv:2603.13028) shows FLUX.1-fill-dev can purify
+      SD1.5 immunizations by +3-6dB PSNR. If DiffVax is trained against FLUX,
+      the purifier can no longer recover editability because the immunization
+      specifically corrupts FLUX's latent representation. This makes multi-model
+      training a product safety requirement, not just a research nicety.
+    prediction: "FLUX-based EditorClean purifier fails on DiffVax-FLUX immunized images (SSIM delta < 0.05)"
+    metric: edit_disruption_rate after purification attempt
+
+current_focus: "Bootstrap complete — literature surveyed, all experiment code ready. Waiting for GPU to run H2 (no training) and H1a (8h A100)."
+
+literature_key_papers:
+  - "arXiv:2603.13028 — Purify Once Edit Freely: FLUX defeats SD1.5 immunization (CRITICAL)"
+  - "arXiv:2602.14679 — Universal Immunization via Semantic Injection (cross-model transfer works)"
+  - "arXiv:2503.10081 — AdvPaint: FLUX-Fill specific attention disruption"
+  - "arXiv:2507.09595 — Demystifying FLUX Architecture"
+  - "arXiv:2507.03953 — Benchmark of 8 protection methods (evaluation methodology)"
 
 known_constraints:
   - "No local GPU. All experiments require cloud/cluster submission."

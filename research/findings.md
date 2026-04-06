@@ -37,7 +37,22 @@ Key insight: **All models share a VAE bottleneck** — the image must pass throu
 
 ## Patterns and Insights
 
-*(To be filled as experiments run)*
+### From Literature Survey (2026-04-06)
+
+**1. The Purification Attack is a Direct Product Threat**
+"Purify Once, Edit Freely" (arXiv:2603.13028) shows that adversaries can use FLUX.1-fill-dev as a purifier to defeat SD 1.5 immunizations (+3-6 dB PSNR, -50-70% FID). This is not academic — it's a product attack. Our multi-model training strategy (H1) directly addresses this: if immunizations are trained against FLUX, they will be harder to purify with FLUX.
+
+**2. Cross-Architecture Transfer IS Possible — But Not Automatic**
+Universal Image Immunization (arXiv:2602.14679) achieves black-box transfer across models using semantic injection via cross-attention disruption. Cross-attention exists in all modern diffusion architectures (UNet and DiT). This validates H4's direction — adding an attention-based loss term may improve transfer.
+
+**3. DiT Models Need Attention-Level Disruption, Not Just Output-Level**
+AdvPaint (arXiv:2503.10081) specifically targets FLUX-Fill by disrupting self- and cross-attention, not just the output image. The DiffVax approach of driving outputs to zeros may be insufficient for FLUX; adding an attention disruption component would make it architecture-aware.
+
+**4. No Existing Paper Benchmarks Immunization Across All Three Families**
+(SD 1.5 UNet) + (FLUX DiT) + (SD 3.5 MM-DiT) — no paper does all three. This is the primary novelty of this extension project.
+
+**5. High-Resolution Immunization: Latent Space Scales Better**
+LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to megapixel resolution without expensive pixel decoding. For H3/H5, consider a hybrid: pixel-space UNet generates perturbation but loss also has latent-space component.
 
 ---
 
