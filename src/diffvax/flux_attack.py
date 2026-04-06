@@ -246,6 +246,12 @@ class FluxAttack(BaseAttack):
         with torch.no_grad():
             prompt_embeds, text_ids = self._encode_prompt(prompt, device)
 
+        # Offload text encoder to CPU — gradient flows only through VAE + transformer,
+        # so the Qwen3 encoder doesn't need to be in VRAM during backprop.
+        if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
+            self.pipe.text_encoder.to("cpu")
+        torch.cuda.empty_cache()
+
         # ----- 2. VAE encode image (gradient maintained via mode()) -----
         image_input = image.to(device=device, dtype=dtype)
         latents = vae.encode(image_input).latent_dist.mode()

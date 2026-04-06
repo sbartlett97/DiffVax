@@ -213,6 +213,14 @@ class SD3Attack(BaseAttack):
                 [negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0
             )
 
+        # Offload text encoders to CPU — gradient flows only through VAE + transformer,
+        # so T5-XXL + CLIP-G/L (~10-12 GB) don't need to be in VRAM during backprop.
+        for enc_attr in ["text_encoder", "text_encoder_2", "text_encoder_3"]:
+            enc = getattr(self.pipe, enc_attr, None)
+            if enc is not None:
+                enc.to("cpu")
+        torch.cuda.empty_cache()
+
         # ------ 2. VAE encode with gradient flow via mode() ------
         image_input = image.to(device=device, dtype=dtype)
         latents = vae.encode(image_input).latent_dist.mode()
