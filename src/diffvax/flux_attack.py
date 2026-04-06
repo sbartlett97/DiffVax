@@ -297,6 +297,8 @@ class FluxAttack(BaseAttack):
             self._register_tgr_hooks(transformer)
 
         # ----- 9. Denoising loop -----
+        from torch.utils.checkpoint import checkpoint as grad_checkpoint
+
         for step_idx, t in enumerate(timesteps):
             use_grad = step_idx < n_grad_steps
             grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
@@ -304,15 +306,36 @@ class FluxAttack(BaseAttack):
             with grad_ctx:
                 timestep = t.expand(batch_size).to(dtype)
 
-                noise_pred = transformer(
-                    hidden_states=noisy_latents,
-                    timestep=timestep / 1000,
-                    guidance=None,                      # always None for Flux2Klein
-                    encoder_hidden_states=prompt_embeds,
-                    txt_ids=text_ids,                   # (B, text_seq, 4)
-                    img_ids=latent_ids,                 # (B, img_seq, 4)
-                    return_dict=False,
-                )[0]
+                if use_grad:
+                    # Gradient checkpointing: recompute transformer activations
+                    # during backward instead of retaining them, saving several GB
+                    # for the single_transformer_blocks stack in FLUX.
+                    def _transformer_fwd(hs, ts, enc_hs, t_ids, i_ids):
+                        return transformer(
+                            hidden_states=hs,
+                            timestep=ts,
+                            guidance=None,
+                            encoder_hidden_states=enc_hs,
+                            txt_ids=t_ids,
+                            img_ids=i_ids,
+                            return_dict=False,
+                        )[0]
+                    noise_pred = grad_checkpoint(
+                        _transformer_fwd,
+                        noisy_latents, timestep / 1000, prompt_embeds,
+                        text_ids, latent_ids,
+                        use_reentrant=False,
+                    )
+                else:
+                    noise_pred = transformer(
+                        hidden_states=noisy_latents,
+                        timestep=timestep / 1000,
+                        guidance=None,
+                        encoder_hidden_states=prompt_embeds,
+                        txt_ids=text_ids,
+                        img_ids=latent_ids,
+                        return_dict=False,
+                    )[0]
 
                 noisy_latents = scheduler.step(
                     noise_pred, t, noisy_latents, return_dict=False

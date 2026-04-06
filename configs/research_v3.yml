@@ -27,6 +27,11 @@ batch_size: 4
 alpha: 4
 beta: 0.5
 
+# Denoising steps per attack forward pass.
+# 2 steps (with gradient_timestep_fraction=0.5) = 1 grad step — enough to
+# validate convergence while halving the transformer activation graph vs 4 steps.
+num_inference_steps: 2
+
 # -- Model --
 immunization_model: "diffvax"
 train_all: true

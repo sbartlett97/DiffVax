@@ -265,6 +265,7 @@ class DiffVaxImmunization:
             self._config.get("attention_loss", {}).get("only_with_dit", True)
         )
         dit_model_names = {"sd3", "flux"}
+        num_inference_steps = int(self._config.get("num_inference_steps", 4))
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size
@@ -412,7 +413,7 @@ class DiffVaxImmunization:
                             mask=mask_resized,
                             height=sd_target,
                             width=sd_target,
-                            num_inference_steps=4,
+                            num_inference_steps=num_inference_steps,
                             batch_size=actual_bs,
                             strength=strength,
                         )
@@ -427,7 +428,7 @@ class DiffVaxImmunization:
                             mask=attack_mask,
                             height=h,
                             width=w,
-                            num_inference_steps=4,
+                            num_inference_steps=num_inference_steps,
                             batch_size=actual_bs,
                             strength=strength,
                         )
@@ -446,7 +447,7 @@ class DiffVaxImmunization:
                             image=img_input,
                             height=native_res,
                             width=native_res,
-                            num_inference_steps=4,
+                            num_inference_steps=num_inference_steps,
                             batch_size=actual_bs,
                             strength=strength,
                         )
@@ -459,7 +460,7 @@ class DiffVaxImmunization:
                             image=img_adv_aug,
                             height=h,
                             width=w,
-                            num_inference_steps=4,
+                            num_inference_steps=num_inference_steps,
                             batch_size=actual_bs,
                             strength=strength,
                         )
