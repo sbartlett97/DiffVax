@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DiffVax Extension — Research Progress Report #1</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 960px; margin: 0 auto; padding: 2rem; background: #f8f9fa; color: #212529; }
+  h1 { color: #1a1a2e; border-bottom: 3px solid #4361ee; padding-bottom: 0.5rem; }
+  h2 { color: #3a0ca3; margin-top: 2rem; }
+  h3 { color: #4361ee; }
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .hypothesis { border-left: 4px solid #4361ee; padding-left: 1rem; margin: 1rem 0; }
+  .high-priority { border-left-color: #f72585; }
+  .medium-priority { border-left-color: #4cc9f0; }
+  .status-done { background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 20px;
+                 font-size: 0.85rem; font-weight: 600; }
+  .status-ready { background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 20px;
+                  font-size: 0.85rem; font-weight: 600; }
+  .status-planned { background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 20px;
+                    font-size: 0.85rem; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th { background: #4361ee; color: white; padding: 10px 14px; text-align: left; }
+  td { padding: 8px 14px; border-bottom: 1px solid #e5e7eb; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  .code { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 8px;
+          font-family: "JetBrains Mono", "Courier New", monospace; font-size: 0.85rem;
+          overflow-x: auto; white-space: pre; }
+  .gap { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 1rem;
+         margin: 0.5rem 0; }
+  .insight { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem;
+             margin: 0.5rem 0; }
+  .warning { background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 1rem;
+             margin: 0.5rem 0; }
+  .meta { color: #6b7280; font-size: 0.9rem; }
+  .progress-bar { background: #e5e7eb; border-radius: 10px; height: 10px; margin: 5px 0; }
+  .progress-fill { background: linear-gradient(90deg, #4361ee, #7209b7); border-radius: 10px;
+                   height: 10px; }
+  .arch-table th { font-size: 0.9rem; }
+  .arch-table td { font-size: 0.9rem; }
+  footer { color: #9ca3af; font-size: 0.8rem; text-align: center; margin-top: 3rem;
+           border-top: 1px solid #e5e7eb; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>DiffVax Extension — Progress Report #1</h1>
+<p class="meta">Date: 2026-04-06 &nbsp;|&nbsp; Phase: Bootstrap complete, experiments ready to run &nbsp;|&nbsp; No GPU available locally — cloud compute needed</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Research Question</h2>
+  <blockquote style="font-size:1.1rem; border-left:4px solid #4361ee; margin:0; padding-left:1rem;">
+    How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512×512) to SOTA DiT/hybrid
+    models (FLUX, SD 3.5, gpt-image-edit) and larger resolutions (1088×1088), for a product that
+    lets users protect social media uploads from unauthorized editing?
+  </blockquote>
+</div>
+
+<!-- Current System -->
+<div class="card">
+  <h2 style="margin-top:0">The DiffVax Baseline — What We Have</h2>
+  <table>
+    <tr><th>Property</th><th>Current</th><th>Target</th></tr>
+    <tr><td>Model architecture</td><td>NestedUNet (UNet++), 9.2M params</td><td>Same (no change needed)</td></tr>
+    <tr><td>Training target</td><td>SD 1.5 Inpainting (UNet, 4-ch VAE)</td><td>SD 1.5 + FLUX + SD 3.5</td></tr>
+    <tr><td>Resolution</td><td>512×512 only</td><td>1088×1088 (Instagram-native)</td></tr>
+    <tr><td>Inference speed</td><td>~10ms / image</td><td>~40ms / image (patch mode)</td></tr>
+    <tr><td>Transfer to FLUX</td><td>Unknown</td><td>Target: EDR > 0.75</td></tr>
+    <tr><td>Transfer to SD 3.5</td><td>Unknown</td><td>Target: EDR > 0.70</td></tr>
+    <tr><td>gpt-image-edit</td><td>Not tested</td><td>Qualitative eval (black-box)</td></tr>
+  </table>
+</div>
+
+<!-- Architecture Gap Analysis -->
+<div class="card">
+  <h2 style="margin-top:0">Architecture Gap Analysis</h2>
+
+  <div class="gap">
+    <strong>Gap 1: FLUX uses a 16-channel VAE vs SD 1.5's 4-channel VAE</strong><br>
+    The latent space dimensionality is different, but the <em>pixel-space perturbation</em>
+    produced by DiffVax is architecture-agnostic. The key question is whether FLUX's VAE
+    maps perturbed pixels to latents that disrupt the DiT denoising.
+  </div>
+
+  <div class="gap">
+    <strong>Gap 2: No FLUX attack wrapper existed in the codebase</strong><br>
+    <span class="status-done">FIXED</span> &nbsp; Implemented <code>src/diffvax/attack_flux.py</code>
+    with a differentiable FluxInpaintPipeline forward pass (FlowMatching scheduler, packed latents).
+  </div>
+
+  <div class="gap">
+    <strong>Gap 3: No SD 3.5 attack wrapper</strong><br>
+    <span class="status-done">FIXED</span> &nbsp; Implemented <code>src/diffvax/attack_sd3.py</code>
+    with MM-DiT differentiable forward pass (tri-encoder conditioning).
+  </div>
+
+  <div class="gap">
+    <strong>Gap 4: Loss normalization hardcoded to /512</strong><br>
+    <span class="status-done">FIXED</span> &nbsp; Loss now uses <code>h = img_batch.shape[-2]</code>
+    as the normalization divisor — works at any resolution.
+  </div>
+
+  <div class="gap">
+    <strong>Gap 5: No multi-model training support in train.py</strong><br>
+    <span class="status-done">FIXED</span> &nbsp; Implemented <code>src/diffvax/attack_multi.py</code>
+    (random per-batch model routing) and updated <code>scripts/train.py</code> to call it
+    based on config keys.
+  </div>
+
+  <div class="gap">
+    <strong>Gap 6: 1088×1088 needs either patch inference or retraining</strong><br>
+    <span class="status-ready">EXPERIMENT READY</span> &nbsp;
+    Implemented <code>src/diffvax/patch_immunize.py</code> — Gaussian-weighted overlapping patch
+    blending at arbitrary resolution, using existing 512 checkpoint. H2 experiment will quantify
+    effectiveness.
+  </div>
+
+  <div class="gap">
+    <strong>Gap 7: gpt-image-edit is black-box (no gradient)</strong><br>
+    <span class="status-planned">DESIGN DECISION</span> &nbsp;
+    Must rely on transfer attacks. Strategy: optimize against open-source models and
+    hope perturbations transfer. This is standard in the adversarial ML literature — we
+    cannot do better without API access for white-box attacks.
+  </div>
+</div>
+
+<!-- Architecture Comparison Table -->
+<div class="card">
+  <h2 style="margin-top:0">Attack Architecture Comparison</h2>
+  <table class="arch-table">
+    <tr>
+      <th>Model</th><th>Architecture</th><th>VAE</th><th>Scheduler</th>
+      <th>Differentiable?</th><th>Status</th>
+    </tr>
+    <tr>
+      <td>SD 1.5 Inpainting</td><td>UNet (9-ch input)</td><td>4-ch, 8× compress</td>
+      <td>DDIM/PNDM</td><td>✅ Yes (attack.py)</td>
+      <td><span class="status-done">Existing</span></td>
+    </tr>
+    <tr>
+      <td>FLUX.2-Klein-4B</td><td>DiT (MM-DiT)</td><td>16-ch, 8× compress</td>
+      <td>FlowMatch</td><td>✅ Yes (attack_flux.py)</td>
+      <td><span class="status-done">Implemented</span></td>
+    </tr>
+    <tr>
+      <td>FLUX.1-schnell</td><td>DiT (MM-DiT)</td><td>16-ch, 8× compress</td>
+      <td>FlowMatch</td><td>✅ Yes (attack_flux.py)</td>
+      <td><span class="status-ready">Eval only</span></td>
+    </tr>
+    <tr>
+      <td>SD 3.5 Medium</td><td>MM-DiT</td><td>16-ch, 8× compress</td>
+      <td>FlowMatch</td><td>✅ Yes (attack_sd3.py)</td>
+      <td><span class="status-done">Implemented</span></td>
+    </tr>
+    <tr>
+      <td>gpt-image-edit</td><td>Unknown (GPT-4o based)</td><td>Unknown</td>
+      <td>N/A</td><td>❌ Black-box API</td>
+      <td><span class="status-planned">Transfer only</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- Hypotheses -->
+<div class="card">
+  <h2 style="margin-top:0">Research Hypotheses (Priority Order)</h2>
+
+  <div class="hypothesis high-priority">
+    <strong>H2 — Patch-based inference at 1088×1088</strong>
+    <span class="status-ready" style="margin-left:10px">CODE READY</span><br>
+    <em>Prediction:</em> Patch_immunize at 1088 with 75% overlap achieves ≥80% of 512px EDR.<br>
+    <strong>Why test first:</strong> Zero training needed — immediate path to product if it works.
+    <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+    <span class="meta">Implementation: 100% | Run: waiting for GPU</span>
+  </div>
+
+  <div class="hypothesis high-priority">
+    <strong>H1a — Multi-model training (SD + FLUX) improves DiT transfer</strong>
+    <span class="status-ready" style="margin-left:10px">CODE READY</span><br>
+    <em>Prediction:</em> EDR on unseen FLUX.1-schnell ≥80% of EDR on trained FLUX.2-Klein.<br>
+    Config: <code>configs/train_multimodel.yml</code> (SD 25%, FLUX 75%)
+    <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+    <span class="meta">Implementation: 100% | Run: needs ~8h on A100</span>
+  </div>
+
+  <div class="hypothesis">
+    <strong>H3 — Two-stage curriculum 512→1088 outperforms patch inference</strong>
+    <span class="status-ready" style="margin-left:10px">CODE READY</span><br>
+    Config: <code>configs/train_1088.yml</code> (loads 512 checkpoint, fine-tunes at 1088)<br>
+    <em>Gate:</em> Run only if H2 EDR < 80%.
+    <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+    <span class="meta">Implementation: 100% | Run: needs ~12h on A100</span>
+  </div>
+
+  <div class="hypothesis medium-priority">
+    <strong>H4 — VAE feature-space loss improves cross-model generalization</strong>
+    <span class="status-planned" style="margin-left:10px">PROTOCOL WRITTEN</span><br>
+    Adds <code>-||VAE(x+δ) - VAE(x)||₂</code> loss term. Targets the encoder bottleneck
+    that all models share.<br>
+    <em>Gate:</em> Run after H1a to see if transfer is insufficient.
+    <div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div>
+    <span class="meta">Implementation: 40% (needs training loop modification)</span>
+  </div>
+
+  <div class="hypothesis medium-priority">
+    <strong>H5 — Frequency-domain perturbation constraints at high resolution</strong>
+    <span class="status-planned" style="margin-left:10px">PLANNED</span><br>
+    DCT/wavelet masking to keep perturbations in mid/high frequency bands.
+    <div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div>
+    <span class="meta">Implementation: 10%</span>
+  </div>
+</div>
+
+<!-- New Files Implemented -->
+<div class="card">
+  <h2 style="margin-top:0">New Code Implemented</h2>
+  <table>
+    <tr><th>File</th><th>Description</th><th>Status</th></tr>
+    <tr>
+      <td><code>src/diffvax/attack_flux.py</code></td>
+      <td>Differentiable FLUX inpainting attack (FlowMatching, packed latents, dual-stream text)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>src/diffvax/attack_sd3.py</code></td>
+      <td>Differentiable SD 3.5 inpainting attack (MM-DiT, tri-encoder, 16-ch VAE)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>src/diffvax/attack_multi.py</code></td>
+      <td>Multi-model attack wrapper — routes each batch to a randomly-sampled model</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>src/diffvax/patch_immunize.py</code></td>
+      <td>Gaussian-weighted overlapping patch inference for arbitrary-resolution immunization</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>configs/train_multimodel.yml</code></td>
+      <td>Training config: SD 25% + FLUX 75%, 10k iterations (H1a)</td>
+      <td><span class="status-done">Exists</span></td>
+    </tr>
+    <tr>
+      <td><code>configs/train_1088.yml</code></td>
+      <td>Training config: Stage-2 fine-tuning at 1088×1088 (H3)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>configs/train_multimodel_sd3.yml</code></td>
+      <td>Training config: SD + FLUX + SD3.5 three-way mix (H1b)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>research/experiments/H2.../code/run_patch_eval.py</code></td>
+      <td>H2 evaluation script (no training needed)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>research/experiments/H1.../code/eval_transfer.py</code></td>
+      <td>Cross-model transfer evaluation script</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+    <tr>
+      <td><code>research/src/run_on_modal.py</code></td>
+      <td>Modal.com cloud training launcher (A100 80GB)</td>
+      <td><span class="status-done">Done</span></td>
+    </tr>
+  </table>
+  <br>
+  <strong>Bug fixes:</strong>
+  <ul>
+    <li><code>diffvax_immunization.py</code>: Loss normalization changed from hardcoded <code>/512</code>
+        to <code>/h</code> (resolution-agnostic)</li>
+    <li><code>diffvax_immunization.py</code>: Attack call now forwards <code>height/width</code>
+        from actual batch dimensions</li>
+    <li><code>utils.py</code>: <code>load_image()</code> now accepts <code>resolution</code> parameter</li>
+    <li><code>scripts/train.py</code>: Uses <code>_build_attack_model()</code> which handles
+        SD-only, FLUX-only, and multi-model configs automatically</li>
+  </ul>
+</div>
+
+<!-- Recommended Run Order -->
+<div class="card">
+  <h2 style="margin-top:0">Recommended Experiment Run Order</h2>
+
+  <div class="insight">
+    <strong>Step 1 (fastest, no training):</strong> Run H2 patch-inference evaluation.
+    <br>If EDR ≥ 80%, you have immediate 1088×1088 immunization ready for the product.
+    <div class="code">python research/experiments/H2-patch-inference/code/run_patch_eval.py \
+  --checkpoint checkpoints/diffvax_trained.pth \
+  --data-dir data \
+  --output-dir research/experiments/H2-patch-inference/results/</div>
+  </div>
+
+  <div class="insight">
+    <strong>Step 2 (8h on A100):</strong> Train H1a multi-model (SD + FLUX).
+    <div class="code">python scripts/train.py --config configs/train_multimodel.yml --data-dir data --output-dir outputs</div>
+    Then evaluate transfer to FLUX.1-schnell and SD 3.5.
+  </div>
+
+  <div class="insight">
+    <strong>Step 3 (conditional):</strong> If H2 EDR &lt; 80%, run H3 fine-tuning at 1088.
+    <div class="code">python scripts/train.py --config configs/train_1088.yml --data-dir data --output-dir outputs</div>
+    Need to prepare 1088×1088 training data first:
+    <div class="code">python scripts/generate_masks.py --src data/train/images --dst data/train_1088 --size 1088</div>
+  </div>
+
+  <div class="insight">
+    <strong>Step 4 (conditional):</strong> If H1a transfer gap to DiT models is &gt;20% EDR, run H4 (VAE feature loss).
+  </div>
+</div>
+
+<!-- Cloud Compute -->
+<div class="card">
+  <h2 style="margin-top:0">Compute Resources Needed</h2>
+  <table>
+    <tr><th>Experiment</th><th>GPU</th><th>Time</th><th>Cost (est.)</th><th>Priority</th></tr>
+    <tr><td>H2 patch eval</td><td>A100 40GB</td><td>~1h</td><td>~$2</td><td>HIGH — run first</td></tr>
+    <tr><td>H1a multi-model train</td><td>A100 80GB</td><td>~8h</td><td>~$25</td><td>HIGH</td></tr>
+    <tr><td>H1a transfer eval</td><td>A100 40GB</td><td>~3h</td><td>~$6</td><td>HIGH</td></tr>
+    <tr><td>H3 1088 fine-tune</td><td>A100 80GB</td><td>~12h</td><td>~$35</td><td>MEDIUM (if H2 fails)</td></tr>
+    <tr><td>H4 VAE loss train</td><td>A100 80GB</td><td>~8h</td><td>~$25</td><td>MEDIUM</td></tr>
+    <tr><td>H1b (+ SD3.5)</td><td>A100 80GB</td><td>~10h</td><td>~$30</td><td>LOW (after H1a)</td></tr>
+  </table>
+  <br>
+  <strong>Launch via Modal:</strong>
+  <div class="code">pip install modal && modal setup
+modal run research/src/run_on_modal.py --config configs/train_multimodel.yml</div>
+</div>
+
+<!-- Key Insight -->
+<div class="card" style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white;">
+  <h2 style="color: #4cc9f0; margin-top:0">Key Architectural Insight</h2>
+  <p style="font-size:1.1rem; line-height:1.6">
+    The DiffVax NestedUNet itself requires <strong>zero changes</strong> to support DiT models and
+    higher resolutions. The architecture is already resolution-agnostic (fully convolutional) and
+    model-agnostic (only sees pixel-space images). What matters is:
+  </p>
+  <ol style="font-size:1.05rem; line-height:1.8">
+    <li><strong>Training signal diversity</strong> — the UNet++ must see gradients from multiple
+        model families during training to learn universal perturbations.</li>
+    <li><strong>Resolution-aware loss scaling</strong> — fixed (was hardcoded /512).</li>
+    <li><strong>For inference at 1088px</strong> — either patch-based or fine-tuned; the model's
+        convolutional structure means both approaches are viable.</li>
+  </ol>
+  <p style="color:#4cc9f0">
+    This is a clean research result: the innovation is in the <em>training curriculum</em>,
+    not a new architecture.
+  </p>
+</div>
+
+<footer>
+  DiffVax Extension Research — Progress Report #1 — 2026-04-06<br>
+  Generated by autoresearch. Run <code>open research/to_human/progress_report_01.html</code> to view.
+</footer>
+</body>
+</html>

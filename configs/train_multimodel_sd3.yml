@@ -1,0 +1,33 @@
+# DiffVax multi-model training with SD 1.5 + FLUX + SD 3.5 (H1b experiment)
+# Three-way mix to maximise cross-architecture transfer.
+
+# Training
+iter_num: 20000
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+
+# Model
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_multimodel_sd3"
+
+# Resolution
+resolution: 512
+
+# Attack models and probabilities (must sum to 1.0)
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.2
+
+flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_probability: 0.6
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 0.2
+
+# Dataset paths (relative to data_dir)
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false

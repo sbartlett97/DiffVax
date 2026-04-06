@@ -1,0 +1,82 @@
+project: DiffVax Extension
+question: "How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512x512) to SOTA DiT/hybrid models (FLUX, SD 3.5, gpt-image-edit) and larger resolutions (1088x1088) for a product protecting social media uploads?"
+
+phase: bootstrap
+inner_loop_count: 0
+outer_loop_count: 0
+last_updated: "2026-04-06"
+
+hypotheses:
+  H1:
+    title: "Multi-model training (SD + FLUX) transfers to unseen DiT architectures"
+    status: untested
+    priority: 1
+    rationale: >
+      DiT-based models (FLUX, SD3.5) share a common VAE latent space structure.
+      Perturbations effective at disrupting inpainting in one DiT model likely
+      disrupt others because the VAE encoder is the primary attack surface.
+      If immunization operates mainly in pixel-space (pre-VAE), it should transfer
+      across models that share similar receptive-field properties.
+    prediction: "SSIM of edited region < 0.3 on FLUX.1-schnell when model trained on SD1.5+FLUX.2-Klein"
+    metric: edit_disruption_rate (edited_SSIM vs clean_SSIM delta)
+
+  H2:
+    title: "Patch-based inference enables 1088x1088 immunization without retraining"
+    status: untested
+    priority: 2
+    rationale: >
+      NestedUNet is fully convolutional — no fixed positional encodings. Processing
+      overlapping 512x512 patches with Gaussian-weighted blending (similar to
+      stable diffusion upscaling) should produce coherent 1088x1088 immunizations.
+      This avoids expensive high-res retraining entirely.
+    prediction: "Patch-blended immunization on 1088x1088 achieves >80% of 512-pixel edit disruption rate"
+    metric: edit_disruption_rate at 1088x1088 vs 512x512
+
+  H3:
+    title: "Two-stage curriculum (512 → 1088) outperforms direct high-res training"
+    status: untested
+    priority: 3
+    rationale: >
+      The existing configs/train_1024.yml already implements a stage-2 approach.
+      Start with a trained 512 checkpoint and fine-tune at 1088 with reduced LR.
+      The fine-tuning needs to handle the non-square 1088 resolution and
+      resolution-aware loss scaling (currently hardcoded /512).
+    prediction: "Stage-2 fine-tuning converges in <50% the iterations of training from scratch at 1088"
+    metric: convergence_iterations (to hit threshold edit_loss)
+
+  H4:
+    title: "VAE feature-space immunization generalizes better than pixel-space to DiT models"
+    status: untested
+    priority: 4
+    rationale: >
+      Instead of/in addition to matching denoised output to zeros, adding a loss
+      term that maximizes VAE-encoded latent distance (||VAE(x+δ) - VAE(x)||)
+      could make perturbations that survive the encoder bottleneck and thus
+      disrupt DiT models that use different UNets but the same/similar VAE.
+    prediction: "VAE-feature loss term improves cross-model transfer by >15% edit disruption rate"
+    metric: cross_model_edit_disruption_rate
+
+  H5:
+    title: "Frequency-domain perturbations (DCT/wavelet) are more perceptually efficient at high resolution"
+    status: untested
+    priority: 5
+    rationale: >
+      At 1088x1088, a flat epsilon-bound in pixel space may be visually detectable
+      at low spatial frequencies. Imposing perturbations mainly in mid/high
+      frequency bands (DCT masking) keeps them imperceptible while maximally
+      disrupting the VAE encoder's low-frequency reconstruction.
+    prediction: "Frequency-constrained training improves SSIM of immunized image by >2dB while maintaining edit disruption"
+    metric: [immunized_SSIM, edit_disruption_rate]
+
+current_focus: "Bootstrap — literature survey and workspace setup"
+
+known_constraints:
+  - "No local GPU. All experiments require cloud/cluster submission."
+  - "Current NestedUNet hardcodes /512 normalization in loss — must fix for 1088."
+  - "SD 1.5 inpainting uses 4-channel VAE (64x64 latents for 512x512). FLUX uses 16-channel VAE (different latent dims)."
+  - "FLUX.2 Klein (4B) model exists in configs but no FLUX attack.py wrapper implemented yet."
+  - "gpt-image-edit is a black-box API — cannot do differentiable attacks through it. Must use transfer attacks."
+  - "attack.py references only StableDiffusionInpaintPipeline — needs a FLUX inpainting wrapper."
+
+decisions:
+  - "2026-04-06: Started research. Existing configs (train_1024.yml, train_multimodel.yml) show prior work toward FLUX+1024. Need to validate if FLUX attack wrapper exists and build if not."
