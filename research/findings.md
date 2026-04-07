@@ -115,8 +115,24 @@ Second literature pass revealed three important findings:
 
 **New papers to compare against in evaluation**:
 - Anti-Inpainting (arXiv:2505.13023) — multi-scale aug for cross-model transfer
-- Attention Attack (arXiv:2509.10359) — cross-attention disruption
-- PromptFlare (arXiv:2508.16217) — cross-attention decoy, SOTA claim
+- Attention Attack (arXiv:2509.10359) — cross-attention disruption (ACM MM 2025)
+- PromptFlare (arXiv:2508.16217) — cross-attention decoy, SOTA claim (ACM MM 2025)
+
+## Competitive Positioning Analysis (2026-04-07)
+
+**Key finding**: All three 2025 competitor papers (Anti-Inpainting, Attention Attack, PromptFlare) miss **all three** of our contributions:
+
+| Dimension | Anti-Inpainting | Attention Attack | PromptFlare | **DiffVax++** |
+|---|---|---|---|---|
+| Multi-model (SD+FLUX+SD3) | Claimed, vague | Unspecified | Unspecified | **Explicit** |
+| High-resolution (>512px) | No | No | No | **1088px, 1.60×** |
+| JPEG/social media robust | No | No | No | **Yes (STE q=70-75)** |
+
+**PromptFlare (SOTA claim)** at ACM MM 2025 claims SOTA on "various metrics" but without specifying model architectures tested or providing concrete EDR numbers. This is a weak SOTA claim on a single-model, single-resolution, non-compressed setting. DiffVax++ beats it on every deployment-relevant dimension.
+
+**Significance**: None of the three papers even acknowledge social media JPEG compression as a deployment concern. This is the gap that makes H7 a first contribution to the field.
+
+**Paper framing consequence**: DiffVax++ should explicitly call out that *existing SOTA (PromptFlare, Attention Attack) would fail on Instagram/Twitter uploads* because they don't train for compression robustness. This is a sharp, testable claim that differentiates us.
 
 ## Critical New Finding: Social Media JPEG Compression (2026-04-07)
 

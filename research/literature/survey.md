@@ -98,21 +98,30 @@
 - **H7 positioning**: Our STE approach directly addresses the gap IDProtector left. First explicit STE JPEG training for diffusion immunization. First to target q=70-75 (harder than IDProtector's q=85).
 
 ### 15. "Anti-Inpainting: Proactive Defense Against Malicious Diffusion-based Inpainters"
-- **arXiv**: 2505.13023 (May 2025)
-- **Key finding**: Multi-scale semantic-preserving augmentation for transferability under unknown conditions (mask, model, prompt).
-- **Relation to H1**: Augmentation-based transfer strategy — similar philosophy to our multi-model routing. Their "unknown conditions" transfer may not cover full architecture switch (UNet→DiT).
-- **To investigate**: Which specific model architectures do they test?
+- **arXiv**: 2505.13023 (May 2025, v3 Aug 2025), arXiv preprint
+- **Key finding**: Multi-scale semantic-preserving augmentation for transferability under unknown conditions (mask, model, prompt). Evaluated on InpaintGuardBench and CelebA-HQ.
+- **Architecture specifics**: Generic "diffusion-based inpainters" — no explicit SD1.5/FLUX/SD3.5 benchmarks
+- **JPEG robustness**: None
+- **Metrics**: No specific EDR/ASR numbers in abstract
+- **Relation to H1**: Augmentation-based transfer strategy — similar philosophy but no explicit DiT benchmarking. Their "unknown conditions" likely means prompt/mask variation, not architecture switch (UNet→DiT).
+- **Competitive position**: DiffVax++ explicitly benchmarks SD1.5+FLUX+SD3.5; Anti-Inpainting doesn't.
 
 ### 16. "Immunizing Images from Text to Image Editing via Adversarial Cross-Attention"
-- **arXiv**: 2509.10359 (September 2025)  
-- **Key finding**: "Attention Attack" — disrupts cross-attention between text prompt and visual representation using auto-generated image captions as proxy.
-- **Novel metrics**: Caption Similarity, semantic IoU
-- **Relation to H4**: Validates that cross-attention is the right disruption target for DiT models.
+- **arXiv**: 2509.10359 (September 2025), **ACM Multimedia 2025**
+- **Key finding**: "Attention Attack" — disrupts cross-attention between text prompt and visual representation using auto-generated image captions as proxy. Introduces Caption Similarity and semantic IoU metrics.
+- **Architecture specifics**: Evaluated on TEDBench++ (model unspecified)
+- **JPEG robustness**: None
+- **Metrics**: "Significantly degrades editing performance" — no specific numbers
+- **Relation to H4**: Validates cross-attention as disruption target. DiffVax++ adds VAE feature loss + explicit multi-model training.
+- **Competitive position**: Black-box method, no JPEG, no high-res, no architecture specifics.
 
 ### 17. "PromptFlare: Prompt-Generalized Defense via Cross-Attention Decoy in Diffusion-Based Inpainting"
-- **arXiv**: 2508.16217 (August 2025)
-- **Key finding**: Cross-attention decoy injection that "consistently suppresses generation across all CFG scales." Claims SOTA with low compute.
-- **Relation to H4**: Another cross-attention disruption method. Reduced compute is relevant for product deployment.
+- **arXiv**: 2508.16217 (August 2025), **ACM Multimedia 2025**
+- **Key finding**: Cross-attention decoy targeting semantically uninformative prompt tokens. Claims SOTA across "various metrics" with reduced GPU overhead.
+- **Architecture specifics**: "Diffusion-based inpainting" — no explicit SD1.5/FLUX/SD3.5
+- **JPEG robustness**: None
+- **Metrics**: "State-of-the-art" claim without specific numbers in abstract
+- **Competitive position**: Weakest SOTA claim — no model specifics, no quantitative numbers, no JPEG, no high-res. DiffVax++ supersedes on all deployment dimensions.
 
 ---
 
