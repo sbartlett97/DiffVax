@@ -1,5 +1,20 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-07 — SD3Attack + H7 STE Validation
+
+**SD3Attack CPU offload bug fixed** (`src/diffvax/attack_sd3.py`):
+- Root cause: `pipe.enable_model_cpu_offload()` offloads transformer to CPU; our custom denoising loop calls `pipe.transformer()` directly without pipeline hooks → transformer is on CPU → crash
+- Fix: Removed `enable_model_cpu_offload()`, added `pipe.transformer.enable_gradient_checkpointing()`
+- SD3.5-medium is ~16 GB fp16, fits on 95 GB GPU alongside other models
+
+**H7 STE JPEG gradient flow validated** (`src/diffvax/jpeg_augment.py`):
+- Forward: output equals JPEG-compressed reference at q=70 and q=75 ✓
+- Backward: gradient exists, mean=0.000081 ≈ 1/(1×3×64×64) — confirms identity backward pass ✓
+- Probability control: p=0.0 → 0%, p=0.5 → ~45%, p=1.0 → 100% ✓
+- All validation tests passed on CPU. Ready for GPU training.
+
+---
+
 ## 2026-04-07 — H2 GPU Results: CONFIRMED at 1.60×
 
 **Result**: 50% overlap patch immunization (stride=256) at 1088×1088 achieves EDR=0.400 vs baseline_512 EDR=0.250 → **1.60× ratio** (prediction: ≥0.80×).

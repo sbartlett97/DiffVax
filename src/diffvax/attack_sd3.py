@@ -40,7 +40,11 @@ class SD3Attack:
             model_link, torch_dtype=dtype
         )
         pipe = pipe.to("cuda")
-        pipe.enable_model_cpu_offload()
+        # Do NOT call enable_model_cpu_offload() here — our custom denoising loop
+        # calls pipe.transformer() directly, bypassing the pipeline hooks that restore
+        # offloaded modules. The transformer would be on CPU when called → crash.
+        # SD3.5-medium is ~16 GB in fp16; it fits on a 95 GB GPU alongside other models.
+        pipe.transformer.enable_gradient_checkpointing()
 
         self.pipe = pipe
         self.guidance_scale = guidance_scale
