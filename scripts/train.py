@@ -80,6 +80,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "learning_rate": config["learning_rate"],
         "immunization_model": immunization_model_name,
         "vae_loss_beta": config.get("vae_loss_beta", 0.0),
+        "max_steps": config.get("max_steps", None),
     }
     immunization_mdl = DiffVaxImmunization(
         attack_model, immunization_config, output_dir=output_dir

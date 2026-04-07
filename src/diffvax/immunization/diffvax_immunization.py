@@ -144,13 +144,23 @@ class DiffVaxImmunization:
             dataset, batch_size=batch_size, shuffle=True
         )
 
+        # max_steps caps total gradient updates across all epochs.
+        # Prevents runaway training when dataset is large (800 imgs × 2 prompts = 1600
+        # items/epoch; iter_num=10000 epochs × 1600 = 16M steps without this cap).
+        max_steps = self.config.get("max_steps", None)
+
         for epoch_i in range(iter_num):
-            pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+            if max_steps is not None and total_iter >= max_steps:
+                break
+            pbar = tqdm(enumerate(dataloader), total=len(dataloader),
+                        desc=f"Epoch {epoch_i+1}/{iter_num}")
             epoch_losses = []
             epoch_losses1 = []
             epoch_losses2 = []
 
             for i, (img_batch, mask_batch, prompt_batch) in enumerate(dataloader):
+                if max_steps is not None and total_iter >= max_steps:
+                    break
                 self.optimizer.zero_grad()
                 losses = []
                 losses1 = []

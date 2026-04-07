@@ -3,6 +3,7 @@
 
 # Training
 iter_num: 20000
+max_steps: 8000
 learning_rate: 0.000005
 batch_size: 1
 alpha: 4

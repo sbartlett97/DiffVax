@@ -76,8 +76,15 @@ def plot_h2(csv_path: Path, out_dir: Path):
     fig.suptitle("H2: Patch-Based 1088px Immunization — EDR vs Overlap Strategy",
                  fontsize=14, fontweight="bold")
 
-    colors = ["#4CAF50" if v >= 0.8 else "#FF9800" if v >= 0.6 else "#F44336"
-              for v in edr_vals]
+    # Color: highlight recommended (50pct) green, baseline orange, others grey
+    colors = []
+    for c in present:
+        if c == "50pct_overlap":
+            colors.append("#3fb950")
+        elif c == "baseline_512":
+            colors.append("#d29922")
+        else:
+            colors.append("#6e7681")
 
     # EDR
     bars = axes[0].bar([cond_labels.get(c, c) for c in present], edr_vals,
@@ -88,9 +95,16 @@ def plot_h2(csv_path: Path, out_dir: Path):
     axes[0].set_ylim(0, 1.05)
     axes[0].legend(fontsize=9)
     axes[0].set_title("Edit Disruption Rate", fontsize=12)
-    for bar, val in zip(bars, edr_vals):
+
+    # Compute baseline EDR for ratio annotation
+    baseline_edr = edr_vals[present.index("baseline_512")] if "baseline_512" in present else None
+
+    for bar, val, cond in zip(bars, edr_vals, present):
+        label = f"{val:.2f}"
+        if baseline_edr and cond == "50pct_overlap":
+            label = f"{val:.2f}\n(×{val/baseline_edr:.2f} baseline)"
         axes[0].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
-                     f"{val:.2f}", ha="center", va="bottom", fontweight="bold")
+                     label, ha="center", va="bottom", fontweight="bold", fontsize=9)
 
     # PSNR
     bars2 = axes[1].bar([cond_labels.get(c, c) for c in present], psnr_vals,
@@ -229,46 +243,78 @@ def plot_h7(csv_path: Path, out_dir: Path):
 
 
 def plot_h6(csv_path: Path, out_dir: Path):
-    """H6: Purification robustness — EDR before vs after FLUX purification."""
+    """H6: Purification robustness — EDR vs purification strength per checkpoint."""
     plt, np, _ = _require_matplotlib()
     pd = _require_pandas()
 
     df = pd.read_csv(csv_path)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    checkpoints = df["checkpoint"].unique().tolist()
-    palette = ["#2196F3", "#FF5722", "#4CAF50"]
+    checkpoints = sorted(df["checkpoint"].unique().tolist())
+    palette = {"sd15_only": "#2196F3", "flux_trained": "#FF5722"}
+    default_colors = ["#4CAF50", "#9C27B0", "#FF9800"]
 
-    fig, ax = plt.subplots(figsize=(9, 5))
-    fig.suptitle("H6: Does DiffVax-FLUX Immunization Resist FLUX Purification?\n"
-                 "(Higher bars = purification fails = better product security)",
+    # Handle both old (no purify_strength col) and new format
+    has_strength = "purify_strength" in df.columns
+    if has_strength:
+        strengths = sorted(df["purify_strength"].unique().tolist())
+    else:
+        strengths = [None]
+
+    # Figure: 2 subplots — left: direct EDR per checkpoint, right: purified EDR vs strength
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle("H6: DiffVax-FLUX Immunization vs FLUX-Based Purification Attack (EditorClean)\n"
+                 "Higher purified EDR = immunization resists purification = better product security",
                  fontsize=12, fontweight="bold")
 
-    x = np.arange(len(checkpoints))
-    width = 0.35
+    # Left: direct EDR (no purification) per checkpoint
+    direct_edrs = []
+    for ckpt in checkpoints:
+        sub = df[df["checkpoint"] == ckpt]
+        direct_edrs.append(sub["direct_disrupted"].mean())
 
-    direct_edrs = [df[df["checkpoint"] == c]["direct_disrupted"].mean() for c in checkpoints]
-    purified_edrs = [df[df["checkpoint"] == c]["purified_disrupted"].mean() for c in checkpoints]
+    colors = [palette.get(c, default_colors[i % len(default_colors)])
+              for i, c in enumerate(checkpoints)]
+    bars = axes[0].bar(checkpoints, direct_edrs, color=colors, alpha=0.85, edgecolor="white")
+    axes[0].axhline(0.7, color="green", linestyle="--", alpha=0.5, label="Target (0.7)")
+    axes[0].axhline(0.5, color="red", linestyle="--", alpha=0.4, label="Chance (0.5)")
+    axes[0].set_ylabel("Edit Disruption Rate (EDR)", fontsize=11)
+    axes[0].set_title("Direct EDR (no purification)", fontsize=11)
+    axes[0].set_ylim(0, 1.1)
+    axes[0].legend(fontsize=9)
+    for bar, val in zip(bars, direct_edrs):
+        axes[0].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
+                     f"{val:.2f}", ha="center", va="bottom", fontweight="bold")
 
-    bars1 = ax.bar(x - width / 2, direct_edrs, width, label="Direct EDR (no purification)",
-                   color="#4CAF50", alpha=0.85)
-    bars2 = ax.bar(x + width / 2, purified_edrs, width,
-                   label="Post-Purification EDR (H6 key metric)",
-                   color="#FF5722", alpha=0.85)
+    # Right: post-purification EDR vs strength (or single bar if no strength column)
+    if has_strength:
+        for i, ckpt in enumerate(checkpoints):
+            color = palette.get(ckpt, default_colors[i % len(default_colors)])
+            purified_edrs = []
+            for s in strengths:
+                sub = df[(df["checkpoint"] == ckpt) & (df["purify_strength"] == s)]
+                purified_edrs.append(sub["purified_disrupted"].mean() if len(sub) else 0)
+            axes[1].plot(strengths, purified_edrs, "o-", label=ckpt,
+                         color=color, linewidth=2, markersize=8)
+            for s, val in zip(strengths, purified_edrs):
+                axes[1].text(s, val + 0.02, f"{val:.2f}", ha="center", fontsize=9)
+        axes[1].set_xlabel("Purification Strength (adversary aggressiveness)", fontsize=11)
+        axes[1].set_title("Post-Purification EDR vs Adversary Strength", fontsize=11)
+        axes[1].legend(fontsize=10)
+    else:
+        purified_edrs = [df[df["checkpoint"] == c]["purified_disrupted"].mean() for c in checkpoints]
+        bars2 = axes[1].bar(checkpoints, purified_edrs, color=colors, alpha=0.85, edgecolor="white")
+        axes[1].set_title("Post-Purification EDR", fontsize=11)
+        for bar, val in zip(bars2, purified_edrs):
+            axes[1].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
+                         f"{val:.2f}", ha="center", va="bottom", fontweight="bold")
 
-    ax.axhline(0.7, color="green", linestyle="--", alpha=0.5, label="Target EDR (0.7)")
-    ax.axhline(0.5, color="red", linestyle="--", alpha=0.4, label="Chance baseline (0.5)")
-    ax.set_xticks(x)
-    ax.set_xticklabels(checkpoints, fontsize=11)
-    ax.set_ylabel("Edit Disruption Rate (EDR)", fontsize=11)
-    ax.set_ylim(0, 1.1)
-    ax.legend(fontsize=9)
-
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                    f"{bar.get_height():.2f}", ha="center", va="bottom",
-                    fontweight="bold", fontsize=10)
+    axes[1].axhline(0.7, color="green", linestyle="--", alpha=0.5, label="Target (0.7)")
+    axes[1].axhline(0.5, color="red", linestyle="--", alpha=0.4, label="Chance (0.5)")
+    axes[1].set_ylabel("Post-Purification EDR", fontsize=11)
+    axes[1].set_ylim(0, 1.1)
+    if not has_strength:
+        axes[1].legend(fontsize=9)
 
     plt.tight_layout()
     out_path = out_dir / "h6_purification_robustness.png"
