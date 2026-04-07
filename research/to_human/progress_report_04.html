@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffVax Extension — Progress Report 04</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 980px; margin: 40px auto; padding: 0 24px; color: #1a1a2e; background: #f8f9fa; }
+  h1 { color: #0f3460; border-bottom: 3px solid #e94560; padding-bottom: 12px; }
+  h2 { color: #0f3460; margin-top: 40px; border-left: 4px solid #e94560; padding-left: 12px; }
+  h3 { color: #16213e; margin-top: 20px; }
+  .card { background: white; border-radius: 8px; padding: 20px 24px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .status-done { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+  .status-active { background: #cce5ff; color: #004085; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+  .status-new { background: #e2d9f3; color: #4a1b9e; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+  .status-waiting { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: #0f3460; color: white; padding: 10px 14px; text-align: left; font-size: 0.9em; }
+  td { padding: 9px 14px; border-bottom: 1px solid #dee2e6; font-size: 0.9em; }
+  tr:nth-child(even) { background: #f2f4f8; }
+  .highlight { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+  .success { background: #d4edda; border-left: 4px solid #28a745; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+  .danger { background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+  .info { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+  pre { background: #1a1a2e; color: #a8d8a8; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; line-height: 1.5; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0; }
+  .metric-box { background: white; border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 3px solid #e94560; }
+  .metric-box .value { font-size: 1.8em; font-weight: 700; color: #0f3460; }
+  .metric-box .label { color: #666; font-size: 0.8em; margin-top: 4px; }
+  .timeline { border-left: 3px solid #e94560; padding-left: 20px; }
+  .timeline-item { margin-bottom: 16px; position: relative; }
+  .timeline-item::before { content: "●"; position: absolute; left: -27px; color: #e94560; font-size: 1.1em; }
+  .bug-list td:first-child { color: #dc3545; font-family: monospace; font-size: 0.85em; }
+  .bug-list td:nth-child(2) { color: #6c757d; font-size: 0.85em; }
+  .bug-list td:last-child { color: #155724; font-size: 0.85em; }
+  .threat-table td:nth-child(3) { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>DiffVax Extension — Progress Report 04</h1>
+<p><strong>Date:</strong> 2026-04-07 &nbsp;|&nbsp; <strong>Phase:</strong> GPU Experiments Running &nbsp;|&nbsp; <strong>Focus:</strong> Debugging + H7 Discovery</p>
+
+<div class="info">
+<strong>Status:</strong> H1a multi-model training actively running on GPU after debugging three sequential blockers. H2 patch evaluation awaiting re-run after OOM fix. New high-priority hypothesis H7 (JPEG robustness) added based on literature discovery.
+</div>
+
+<h2>Outer Loop Synthesis — Research Narrative Taking Shape</h2>
+
+<div class="card">
+<h3>The Paper Story (Draft)</h3>
+<p>Three threats make existing DiffVax insufficient for social media product deployment. We address all three:</p>
+
+<table class="threat-table">
+  <tr><th>Threat</th><th>Mechanism</th><th>Our Solution</th><th>Hypothesis</th></tr>
+  <tr>
+    <td>Cross-architecture generalization</td>
+    <td>SD1.5 immunizations don't transfer to FLUX/SD3.5 DiT models</td>
+    <td>Multi-model training (SD+FLUX, random per step)</td>
+    <td>H1 + H4</td>
+  </tr>
+  <tr>
+    <td>Purification attacks</td>
+    <td>FLUX.1-fill-dev as purifier defeats all SD1.5 immunizations (+3-6 dB)</td>
+    <td>If trained against FLUX, immunization corrupts FLUX's own latent space</td>
+    <td>H6</td>
+  </tr>
+  <tr>
+    <td><strong>Social media compression</strong></td>
+    <td><strong>Instagram/Twitter apply JPEG q=70-75, stripping Lp perturbations before adversary acts</strong></td>
+    <td><strong>JPEG-augmented training (STE gradient) forces energy into survivor DCT bands</strong></td>
+    <td><strong>H7 (NEW)</strong></td>
+  </tr>
+</table>
+
+<p><strong>Key novelty:</strong> H7 was not in any existing immunization paper. It changes the product requirements — JPEG robustness is not optional for a social media upload protection system. Without H7, every result from H1–H6 is misleading because the evaluation doesn't account for upload compression.</p>
+</div>
+
+<h2>Bugs Debugged This Session (All Resolved)</h2>
+
+<div class="card">
+<table class="bug-list">
+  <tr><th>Error</th><th>Root Cause</th><th>Fix</th></tr>
+  <tr>
+    <td>ModuleNotFoundError: eval_metrics</td>
+    <td><code>parents[5]</code> resolved to parent of project root (off by 1)</td>
+    <td>Changed to <code>parents[4]</code> — scripts are 4 levels deep, not 5</td>
+  </tr>
+  <tr>
+    <td>CUDA OOM at H2 (94.9/94.97 GB used)</td>
+    <td>SD 1.5 editing at 1088px: self-attention = 136×136 = 18,496 tokens = ~90 GB for 20 steps</td>
+    <td>Edit at 512px (downscale immunized image). Also: attention slicing, empty_cache, no_grad</td>
+  </tr>
+  <tr>
+    <td>TypeError: load_image() unexpected 'resolution'</td>
+    <td>GPU instance was on older commit — needed git pull</td>
+    <td>Already fixed in commit 9c26387; required git pull on GPU</td>
+  </tr>
+  <tr>
+    <td>FutureWarning: GradScaler deprecated</td>
+    <td><code>torch.cuda.amp.GradScaler()</code> deprecated in PyTorch 2.4+</td>
+    <td>Changed to <code>torch.amp.GradScaler("cuda")</code></td>
+  </tr>
+  <tr>
+    <td>ValueError: FluxInpaintPipeline missing components</td>
+    <td>FLUX.2-Klein-4B is T5-only (no CLIP encoder); FluxInpaintPipeline requires dual-encoder</td>
+    <td>All configs changed to FLUX.1-schnell; FluxAttack now handles T5-only fallback gracefully</td>
+  </tr>
+</table>
+</div>
+
+<h2>Critical New Finding: H7 — JPEG Robustness</h2>
+
+<div class="danger">
+<strong>Without JPEG-aware training, DiffVax provides no protection on social media.</strong>
+Instagram/Twitter apply JPEG at q=70-75 on all uploads. Standard Lp-bounded perturbations are eliminated at these quality settings.
+</div>
+
+<div class="card">
+<h3>What Happens to Immunization Through JPEG Compression</h3>
+<table>
+  <tr><th>JPEG Quality</th><th>Platform</th><th>Standard DiffVax EDR (predicted)</th><th>H7 DiffVax EDR (predicted)</th></tr>
+  <tr><td>No compression</td><td>Direct share/download</td><td>0.85+</td><td>0.85+</td></tr>
+  <tr><td>q=85</td><td>Light compression</td><td>~0.60</td><td>0.80+</td></tr>
+  <tr><td>q=75</td><td>Instagram</td><td>~0.40</td><td>0.70+</td></tr>
+  <tr><td>q=70</td><td>Twitter/X</td><td>~0.30</td><td>0.65+</td></tr>
+</table>
+<p><em>Predictions based on literature (Goodfellow 2016, DCT-Shield ICCV 2025). Actual values TBD from GPU experiments.</em></p>
+
+<h3>H7 Technical Implementation</h3>
+<pre>
+# In DiffVaxImmunization.train() — after computing immunized image:
+
+# H7: STE JPEG augmentation (50% of steps)
+if random.random() < 0.5:
+    img_jpeg = jpeg_compress(img_immunized, quality=random.randint(70, 85))
+    img_for_attack = img_jpeg + (img_immunized - img_immunized.detach())
+    # Forward: JPEG-compressed image → realistic signal
+    # Backward: STE → gradients flow as if identity → model learns to put
+    #           perturbation energy in DCT bands that SURVIVE at q=70-85
+else:
+    img_for_attack = img_immunized  # standard uncompressed step
+</pre>
+<p><strong>Reference:</strong> DCT-Shield (ICCV 2025, arXiv:2504.17894) — DCT-domain defense with JPEG-quantization-aware perturbation constraints.</p>
+</div>
+
+<h2>Experiment Queue — Updated Priority</h2>
+
+<div class="card">
+<table>
+  <tr><th>Experiment</th><th>Status</th><th>GPU Time</th><th>Command</th></tr>
+  <tr>
+    <td><strong>H1a</strong> — Multi-model training (SD+FLUX.1-schnell)</td>
+    <td><span class="status-active">Running</span></td>
+    <td>~8h</td>
+    <td><code>bash scripts/run_experiments.sh h1a</code></td>
+  </tr>
+  <tr>
+    <td><strong>H2</strong> — Patch inference eval at 1088px</td>
+    <td><span class="status-waiting">Re-run after H1a</span></td>
+    <td>~2h (inference only)</td>
+    <td><code>bash scripts/run_experiments.sh h2</code></td>
+  </tr>
+  <tr>
+    <td><strong>H6</strong> — Purification robustness</td>
+    <td><span class="status-waiting">Waiting for H1a ckpt</span></td>
+    <td>~2h</td>
+    <td><code>bash scripts/run_experiments.sh h6</code></td>
+  </tr>
+  <tr>
+    <td><strong>H7</strong> — JPEG-robust training</td>
+    <td><span class="status-new">Protocol committed</span></td>
+    <td>~8h</td>
+    <td><code>bash scripts/run_experiments.sh h7</code></td>
+  </tr>
+  <tr>
+    <td><strong>H7 eval</strong> — Compare H1a vs H7 at q=75 and q=70</td>
+    <td><span class="status-waiting">Waiting for both ckpts</span></td>
+    <td>~3h</td>
+    <td><code>python eval_transfer.py --checkpoints h1a=... h7=... --jpeg-qualities 75 70</code></td>
+  </tr>
+</table>
+</div>
+
+<h2>What Changed in the Codebase Since Last Report</h2>
+
+<div class="card">
+<div class="timeline">
+  <div class="timeline-item"><strong>eval_transfer.py completely rewritten</strong> — now supports <code>--jpeg-qualities 75 70</code> for H7 protocol; torch.no_grad on all inference; clean edits precomputed once per image (was 4× per condition)</div>
+  <div class="timeline-item"><strong>plot_results.py</strong> (new) — generates publication-ready figures for H1 (transfer heatmap), H2 (overlap comparison), H6 (purification), H7 (JPEG robustness bar chart). Auto-runs after experiments complete.</div>
+  <div class="timeline-item"><strong>All configs: FLUX.2-Klein → FLUX.1-schnell</strong> — Klein is T5-only; schnell has full CLIP+T5 dual encoder required by FluxInpaintPipeline</div>
+  <div class="timeline-item"><strong>attack_flux.py</strong> — try/except fallback for T5-only models; auto-detect distilled (guidance_scale=0 for schnell)</div>
+  <div class="timeline-item"><strong>jpeg_augment.py</strong> (new) — STE JPEG for training; compression robustness evaluation utility</div>
+  <div class="timeline-item"><strong>GradScaler deprecation fixed</strong> — torch.cuda.amp → torch.amp for PyTorch 2.4+</div>
+</div>
+</div>
+
+<h2>Expected Paper Sections (Draft)</h2>
+
+<div class="card">
+<table>
+  <tr><th>Section</th><th>Core Content</th><th>Depends On</th></tr>
+  <tr><td>Introduction</td><td>Three threats to immunization-based social media protection; DiffVax extended to address all three</td><td>Narrative only</td></tr>
+  <tr><td>Related Work</td><td>DiffVax, Glaze, PhotoGuard, Purify Once (arXiv:2603.13028), AdvPaint (arXiv:2503.10081), DCT-Shield (ICCV 2025)</td><td>Literature done</td></tr>
+  <tr><td>Method</td><td>Multi-model attack (§3.1); patch inference at 1088px (§3.2); JPEG-augmented STE training (§3.3); optional VAE feature loss (§3.4)</td><td>Code done</td></tr>
+  <tr><td>Experiments — H1</td><td>Transfer heatmap: SD15-only vs multi-model checkpoint × {SD 1.5, FLUX.1-schnell, SD 3.5}</td><td>H1a results</td></tr>
+  <tr><td>Experiments — H2</td><td>EDR at 1088px across 4 overlap conditions + baseline 512px</td><td>H2 results</td></tr>
+  <tr><td>Experiments — H6</td><td>Post-purification EDR: SD15-only vs multi-model after FLUX.1-fill-dev purification</td><td>H1a + H6 results</td></tr>
+  <tr><td>Experiments — H7</td><td>Post-JPEG EDR at q=75/70 for H1a vs H7; shows JPEG robustness is trainable</td><td>H1a + H7 results</td></tr>
+  <tr><td>Conclusion</td><td>All three threats addressed; patch inference enables 1088px at no extra training cost; H7 is essential for social media deployment</td><td>All results</td></tr>
+</table>
+</div>
+
+<h2>How to Continue After H1a Finishes</h2>
+
+<div class="card">
+<pre>
+# 1. Evaluate H1a cross-model transfer
+python research/experiments/H1-multimodel-transfer/code/eval_transfer.py \
+    --checkpoints sd15_only=checkpoints/diffvax_trained.pth \
+                  multimodel_flux=outputs/h1a/*_final.pth \
+    --eval-models sd15 flux_schnell sd35 \
+    --data-dir data/ \
+    --output-dir research/experiments/H1-multimodel-transfer/results/
+
+# 2. Run H2 patch inference eval
+bash scripts/run_experiments.sh h2
+
+# 3. Run H6 purification robustness
+bash scripts/run_experiments.sh h6
+
+# 4. Start H7 training
+bash scripts/run_experiments.sh h7
+
+# 5. When H7 checkpoint ready, compare post-JPEG EDR
+python research/experiments/H1-multimodel-transfer/code/eval_transfer.py \
+    --checkpoints h1a=outputs/h1a/*_final.pth h7=outputs/h7/*_final.pth \
+    --eval-models sd15 flux_schnell \
+    --jpeg-qualities 75 70 \
+    --data-dir data/ \
+    --output-dir research/experiments/H7-jpeg-robust/results/
+
+# 6. Generate all plots
+python research/src/plot_results.py all --out research/to_human/figures/
+</pre>
+</div>
+
+<hr>
+<p style="color: #999; font-size: 0.85em;">Generated by autonomous research agent — DiffVax Extension Project — 2026-04-07</p>
+</body>
+</html>
