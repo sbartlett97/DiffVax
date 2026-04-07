@@ -63,8 +63,9 @@ hypotheses:
 
   H5:
     title: "Frequency-domain perturbations (DCT/wavelet) are more perceptually efficient at high resolution"
-    status: untested
-    priority: 5
+    status: deprioritized
+    priority: 6
+    note: "REVISED: High-freq DCT perturbations are MORE vulnerable to JPEG (DCT-Shield, ICCV 2025). H5 needs redesign around JPEG-quantization-aware constraints. Superseded by H7 for social media use case."
     rationale: >
       At 1088x1088, a flat epsilon-bound in pixel space may be visually detectable
       at low spatial frequencies. Imposing perturbations mainly in mid/high
@@ -72,6 +73,20 @@ hypotheses:
       disrupting the VAE encoder's low-frequency reconstruction.
     prediction: "Frequency-constrained training improves SSIM of immunized image by >2dB while maintaining edit disruption"
     metric: [immunized_SSIM, edit_disruption_rate]
+
+  H7:
+    title: "JPEG-augmented training produces immunizations that survive social media upload compression"
+    status: protocol_committed
+    priority: 2
+    rationale: >
+      Instagram (~q=75) and Twitter (~q=70) apply JPEG compression to all uploads.
+      Standard DiffVax (Lp-bounded pixel-space) is eliminated by this compression.
+      Training with JPEG augmentation (STE gradient, q=70-85) forces perturbation
+      energy into DCT bands that survive typical social media quality settings.
+    prediction: "H7 checkpoint maintains EDR ≥ 0.7 after q=75 JPEG; H1a baseline drops to ≤ 0.5"
+    metric: post_jpeg_edit_disruption_rate at q=75 and q=70
+    config: configs/train_multimodel_h7.yml
+    reference: "DCT-Shield (ICCV 2025, arXiv:2504.17894)"
 
   H6:
     title: "Multi-model immunization resists FLUX-based purification attacks"
@@ -86,7 +101,7 @@ hypotheses:
     prediction: "FLUX-based EditorClean purifier fails on DiffVax-FLUX immunized images (SSIM delta < 0.05)"
     metric: edit_disruption_rate after purification attempt
 
-current_focus: "Bootstrap complete — literature surveyed, all experiment code ready. Waiting for GPU to run H2 (no training) and H1a (8h A100)."
+current_focus: "GPU experiments running: H2 (patch eval) and H1a (multi-model training) active on GPU instance. H7 (JPEG-robust) added as high-priority after discovering Instagram/Twitter apply q=70-75 JPEG on upload."
 
 literature_key_papers:
   - "arXiv:2603.13028 — Purify Once Edit Freely: FLUX defeats SD1.5 immunization (CRITICAL)"

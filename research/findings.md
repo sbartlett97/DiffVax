@@ -96,6 +96,27 @@ Tested patch tiling strategies at 1088×1088 with synthetic uniform-delta input:
 - **VAE feature loss implementation verified**: Returns negative scalar (correct — we minimise it to maximise latent distance)
 - **No GPU available locally**: H2 is the highest-priority experiment since it requires only inference, not training
 
+## Critical New Finding: Social Media JPEG Compression (2026-04-07)
+
+**This changes the product requirements significantly.**
+
+Literature search confirmed:
+- **Instagram**: applies JPEG at ~q=75 equivalent on all uploads
+- **Twitter/X**: applies strong JPEG re-compression (~q=70)
+- Standard Lp-bounded pixel-space perturbations are eliminated at q=70-75 (Goodfellow et al., 2016)
+- **High-frequency DCT perturbations are MORE vulnerable to JPEG** (exactly the opposite of what H5 assumed)
+
+**Implication**: Without JPEG-aware training, all DiffVax immunizations are defeated by the upload pipeline before any adversary action. H5 (constraining to high frequencies) would make things WORSE for social media use.
+
+**Solution (H7)**: Train with JPEG augmentation using Straight-Through Estimator (STE) gradient flow. The STE approach:
+- Forward: apply JPEG-compressed image to attack model (realistic signal)
+- Backward: gradients flow as if JPEG were identity (allows learning)
+- Forces perturbation energy into DCT bands that survive at q=70-85
+
+**Reference**: DCT-Shield (ICCV 2025, arXiv:2504.17894) — directly validates this approach.
+
+**H5 revised**: Frequency-domain constraints improve imperceptibility at high-res but must be JPEG-quantization-aware (constrain to survivor frequencies at target quality), not just "high-frequency". H5 is lower priority than H7.
+
 ## Open Questions
 
 1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)?

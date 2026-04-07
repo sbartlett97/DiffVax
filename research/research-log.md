@@ -1,5 +1,24 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-07 — H7: JPEG-Robust Training + GPU Debugging
+
+**Critical discovery**: Social media compression (Instagram q=75, Twitter q=70) defeats standard immunization perturbations. High-frequency DCT perturbations are the MOST vulnerable to JPEG — opposite of what H5 assumed.
+
+**Actions**:
+- Added H7 hypothesis: JPEG-robust training with STE gradient augmentation
+- Implemented `src/diffvax/jpeg_augment.py` (STE JPEG for training, CPU/GPU compatible)
+- Integrated JPEG augmentation into DiffVaxImmunization training loop (optional, `jpeg_augment_prob` config)
+- Created `configs/train_multimodel_h7.yml` (SD 25% + FLUX 75% + JPEG aug 50%)
+- Deprioritized H5 — needs redesign around JPEG-quantization-aware frequency constraints
+- Saved DCT-Shield paper notes to `research/literature/dct_shield_2025.md`
+- Fixed `torch.cuda.amp.GradScaler()` deprecation warning for PyTorch 2.4+
+
+**GPU debugging (active)**:
+- H2 OOM at 1088px: SD 1.5 self-attention = 136×136 tokens = 18× 512px; fixed by editing at 512px
+- H1a TypeError `load_image() unexpected keyword 'resolution'`: GPU instance needs `git pull` (fix in commit 9c26387)
+
+**Reference**: DCT-Shield (ICCV 2025, arXiv:2504.17894)
+
 ## 2026-04-07 — H2 CPU Prelim + API Verification + Data Pipeline Fixes
 
 **Actions**:
