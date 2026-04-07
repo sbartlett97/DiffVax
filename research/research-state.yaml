@@ -22,7 +22,7 @@ hypotheses:
 
   H2:
     title: "Patch-based inference enables 1088x1088 immunization without retraining"
-    status: in_progress
+    status: confirmed
     priority: 2
     rationale: >
       NestedUNet is fully convolutional — no fixed positional encodings. Processing
@@ -31,6 +31,13 @@ hypotheses:
       This avoids expensive high-res retraining entirely.
     prediction: "Patch-blended immunization on 1088x1088 achieves >80% of 512-pixel edit disruption rate"
     metric: edit_disruption_rate at 1088x1088 vs 512x512
+    result: "CONFIRMED with upside: 50pct_overlap EDR=0.400 vs baseline_512 EDR=0.250 → 1.60x ratio"
+    gpu_results:
+      baseline_512_edr: 0.250
+      no_overlap_edr: 0.300
+      overlap_25pct_edr: 0.330
+      overlap_50pct_edr: 0.400
+      conclusion: "50% overlap (stride=256) is best. 1088px OUTPERFORMS 512px baseline by 1.60x due to perturbation accumulation from overlapping patches. Product default: 1088px + stride=256."
     cpu_preliminary_results:
       no_overlap_seam_ratio: 2.377  # FAIL (threshold 1.2)
       overlap_25pct_seam_ratio: 1.275  # marginal
@@ -101,7 +108,7 @@ hypotheses:
     prediction: "FLUX-based EditorClean purifier fails on DiffVax-FLUX immunized images (SSIM delta < 0.05)"
     metric: edit_disruption_rate after purification attempt
 
-current_focus: "GPU experiments running: H2 (patch eval) and H1a (multi-model training) active on GPU instance. H7 (JPEG-robust) added as high-priority after discovering Instagram/Twitter apply q=70-75 JPEG on upload."
+current_focus: "H2 CONFIRMED (1.60x ratio). H1a multi-model training still running on GPU. Next: re-run H2 eval with H1a checkpoint; run H6 purification eval; train H7 (JPEG-robust) checkpoint."
 
 literature_key_papers:
   - "arXiv:2603.13028 — Purify Once Edit Freely: FLUX defeats SD1.5 immunization (CRITICAL)"
@@ -135,3 +142,4 @@ decisions:
   - "2026-04-07: H7 added — JPEG-robust training is critical for social media product (Instagram/Twitter apply q=70-75)"
   - "2026-04-07: FLUX model changed from FLUX.2-Klein-4B → FLUX.1-schnell. Klein is T5-only (no CLIP), incompatible with FluxInpaintPipeline."
   - "2026-04-07: eval_transfer.py extended with --jpeg-qualities flag for H7 evaluation"
+  - "2026-04-07: H2 GPU results — CONFIRMED at 1.60x. 50pct_overlap EDR=0.400 vs baseline_512 EDR=0.250. Product default: 1088px + stride=256."

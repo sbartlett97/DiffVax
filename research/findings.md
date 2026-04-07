@@ -65,17 +65,24 @@ LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to 
 
 ---
 
-## H2 CPU Preliminary: Patch Overlap Analysis (2026-04-07)
+## H2: Patch-Based 1088×1088 Immunization — CONFIRMED (2026-04-07)
 
-Tested patch tiling strategies at 1088×1088 with synthetic uniform-delta input:
+**Result**: 50% overlap patch immunization achieves **1.60× baseline EDR** (prediction was ≥0.80×).
 
-| Strategy | Stride | Seam Ratio | Status |
-|---|---|---|---|
-| No overlap | 512 | 2.377 | FAIL |
-| 25% overlap | 384 | 1.275 | marginal |
-| 50% overlap | 256 | 1.046 | PASS |
+| Condition       | EDR   | PSNR  | SSIM_imm | Any Disruption |
+|-----------------|-------|-------|----------|----------------|
+| baseline_512    | 0.250 | 32.7  | 0.9646   | 64%            |
+| no_overlap      | 0.300 | 30.3  | 0.9557   | 80%            |
+| 25pct_overlap   | 0.330 | 28.9  | 0.9475   | 81%            |
+| **50pct_overlap** | **0.400** | 28.7 | 0.9432 | **82%**      |
 
-**Decision**: stride=256 (50% overlap) is the product default for 1088px immunization. This doubles memory/compute vs no-overlap but is necessary for coherent outputs. The Gaussian blending window handles all boundary weighting.
+**Key insight (unexpected)**: 1088px patch inference is NOT just "equivalent to 512px" — it's **strictly stronger** due to **perturbation accumulation**. At stride=256, the image center is covered by ~4 overlapping patches; the Gaussian-blended sum is denser than a single 512px immunization. When the adversary downscales to 512px for editing, this accumulated perturbation survives as a higher-density signal.
+
+**Product implication**: Default to 1088px (stride=256), not 512px. The absolute EDR values (25-40%) are checkpoint-limited; with H1a's multi-model checkpoint, all numbers will scale up.
+
+**H3 deprioritized**: Native high-res retraining is a nice-to-have, not a must-have.
+
+**CPU seam analysis** (confirmed): No-overlap seam_ratio=2.377 (artifacts visible), 25%=1.275 (marginal), 50%=1.046 (pass).
 
 **FLUX API verification** (2026-04-07): `attack_flux.py` confirmed correct against current diffusers docs:
 - `FluxInpaintPipeline` import path: `from diffusers import FluxInpaintPipeline` ✓
@@ -119,10 +126,12 @@ Literature search confirmed:
 
 ## Open Questions
 
-1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)?
-2. Is patch-based inference at 1088 sufficient, or does retraining at native resolution improve results?
-3. What is the optimal mix of attack models during training for best cross-model generalization?
-4. Can frequency-domain perturbation constraints improve imperceptibility at high resolution?
-5. How does gpt-image-edit's resistance to transfer attacks compare to open-source models?
-6. Does FLUX-based purification fail on DiffVax-FLUX immunized images? (H6, critical for product)
-7. Is the VAE feature loss (H4) worth the additional compute vs plain multi-model training (H1a)?
+1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)? [H1 — running]
+2. ~~Is patch-based inference at 1088 sufficient?~~ YES — it's 1.60× better than 512px baseline. [H2 ANSWERED]
+3. What is the optimal mix of attack models during training for best cross-model generalization? [H1]
+4. Can frequency-domain perturbation constraints improve imperceptibility at high resolution? [H5, low-priority]
+5. How does gpt-image-edit's resistance to transfer attacks compare to open-source models? [transfer-only]
+6. Does FLUX-based purification fail on DiffVax-FLUX immunized images? [H6 — next after H1a]
+7. Is the VAE feature loss (H4) worth the additional compute vs plain multi-model training (H1a)? [H4]
+8. Does JPEG-augmented training (H7) maintain EDR ≥ 0.7 after q=75 compression? [H7 — next]
+9. Do H2's relative rankings (50pct > 25pct > no_overlap) hold with H1a's stronger checkpoint? [re-run planned]

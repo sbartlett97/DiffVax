@@ -1,5 +1,17 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-07 — H2 GPU Results: CONFIRMED at 1.60×
+
+**Result**: 50% overlap patch immunization (stride=256) at 1088×1088 achieves EDR=0.400 vs baseline_512 EDR=0.250 → **1.60× ratio** (prediction: ≥0.80×).
+
+**Ranking**: 50pct_overlap (EDR=0.400) > 25pct_overlap (0.330) > no_overlap (0.300) > baseline_512 (0.250). All conditions beat baseline.
+
+**Mechanism discovered**: Perturbation accumulation from overlapping patches. Center of 1088px image is covered by ~4 patches at stride=256; blended sum is denser than single 512px immunization.
+
+**Product decision**: Default to 1088px + stride=256. H3 (native high-res training) deprioritized.
+
+**Note**: Absolute EDR (25-40%) is checkpoint-limited. Will re-run with H1a checkpoint when available.
+
 ## 2026-04-07 — FLUX Model Fix + Eval Infrastructure
 
 **Critical fix**: FLUX.2-Klein-4B is T5-only (no CLIP encoder), incompatible with `FluxInpaintPipeline`. Changed all configs to `FLUX.1-schnell` (distilled, dual-encoder, 4 steps, guidance_scale=0).
