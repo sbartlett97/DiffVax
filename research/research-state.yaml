@@ -1,10 +1,10 @@
 project: DiffVax Extension
 question: "How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512x512) to SOTA DiT/hybrid models (FLUX, SD 3.5, gpt-image-edit) and larger resolutions (1088x1088) for a product protecting social media uploads?"
 
-phase: bootstrap
+phase: inner_loop
 inner_loop_count: 0
-outer_loop_count: 0
-last_updated: "2026-04-06"
+outer_loop_count: 1
+last_updated: "2026-04-07"
 
 hypotheses:
   H1:
@@ -91,12 +91,21 @@ literature_key_papers:
   - "arXiv:2507.03953 — Benchmark of 8 protection methods (evaluation methodology)"
 
 known_constraints:
-  - "No local GPU. All experiments require cloud/cluster submission."
-  - "Current NestedUNet hardcodes /512 normalization in loss — must fix for 1088."
-  - "SD 1.5 inpainting uses 4-channel VAE (64x64 latents for 512x512). FLUX uses 16-channel VAE (different latent dims)."
-  - "FLUX.2 Klein (4B) model exists in configs but no FLUX attack.py wrapper implemented yet."
-  - "gpt-image-edit is a black-box API — cannot do differentiable attacks through it. Must use transfer attacks."
-  - "attack.py references only StableDiffusionInpaintPipeline — needs a FLUX inpainting wrapper."
+  - "No local GPU. All experiments require cloud/cluster submission (Modal, Lambda Labs)."
+  - "gpt-image-edit is a black-box API — cannot do differentiable attacks through it. Transfer-only."
+  - "FLUX attention hook manager captures attn maps only when model returns them — may need to patch diffusers to get maps in all cases."
+  - "SD 3.5 may require bfloat16 (not float16) on some GPU configs."
+
+resolved_constraints:
+  - "FIXED 2026-04-06: Loss /512 → /h (resolution-agnostic)"
+  - "FIXED 2026-04-06: FLUX attack wrapper implemented (attack_flux.py)"
+  - "FIXED 2026-04-06: SD 3.5 attack wrapper implemented (attack_sd3.py)"
+  - "FIXED 2026-04-06: Multi-model routing implemented (attack_multi.py)"
+  - "FIXED 2026-04-06: Patch-based 1088 inference implemented (patch_immunize.py)"
+  - "FIXED 2026-04-07: VAE feature loss implemented in DiffVaxImmunization"
+  - "FIXED 2026-04-07: Attention hook manager implemented (losses.py)"
 
 decisions:
-  - "2026-04-06: Started research. Existing configs (train_1024.yml, train_multimodel.yml) show prior work toward FLUX+1024. Need to validate if FLUX attack wrapper exists and build if not."
+  - "2026-04-06: Bootstrap complete. All wrappers implemented."
+  - "2026-04-07: H4 VAE feature loss added to training loop (config: train_multimodel_h4.yml)"
+  - "2026-04-07: Run order: H2 (free) → H1a → H6 → H3 (if H2 fails) → H4"

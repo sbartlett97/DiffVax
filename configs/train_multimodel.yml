@@ -1,0 +1,32 @@
+# DiffVax multi-model training configuration (H1a experiment)
+# Randomly swaps between SD Inpainting and FLUX.2 Klein during training
+# to improve cross-architecture generalization.
+
+# Training
+iter_num: 10000
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+
+# Model
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_multimodel"
+
+# Resolution
+resolution: 512
+
+# Attack model: Stable Diffusion Inpainting (SD 1.5 UNet)
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.25
+
+# Attack model: FLUX.2 Klein 4B (DiT)
+flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_probability: 0.75
+
+# Dataset paths (relative to data_dir)
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false

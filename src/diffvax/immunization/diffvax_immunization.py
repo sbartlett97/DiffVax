@@ -69,6 +69,22 @@ class DiffVaxImmunization:
         generator = torch.Generator(device="cuda")
         self.generator = generator
 
+        # Optional: shared VAE for H4 cross-model feature loss (arXiv:2603.13028 insight)
+        # Loaded lazily on first use to avoid memory overhead when not needed.
+        self._shared_vae = None
+        self._vae_loss_beta = config.get("vae_loss_beta", 0.0)
+
+    def _get_shared_vae(self):
+        """Lazily load shared VAE for cross-model feature loss (H4)."""
+        if self._shared_vae is None:
+            from diffusers import AutoencoderKL
+            vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse")
+            vae = vae.to("cuda").half()
+            for p in vae.parameters():
+                p.requires_grad = False
+            self._shared_vae = vae
+        return self._shared_vae
+
     def immunize_img(self, img, img_mask, epsilon=32):
         """Apply immunization perturbation to image."""
         img_f = img.float().cuda()
@@ -144,19 +160,40 @@ class DiffVaxImmunization:
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
+                h, w = img_batch.shape[-2], img_batch.shape[-1]
                 img_out = self.attack_model.attack(
                     prompt=prompt_batch,
                     masked_image=img_adv,
                     mask=mask_batch,
+                    height=h,
+                    width=w,
                     num_inference_steps=4,
                     batch_size=batch_size,
                 )
 
                 target_image = torch.zeros_like(img_out).cuda()
 
-                loss1 = (((img_out - target_image) * (mask_batch / 512)).norm(p=1) / (mask_batch / 512).sum())
-                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / 512)).norm(p=1) / ((1 - mask_batch) / 512).sum()
+                # Resolution-agnostic loss normalization: divide by actual spatial dim
+                # instead of the hardcoded /512 that breaks at other resolutions.
+                h, w = img_batch.shape[-2], img_batch.shape[-1]
+                norm_scale = float(h)  # matches original /512 at 512x512
+
+                loss1 = (((img_out - target_image) * (mask_batch / norm_scale)).norm(p=1) / (mask_batch / norm_scale).sum())
+                loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / norm_scale)).norm(p=1) / ((1 - mask_batch) / norm_scale).sum()
                 loss = loss1 + loss2
+
+                # H4: Optional VAE feature-space loss (arXiv:2603.13028 insight).
+                # Maximises distance in shared VAE latent space so perturbations
+                # corrupt ANY model using a similar VAE encoder, improving cross-
+                # architecture transfer.
+                if self._vae_loss_beta > 0:
+                    vae = self._get_shared_vae()
+                    with torch.no_grad():
+                        orig_latents = vae.encode(img_batch.half()).latent_dist.mean.float()
+                    imm_latents = vae.encode(img_adv.half()).latent_dist.mean.float()
+                    # Negative: we want to MAXIMISE the latent distance
+                    loss_vae = -(imm_latents - orig_latents.detach()).pow(2).mean()
+                    loss = loss + self._vae_loss_beta * loss_vae
 
                 loss1 = loss1.item()
                 loss2 = loss2.item()
