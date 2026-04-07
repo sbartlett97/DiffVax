@@ -139,6 +139,14 @@ Literature search confirmed:
 
 **H5 revised**: Frequency-domain constraints improve imperceptibility at high-res but must be JPEG-quantization-aware (constrain to survivor frequencies at target quality), not just "high-frequency". H5 is lower priority than H7.
 
+## Critical Training Bug Fixed — 2026-04-07
+
+**Bug**: `iter_num=10000` means 10,000 *epochs* over the full dataset. Training set = 800 images × 2 prompts = 1,600 items/epoch. Total = 16M steps. At 20s/step with FLUX+gradient_checkpointing → **~11 years** of training.
+
+**Fix**: Added `max_steps` to the training loop and all multi-model configs (`max_steps: 8000`). 8,000 total gradient updates × 20s/step ≈ **44 hours** — a proper research training run (5 passes over the 1,600-item dataset).
+
+**Impact**: GPU instance running H1a was not going to finish in any reasonable time. User needs to `git pull` and restart. With max_steps=8000, training completes in ~2 days.
+
 ## Outer Loop Reflection — 2026-04-07
 
 **Is the research making real progress?** YES — meaningfully.
