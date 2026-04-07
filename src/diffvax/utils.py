@@ -63,20 +63,30 @@ def set_seed_lib(seed):
     set_seed(seed)
 
 
-def load_image(image_name, data_dir, is_mask=False, images_subdir="images", masks_subdir="masks"):
-    """Load image or mask from data directory."""
+def load_image(image_name, data_dir, is_mask=False, images_subdir="images", masks_subdir="masks", resolution=512):
+    """Load image or mask from data directory.
+
+    Args:
+        image_name: base filename without extension.
+        data_dir: root data directory.
+        is_mask: if True, load the corresponding mask file.
+        images_subdir: subdirectory for images.
+        masks_subdir: subdirectory for masks.
+        resolution: output square resolution (default 512).
+    """
     data_path = Path(data_dir)
+    size = (resolution, resolution)
     if is_mask:
         image = (
             Image.open(data_path / masks_subdir / f"mask_{image_name}.png")
             .convert("RGB")
-            .resize((512, 512))
+            .resize(size)
         )
     else:
         image = (
             Image.open(data_path / images_subdir / f"{image_name}.png")
             .convert("RGB")
-            .resize((512, 512))
+            .resize(size)
         )
     return image
 
