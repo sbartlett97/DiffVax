@@ -25,11 +25,13 @@ import torchvision.transforms.functional as TF
 from PIL import Image
 from tqdm import tqdm
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "research" / "src"))
 
 from diffvax.model import NestedUNet
 from diffvax.utils import prepare_mask_and_masked_image, get_train_val_image_prompt_list
-from diffvax.metrics import SSIM, PSNR
+from eval_metrics import psnr as _psnr, ssim as _ssim
 
 
 RESOLUTION = 512
@@ -75,7 +77,7 @@ def run_edit(attack_model, image_t, mask_t, prompt, model_type):
 
 
 def compute_ssim(a, b):
-    return SSIM()(a.cuda(), b.cuda()).item()
+    return _ssim(a.cuda(), b.cuda())
 
 
 def apply_immunization(model, image_t, mask_t):
@@ -150,8 +152,8 @@ def main():
                 immunized_t = apply_immunization(model, image_t, mask_t)
 
                 # Imperceptibility
-                psnr_val = PSNR()(immunized_t.float(), image_t.float()).item()
-                ssim_imm_orig = SSIM()(immunized_t.float(), image_t.float()).item()
+                psnr_val = _psnr(immunized_t.float(), image_t.float())
+                ssim_imm_orig = _ssim(immunized_t.float(), image_t.float())
 
                 for prompt in prompts:
                     # Edit clean image

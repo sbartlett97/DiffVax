@@ -25,13 +25,15 @@ import torchvision.transforms.functional as TF
 from PIL import Image
 from tqdm import tqdm
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "research" / "src"))
 
 from diffvax.model import NestedUNet
 from diffvax.attack import Attack
 from diffvax.patch_immunize import patch_immunize
 from diffvax.utils import prepare_mask_and_masked_image, get_train_val_image_prompt_list
-from diffvax.metrics import PSNR, SSIM
+from eval_metrics import psnr as compute_psnr_fn, ssim as compute_ssim_fn
 
 
 TARGET_RESOLUTION = 1088
@@ -53,13 +55,11 @@ def tensor_to_pil(t: torch.Tensor) -> Image.Image:
 
 
 def compute_ssim(img_a: torch.Tensor, img_b: torch.Tensor) -> float:
-    metric = SSIM()
-    return metric(img_a, img_b).item()
+    return compute_ssim_fn(img_a, img_b)
 
 
 def compute_psnr(img_a: torch.Tensor, img_b: torch.Tensor) -> float:
-    metric = PSNR()
-    return metric(img_a, img_b).item()
+    return compute_psnr_fn(img_a, img_b)
 
 
 def run_edit(attack_model, pil_image, pil_mask, prompt, resolution):
@@ -154,22 +154,17 @@ def main():
             for prompt in prompts:
                 # Edit clean image
                 edited_clean = run_edit(
-                    attack_model, orig_pil,
-                    Image.fromarray((torch.tensor(pil_mask_1088).numpy())), prompt, TARGET_RESOLUTION
+                    attack_model, orig_pil, pil_mask_1088, prompt, TARGET_RESOLUTION
                 )
                 # Edit immunized image
                 edited_imm = run_edit(
-                    attack_model, immunized_pil,
-                    Image.fromarray((torch.tensor(pil_mask_1088).numpy())), prompt, TARGET_RESOLUTION
+                    attack_model, immunized_pil, pil_mask_1088, prompt, TARGET_RESOLUTION
                 )
 
-                # EDR: immunized edit should have lower SSIM (more disrupted)
-                ssim_clean_edit = compute_ssim(
-                    edited_clean.cuda(), orig_t[:, :, :edited_clean.shape[-2], :edited_clean.shape[-1]]
-                )
-                ssim_imm_edit = compute_ssim(
-                    edited_imm.cuda(), orig_t[:, :, :edited_imm.shape[-2], :edited_imm.shape[-1]]
-                )
+                # EDR: immunized edit should have lower SSIM vs clean edit (more disrupted)
+                # Both edited images and orig_t are at TARGET_RESOLUTION x TARGET_RESOLUTION
+                ssim_clean_edit = compute_ssim(edited_clean.cuda(), orig_t)
+                ssim_imm_edit = compute_ssim(edited_imm.cuda(), orig_t)
                 disrupted = ssim_imm_edit < ssim_clean_edit - 0.05
 
                 results.append({

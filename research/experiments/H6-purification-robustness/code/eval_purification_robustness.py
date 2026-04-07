@@ -29,12 +29,14 @@ import torchvision.transforms.functional as TF
 from PIL import Image
 from tqdm import tqdm
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "research" / "src"))
 
 from diffvax.model import NestedUNet
 from diffvax.attack_flux import FluxAttack
 from diffvax.utils import prepare_mask_and_masked_image, get_train_val_image_prompt_list
-from diffvax.metrics import SSIM, PSNR
+from eval_metrics import psnr as _psnr, ssim as _ssim
 
 
 RESOLUTION = 512
@@ -84,11 +86,11 @@ def purify_with_flux(flux_model: FluxAttack, image_t: torch.Tensor) -> torch.Ten
 
 
 def compute_ssim(a, b):
-    return SSIM()(a.cuda().float(), b.cuda().float()).item()
+    return _ssim(a.cuda().float(), b.cuda().float())
 
 
 def compute_psnr(a, b):
-    return PSNR()(a.cuda().float(), b.cuda().float()).item()
+    return _psnr(a.cuda().float(), b.cuda().float())
 
 
 def main():
