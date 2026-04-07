@@ -102,6 +102,10 @@ class FluxAttack:
 
         pipe = pipe.to("cuda")
         pipe.vae.enable_slicing()
+        # Gradient checkpointing: recompute transformer activations during backprop
+        # instead of storing them. Trades ~10× compute for ~8-10× activation memory
+        # reduction. Required when backpropagating through FLUX during training.
+        pipe.transformer.enable_gradient_checkpointing()
 
         self.pipe = pipe
         self.guidance_scale = guidance_scale
@@ -238,13 +242,14 @@ class FluxAttack:
             t_tensor = t.expand(batch_size).to(device)
 
             # Transformer forward
+            # img_ids / txt_ids: diffusers now expects 2D (seq, 3) — no batch dimension.
             noise_pred_packed = pipe.transformer(
                 hidden_states=packed,
                 encoder_hidden_states=prompt_embeds,
                 pooled_projections=pooled_embeds,
                 timestep=t_tensor / 1000.0,
-                img_ids=img_ids.unsqueeze(0).expand(batch_size, -1, -1),
-                txt_ids=txt_ids.unsqueeze(0).expand(batch_size, -1, -1),
+                img_ids=img_ids,
+                txt_ids=txt_ids,
                 guidance=guidance,
                 return_dict=False,
             )[0]

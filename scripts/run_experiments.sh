@@ -124,10 +124,11 @@ run_h7() {
     H7_CKPT=$(find "$OUTPUT_DIR/h7" -name "*_final.pth" | sort | tail -1)
     H1A_CKPT=$(find "$OUTPUT_DIR/h1a" -name "*_final.pth" | sort | tail -1 || echo "")
     if [ -n "$H1A_CKPT" ]; then
-        log "=== H7: Transfer comparison vs H1a (no JPEG aug) ==="
+        log "=== H7: Transfer + JPEG robustness comparison vs H1a (no JPEG aug) ==="
         python3 research/experiments/H1-multimodel-transfer/code/eval_transfer.py \
             --checkpoints "h1a_no_jpeg=$H1A_CKPT" "h7_jpeg_robust=$H7_CKPT" \
             --eval-models sd15 flux_schnell sd35 \
+            --jpeg-qualities 75 70 \
             --data-dir "$DATA_DIR" \
             --output-dir research/experiments/H7-jpeg-robust/results/ \
             --n-images 50
