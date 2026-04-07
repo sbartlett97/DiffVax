@@ -75,12 +75,31 @@ class FluxAttack:
     def __init__(
         self,
         model_link: str,
-        guidance_scale: float = 3.5,
+        guidance_scale: float = 0.0,
         dtype: torch.dtype = torch.bfloat16,
     ):
         from diffusers import FluxInpaintPipeline
 
-        pipe = FluxInpaintPipeline.from_pretrained(model_link, torch_dtype=dtype)
+        # guidance_scale=0.0 is correct for distilled FLUX models (schnell, fill-schnell).
+        # For non-distilled models (dev), use guidance_scale=3.5.
+        # Auto-detect if not explicitly set: distilled if "schnell" in link.
+        if guidance_scale == 0.0 and "schnell" not in model_link.lower():
+            guidance_scale = 3.5
+
+        try:
+            pipe = FluxInpaintPipeline.from_pretrained(model_link, torch_dtype=dtype)
+        except ValueError as e:
+            if "were passed" in str(e):
+                # Some FLUX variants (T5-only, no CLIP) lack text_encoder_2/tokenizer_2.
+                # Load with optional components set to None — prompt encoding falls back to T5 only.
+                pipe = FluxInpaintPipeline.from_pretrained(
+                    model_link, torch_dtype=dtype,
+                    text_encoder_2=None, tokenizer_2=None,
+                    feature_extractor=None, image_encoder=None,
+                )
+            else:
+                raise
+
         pipe = pipe.to("cuda")
         pipe.vae.enable_slicing()
 

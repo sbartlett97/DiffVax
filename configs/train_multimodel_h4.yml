@@ -23,7 +23,7 @@ resolution: 512
 attack_model_link: "runwayml/stable-diffusion-inpainting"
 sd_probability: 0.25
 
-flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_model_link: "black-forest-labs/FLUX.1-schnell"
 flux_probability: 0.75
 
 # Dataset paths (relative to data_dir)

@@ -25,7 +25,7 @@ attack_model_link: "runwayml/stable-diffusion-inpainting"
 sd_probability: 0.3
 
 # Attack model: FLUX.2 Klein 4B
-flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_model_link: "black-forest-labs/FLUX.1-schnell"
 flux_probability: 0.7
 
 # Dataset paths for 1088 images (relative to data_dir)

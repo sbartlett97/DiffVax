@@ -65,6 +65,8 @@ run_h1a() {
         --output-dir research/experiments/H1-multimodel-transfer/results/ \
         --n-images 50
     log "H1a done."
+    # Generate transfer + JPEG robustness plots if results exist
+    python3 research/src/plot_results.py all --out research/to_human/figures/ 2>/dev/null || true
 }
 
 run_h1b() {

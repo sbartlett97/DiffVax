@@ -57,7 +57,9 @@ class MultiAttack:
                 self._loaded[key] = Attack(spec["link"])
             elif t == "flux":
                 from diffvax.attack_flux import FluxAttack
-                guidance = spec.get("guidance_scale", 3.5)
+                # Default to 0.0 — FluxAttack auto-detects distilled vs non-distilled.
+                # Explicit override via spec["guidance_scale"] takes precedence.
+                guidance = spec.get("guidance_scale", 0.0)
                 self._loaded[key] = FluxAttack(spec["link"], guidance_scale=guidance)
             elif t == "sd3":
                 from diffvax.attack_sd3 import SD3Attack
