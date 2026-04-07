@@ -62,14 +62,17 @@ def apply_immunization(model: torch.nn.Module, image_t: torch.Tensor, mask_t: to
     return torch.clamp(img_f + perturb, -1, 1)
 
 
-def purify_with_flux(flux_model: FluxAttack, image_t: torch.Tensor) -> torch.Tensor:
+def purify_with_flux(flux_model: FluxAttack, image_t: torch.Tensor, strength: float = 0.3) -> torch.Tensor:
     """Run FLUX reconstruction over the entire image (empty mask = full reconstruction).
 
     This is the EditorClean purification strategy from arXiv:2603.13028.
     An all-zero mask means the model reconstructs the whole image from scratch,
     removing the adversarial perturbation in the process.
+
+    Args:
+        strength: Purification aggressiveness (0.3=mild, 0.5=moderate, 0.7=strong).
+                  Higher = better at removing perturbations but more image distortion.
     """
-    # Empty mask: reconstruct entire image (no masked region to preserve)
     empty_mask = torch.zeros(1, 1, RESOLUTION, RESOLUTION, device="cuda")
     with torch.no_grad():
         purified = flux_model.attack(
@@ -79,7 +82,7 @@ def purify_with_flux(flux_model: FluxAttack, image_t: torch.Tensor) -> torch.Ten
             height=RESOLUTION,
             width=RESOLUTION,
             num_inference_steps=PURIFICATION_STEPS,
-            strength=0.3,  # Low strength: minimal change, remove only perturbation
+            strength=strength,
             batch_size=1,
         )
     return purified.float()
@@ -103,6 +106,11 @@ def main():
     parser.add_argument("--output-dir", default="results/")
     parser.add_argument("--n-images", type=int, default=30)
     parser.add_argument("--flux-model", default="black-forest-labs/FLUX.1-schnell")
+    parser.add_argument(
+        "--purify-strengths", nargs="+", type=float, default=[0.3, 0.5, 0.7],
+        help="Purification strengths to test (adversary's denoising strength). "
+             "Higher = more aggressive purification. Default: 0.3 0.5 0.7"
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir)
@@ -148,58 +156,72 @@ def main():
 
             # Apply immunization
             immunized_t = apply_immunization(model, image_t, mask_t)
-
-            # Purify using FLUX (EditorClean from arXiv:2603.13028)
-            purified_t = purify_with_flux(flux, immunized_t)
-
-            # Metrics: did purification succeed?
             psnr_imm_vs_orig = compute_psnr(immunized_t, image_t.float())
-            psnr_purified_vs_orig = compute_psnr(purified_t, image_t.float())
-            ssim_purified_vs_orig = compute_ssim(purified_t, image_t.float())
 
+            # Precompute clean edits once per image (shared across purify_strengths)
+            clean_edits = {}
             for prompt in prompts:
-                # Edit 1: edit clean image (baseline)
-                edited_clean = flux.attack(
-                    prompt=[prompt], masked_image=image_t, mask=mask_t,
-                    height=RESOLUTION, width=RESOLUTION,
-                    num_inference_steps=EDIT_STEPS, batch_size=1,
-                ).float()
+                with torch.no_grad():
+                    clean_edits[prompt] = flux.attack(
+                        prompt=[prompt], masked_image=image_t, mask=mask_t,
+                        height=RESOLUTION, width=RESOLUTION,
+                        num_inference_steps=EDIT_STEPS, batch_size=1,
+                    ).float()
+            torch.cuda.empty_cache()
 
-                # Edit 2: edit immunized image directly (no purification)
-                edited_immunized = flux.attack(
-                    prompt=[prompt], masked_image=immunized_t.half(), mask=mask_t,
-                    height=RESOLUTION, width=RESOLUTION,
-                    num_inference_steps=EDIT_STEPS, batch_size=1,
-                ).float()
+            # Edit immunized directly (no purification)
+            direct_edits = {}
+            for prompt in prompts:
+                with torch.no_grad():
+                    direct_edits[prompt] = flux.attack(
+                        prompt=[prompt], masked_image=immunized_t.half(), mask=mask_t,
+                        height=RESOLUTION, width=RESOLUTION,
+                        num_inference_steps=EDIT_STEPS, batch_size=1,
+                    ).float()
+            torch.cuda.empty_cache()
 
-                # Edit 3: edit purified image (purification attack)
-                edited_purified = flux.attack(
-                    prompt=[prompt], masked_image=purified_t.half(), mask=mask_t,
-                    height=RESOLUTION, width=RESOLUTION,
-                    num_inference_steps=EDIT_STEPS, batch_size=1,
-                ).float()
+            # Test each purification strength
+            for purify_strength in args.purify_strengths:
+                purified_t = purify_with_flux(flux, immunized_t, strength=purify_strength)
+                psnr_purified_vs_orig = compute_psnr(purified_t, image_t.float())
+                ssim_purified_vs_orig = compute_ssim(purified_t, image_t.float())
 
-                ssim_clean_edit = compute_ssim(edited_clean, image_t.float())
-                ssim_direct_edit = compute_ssim(edited_immunized, image_t.float())
-                ssim_purified_edit = compute_ssim(edited_purified, image_t.float())
+                for prompt in prompts:
+                    edited_clean = clean_edits[prompt]
+                    edited_immunized = direct_edits[prompt]
 
-                # Disrupted = immunized edit looks more like original (less edited)
-                direct_disrupted = int(ssim_direct_edit > ssim_clean_edit - 0.05)
-                purified_disrupted = int(ssim_purified_edit > ssim_clean_edit - 0.05)
+                    with torch.no_grad():
+                        edited_purified = flux.attack(
+                            prompt=[prompt], masked_image=purified_t.half(), mask=mask_t,
+                            height=RESOLUTION, width=RESOLUTION,
+                            num_inference_steps=EDIT_STEPS, batch_size=1,
+                        ).float()
+                    torch.cuda.empty_cache()
 
-                results.append({
-                    "checkpoint": ckpt_name,
-                    "image": image_name,
-                    "prompt": prompt,
-                    "psnr_immunized": round(psnr_imm_vs_orig, 3),
-                    "psnr_purified": round(psnr_purified_vs_orig, 3),
-                    "ssim_purified_vs_orig": round(ssim_purified_vs_orig, 4),
-                    "ssim_clean_edit": round(ssim_clean_edit, 4),
-                    "ssim_direct_edit": round(ssim_direct_edit, 4),
-                    "ssim_purified_edit": round(ssim_purified_edit, 4),
-                    "direct_disrupted": direct_disrupted,
-                    "purified_disrupted": purified_disrupted,
-                })
+                    ssim_clean_edit = compute_ssim(edited_clean, image_t.float())
+                    ssim_direct_edit = compute_ssim(edited_immunized, image_t.float())
+                    ssim_purified_edit = compute_ssim(edited_purified, image_t.float())
+
+                    # Disrupted = DiffVax drives output toward zeros, so a successful
+                    # immunization produces a more-blanked edit (LOWER SSIM vs original)
+                    # than the clean edit. Matches H2 eval convention.
+                    direct_disrupted = int(ssim_direct_edit < ssim_clean_edit - 0.05)
+                    purified_disrupted = int(ssim_purified_edit < ssim_clean_edit - 0.05)
+
+                    results.append({
+                        "checkpoint": ckpt_name,
+                        "image": image_name,
+                        "prompt": prompt,
+                        "purify_strength": purify_strength,
+                        "psnr_immunized": round(psnr_imm_vs_orig, 3),
+                        "psnr_purified": round(psnr_purified_vs_orig, 3),
+                        "ssim_purified_vs_orig": round(ssim_purified_vs_orig, 4),
+                        "ssim_clean_edit": round(ssim_clean_edit, 4),
+                        "ssim_direct_edit": round(ssim_direct_edit, 4),
+                        "ssim_purified_edit": round(ssim_purified_edit, 4),
+                        "direct_disrupted": direct_disrupted,
+                        "purified_disrupted": purified_disrupted,
+                    })
 
     # Write CSV
     csv_path = out_dir / "purification_robustness.csv"
@@ -210,19 +232,26 @@ def main():
 
     # Summary
     print("\n=== H6 Summary ===")
-    print(f"{'Checkpoint':15s} | Direct EDR | After-Purify EDR | PSNR Purified")
-    print("-" * 60)
-    by_ckpt = defaultdict(list)
+    print(f"{'Checkpoint':15s} | {'Strength':8s} | Direct EDR | After-Purify EDR | PSNR Purified")
+    print("-" * 70)
+    by_key = defaultdict(list)
     for r in results:
-        by_ckpt[r["checkpoint"]].append(r)
+        by_key[(r["checkpoint"], r["purify_strength"])].append(r)
 
-    for ckpt, rows in sorted(by_ckpt.items()):
-        direct_edr = sum(r["direct_disrupted"] for r in rows) / len(rows)
-        purified_edr = sum(r["purified_disrupted"] for r in rows) / len(rows)
-        psnr_p = sum(r["psnr_purified"] for r in rows) / len(rows)
-        print(f"{ckpt:15s} | {direct_edr:.3f}      | {purified_edr:.3f}            | {psnr_p:.1f}")
+    direct_edrs = defaultdict(list)
+    for r in results:
+        direct_edrs[r["checkpoint"]].append(r["direct_disrupted"])
 
-    print(f"\nH6 prediction: flux_trained purified_edr should be HIGHER than sd15_only purified_edr")
+    for ckpt in sorted(set(r["checkpoint"] for r in results)):
+        direct_edr = sum(direct_edrs[ckpt]) / len(direct_edrs[ckpt])
+        for strength in sorted(set(r["purify_strength"] for r in results)):
+            rows = by_key[(ckpt, strength)]
+            purified_edr = sum(r["purified_disrupted"] for r in rows) / len(rows)
+            psnr_p = sum(r["psnr_purified"] for r in rows) / len(rows)
+            print(f"{ckpt:15s} | {strength:8.1f} | {direct_edr:.3f}      | {purified_edr:.3f}            | {psnr_p:.1f}")
+
+    print(f"\nH6 prediction: at each purify_strength, flux_trained purified_edr > sd15_only purified_edr")
+    print(f"(flux-trained immunization resists FLUX-based purification; sd15-only does not)")
     print(f"Full results: {csv_path}")
 
 

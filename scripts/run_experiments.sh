@@ -149,6 +149,7 @@ run_h6() {
         --checkpoint-flux "$FLUX_CKPT" \
         --data-dir "$DATA_DIR" \
         --output-dir research/experiments/H6-purification-robustness/results/ \
+        --purify-strengths 0.3 0.5 0.7 \
         --n-images 30
     log "H6 done."
 }

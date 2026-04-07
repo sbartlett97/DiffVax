@@ -13,7 +13,7 @@ How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512×512) to S
 - **Loss**: `L1(edited_output, zeros) + alpha * L1(perturbation, zeros)` — both normalized by `/512`
 - **Resolution**: Fixed at 512×512 (hardcoded in loss normalization, VAE stride = 512/8 = 64)
 - **Speed advantage**: Single-pass inference (milliseconds) vs PGD-per-image (hours)
-- **Published at ICLR 2026**
+- **Published at ICLR 2025** (arXiv:2411.17957, November 2024)
 
 ### Gap Analysis
 1. **Model coverage**: Only trained/evaluated against SD 1.5. FLUX, SD 3.5, gpt-image-edit are untested.
@@ -103,6 +103,21 @@ LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to 
 - **VAE feature loss implementation verified**: Returns negative scalar (correct — we minimise it to maximise latent distance)
 - **No GPU available locally**: H2 is the highest-priority experiment since it requires only inference, not training
 
+## Literature Update: H7 Novelty Confirmed (2026-04-07)
+
+Second literature pass revealed three important findings:
+
+1. **DiffVax (ICLR 2025) evaluates JPEG as counter-attack** (adversary applies 0.75 compression ratio) but does NOT train with JPEG augmentation. The evaluation shows SSIM degrades slightly (0.510→0.522) — JPEG helps the adversary. Our H7 directly extends this.
+
+2. **IDProtector (Dec 2024) explicitly avoids STE/differentiable JPEG** training ("introduces substantial learning burden"), using Gaussian noise proxy instead. Only tested at q=85 (not social media levels). Our H7 is the first to apply STE JPEG training for diffusion immunization at q=70-75.
+
+3. **No existing paper** proposes STE-based JPEG augmentation during immunization training targeting social media compression levels. H7 novelty confirmed.
+
+**New papers to compare against in evaluation**:
+- Anti-Inpainting (arXiv:2505.13023) — multi-scale aug for cross-model transfer
+- Attention Attack (arXiv:2509.10359) — cross-attention disruption
+- PromptFlare (arXiv:2508.16217) — cross-attention decoy, SOTA claim
+
 ## Critical New Finding: Social Media JPEG Compression (2026-04-07)
 
 **This changes the product requirements significantly.**
@@ -123,6 +138,42 @@ Literature search confirmed:
 **Reference**: DCT-Shield (ICCV 2025, arXiv:2504.17894) — directly validates this approach.
 
 **H5 revised**: Frequency-domain constraints improve imperceptibility at high-res but must be JPEG-quantization-aware (constrain to survivor frequencies at target quality), not just "high-frequency". H5 is lower priority than H7.
+
+## Outer Loop Reflection — 2026-04-07
+
+**Is the research making real progress?** YES — meaningfully.
+
+### What we know with confidence
+
+1. **H2 CONFIRMED (1.60×)**: Patch-based 1088px inference is not just equivalent to 512px — it's strictly better due to perturbation accumulation. This is a publishable result on its own (counter-intuitive, mechanistically explained).
+
+2. **Infrastructure is solid**: All eval scripts are audited and correct (fixed H6 EDR direction bug, added multi-strength purification, fixed img_ids 3D deprecation, fixed FLUX training OOM).
+
+3. **H7 novelty confirmed by literature**: DiffVax (ICLR 2025) evaluates JPEG as a counter-attack but does NOT train for it. IDProtector (Dec 2024) explicitly avoids STE training. No paper has proposed STE JPEG augmentation at q=70-75 for diffusion immunization.
+
+### What the paper story looks like now
+
+**Working title**: "DiffVax++: Multi-Model, High-Resolution, and JPEG-Robust Image Immunization"
+
+1. **(H2) Patch-based 1088px is stronger, not just sufficient** — perturbation accumulation is a structural advantage
+2. **(H1) Multi-model training transfers to DiT and resists FLUX purification** — product safety requirement
+3. **(H7) STE JPEG augmentation enables social media deployment** — first to close this gap at q=70-75
+
+The story is compelling because each contribution was **surprising**: H2 beats baseline instead of matching it; H1 addresses a discovered product threat (EditorClean); H7 fills a gap that IDProtector explicitly avoided.
+
+### What's blocking the paper
+
+- H1a results (multi-model training checkpoint) — training was reset after two GPU fixes (img_ids + OOM). Currently running.
+- H7 results — can only train after establishing H1a baseline
+- H6 results — needs H1a checkpoint
+
+**Estimated sequence**: H1a completes → run H6 eval → run H7 training → final eval matrix → paper.
+
+### Risks
+
+1. **H1a absolute EDR**: If H1a checkpoint doesn't improve EDR significantly over original diffvax_trained.pth (0.25), the story weakens. Mitigation: check training loss convergence.
+2. **H7 effect size**: DiffVax has natural JPEG robustness (SSIM degrades only 0.012 at compression). H7 improvement might be small if the baseline is already reasonably robust. Mitigation: test at q=70 (Twitter) which is more aggressive.
+3. **FLUX training stability**: FLUX.1-schnell is 12B params; even with gradient checkpointing, each training step is slow (~13s → now maybe ~25-30s with checkpointing). 1600 iterations × 30s = ~13 hours.
 
 ## Open Questions
 

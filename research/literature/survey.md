@@ -78,7 +78,45 @@
 
 ---
 
-## Critical Gap Identified
+## Survey Update — 2026-04-07
+
+### 13. "DiffVax: Optimization-Free Image Immunization Against Diffusion-Based Editing"
+- **arXiv**: 2411.17957  
+- **Venue**: ICLR 2025 (not 2026 — confirmed from OpenReview)
+- **Our codebase**: this is the baseline we're extending
+- **JPEG robustness**: "DiffVax w/ JPEG" in Table 2 = evaluation-time counter-attack (adversary applies 0.75 compression ratio). NOT training with JPEG augmentation.
+  - Baseline SSIM=0.510 (seen), PSNR=13.96 → DiffVax w/ JPEG SSIM=0.522, PSNR=14.17
+  - JPEG causes only small degradation (SSIM +0.012) → DiffVax has natural robustness, but degrades
+  - **H7 directly extends this**: we add JPEG-augmented training (STE) to further improve robustness at q=70-75
+- **Models**: SD 1.5 only + SD v1.5/v2 in appendix. No FLUX, no SD 3.5.
+- **Insight**: Our extension (multi-model + FLUX + SD 3.5 + JPEG-augmented training) is genuinely novel.
+
+### 14. "IDProtector: Adversarial Noise Encoder to Protect Against ID-Preserving Generation"
+- **arXiv**: 2412.11638 (December 2024)
+- **Key finding**: Feed-forward noise encoder for portrait protection. Achieves JPEG robustness (q=85) via Gaussian noise augmentation as proxy.
+- **Critical detail**: Explicitly avoids STE/differentiable JPEG ("introduces substantial learning burden"). Uses σ=0.003 Gaussian noise instead.
+- **H7 positioning**: Our STE approach directly addresses the gap IDProtector left. First explicit STE JPEG training for diffusion immunization. First to target q=70-75 (harder than IDProtector's q=85).
+
+### 15. "Anti-Inpainting: Proactive Defense Against Malicious Diffusion-based Inpainters"
+- **arXiv**: 2505.13023 (May 2025)
+- **Key finding**: Multi-scale semantic-preserving augmentation for transferability under unknown conditions (mask, model, prompt).
+- **Relation to H1**: Augmentation-based transfer strategy — similar philosophy to our multi-model routing. Their "unknown conditions" transfer may not cover full architecture switch (UNet→DiT).
+- **To investigate**: Which specific model architectures do they test?
+
+### 16. "Immunizing Images from Text to Image Editing via Adversarial Cross-Attention"
+- **arXiv**: 2509.10359 (September 2025)  
+- **Key finding**: "Attention Attack" — disrupts cross-attention between text prompt and visual representation using auto-generated image captions as proxy.
+- **Novel metrics**: Caption Similarity, semantic IoU
+- **Relation to H4**: Validates that cross-attention is the right disruption target for DiT models.
+
+### 17. "PromptFlare: Prompt-Generalized Defense via Cross-Attention Decoy in Diffusion-Based Inpainting"
+- **arXiv**: 2508.16217 (August 2025)
+- **Key finding**: Cross-attention decoy injection that "consistently suppresses generation across all CFG scales." Claims SOTA with low compute.
+- **Relation to H4**: Another cross-attention disruption method. Reduced compute is relevant for product deployment.
+
+---
+
+## Critical Gap Identified (Updated 2026-04-07)
 
 **No papers specifically benchmark immunization across FLUX, SD 3.5, and gpt-image-edit simultaneously** (as of 2026-04-06). This is the primary research contribution of the DiffVax extension project.
 
