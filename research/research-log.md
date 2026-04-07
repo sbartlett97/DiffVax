@@ -1,5 +1,27 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-07 — H2 CPU Prelim + API Verification + Data Pipeline Fixes
+
+**Actions**:
+- Added `--size` argument to `scripts/generate_masks.py` (supports 1088px training data generation for H3)
+- Updated `patch_immunize.py` default stride from 384 → 256 (50% overlap required at 1088px)
+- Validated `attack_flux.py` against current diffusers docs — all API calls confirmed correct
+
+**H2 CPU Seam Analysis**:
+- No overlap (stride=512): seam_ratio=2.377 → FAIL
+- 25% overlap (stride=384): seam_ratio=1.275 → marginal
+- 50% overlap (stride=256): seam_ratio=1.046 → PASS
+- Product default: stride=256 for 1088×1088 immunization
+
+**FLUX API — all confirmed correct**:
+- `FluxInpaintPipeline` import path OK
+- `img_ids`/`txt_ids` shape handling correct
+- Timestep/1000 scaling correct
+- `guidance` tensor vs None handling correct for distilled/non-distilled
+- VAE `shift_factor`/`scaling_factor` read from `pipe.vae.config` — works across all FLUX variants
+
+**State**: All CPU-computable work complete. Ready for GPU experiments. Run order: H2 → H1a → H6.
+
 ## 2026-04-07 — Inner Loop Setup
 
 **Actions**:

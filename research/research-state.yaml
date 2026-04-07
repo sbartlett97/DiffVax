@@ -22,7 +22,7 @@ hypotheses:
 
   H2:
     title: "Patch-based inference enables 1088x1088 immunization without retraining"
-    status: untested
+    status: in_progress
     priority: 2
     rationale: >
       NestedUNet is fully convolutional — no fixed positional encodings. Processing
@@ -31,6 +31,11 @@ hypotheses:
       This avoids expensive high-res retraining entirely.
     prediction: "Patch-blended immunization on 1088x1088 achieves >80% of 512-pixel edit disruption rate"
     metric: edit_disruption_rate at 1088x1088 vs 512x512
+    cpu_preliminary_results:
+      no_overlap_seam_ratio: 2.377  # FAIL (threshold 1.2)
+      overlap_25pct_seam_ratio: 1.275  # marginal
+      overlap_50pct_seam_ratio: 1.046  # PASS — recommended stride=256
+      conclusion: "50% overlap (stride=256) required for artifact-free 1088px tiling. This is the product default."
 
   H3:
     title: "Two-stage curriculum (512 → 1088) outperforms direct high-res training"
@@ -104,8 +109,11 @@ resolved_constraints:
   - "FIXED 2026-04-06: Patch-based 1088 inference implemented (patch_immunize.py)"
   - "FIXED 2026-04-07: VAE feature loss implemented in DiffVaxImmunization"
   - "FIXED 2026-04-07: Attention hook manager implemented (losses.py)"
+  - "FIXED 2026-04-07: generate_masks.py --size parameter added for 1088px data generation"
+  - "VERIFIED 2026-04-07: attack_flux.py API confirmed correct against diffusers docs (img_ids, txt_ids, timestep/1000, guidance tensor, scaling/shift_factor from config)"
 
 decisions:
   - "2026-04-06: Bootstrap complete. All wrappers implemented."
   - "2026-04-07: H4 VAE feature loss added to training loop (config: train_multimodel_h4.yml)"
   - "2026-04-07: Run order: H2 (free) → H1a → H6 → H3 (if H2 fails) → H4"
+  - "2026-04-07: H2 CPU prelim — stride must be 256 (50% overlap) to avoid seam artifacts at 1088px. Updated patch_immunize.py default."

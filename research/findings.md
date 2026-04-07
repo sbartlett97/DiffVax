@@ -65,6 +65,28 @@ LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to 
 
 ---
 
+## H2 CPU Preliminary: Patch Overlap Analysis (2026-04-07)
+
+Tested patch tiling strategies at 1088×1088 with synthetic uniform-delta input:
+
+| Strategy | Stride | Seam Ratio | Status |
+|---|---|---|---|
+| No overlap | 512 | 2.377 | FAIL |
+| 25% overlap | 384 | 1.275 | marginal |
+| 50% overlap | 256 | 1.046 | PASS |
+
+**Decision**: stride=256 (50% overlap) is the product default for 1088px immunization. This doubles memory/compute vs no-overlap but is necessary for coherent outputs. The Gaussian blending window handles all boundary weighting.
+
+**FLUX API verification** (2026-04-07): `attack_flux.py` confirmed correct against current diffusers docs:
+- `FluxInpaintPipeline` import path: `from diffusers import FluxInpaintPipeline` ✓
+- `img_ids`/`txt_ids`: (seq_len, 3) tensors — implementation correct ✓
+- timestep scaling: divide by 1000 — correct ✓
+- `guidance`: tensor (batch,) for guidance-enabled models, None for distilled (Schnell, Klein) — correct ✓
+- VAE factors: read from `pipe.vae.config` dynamically — correct, will work across FLUX variants ✓
+- Resolution: multiples of 16 (not 64); our code enforces `//(vae_scale_factor * patch_size) = //16` ✓
+
+---
+
 ## Lessons and Constraints (Updated 2026-04-07)
 
 - **NestedUNet is genuinely resolution-agnostic**: Tested at 256×384, 512×512, 768×768 on CPU — all work correctly

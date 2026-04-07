@@ -19,7 +19,7 @@ Usage::
 
     img = ...  # (1, 3, 1088, 1088) tensor in [-1, 1]
     mask = ...  # (1, 1, 1088, 1088) tensor in [0, 1]
-    immunized = patch_immunize(model, img, mask, patch_size=512, stride=384)
+    immunized = patch_immunize(model, img, mask, patch_size=512, stride=256)  # 50% overlap required at 1088px
 """
 
 import math
@@ -56,7 +56,7 @@ def patch_immunize(
     image: torch.Tensor,
     mask: torch.Tensor,
     patch_size: int = 512,
-    stride: int = 384,
+    stride: int = 256,
     clamp_min: float = -1.0,
     clamp_max: float = 1.0,
     dtype: torch.dtype = torch.float32,
