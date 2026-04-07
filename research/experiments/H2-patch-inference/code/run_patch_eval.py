@@ -6,6 +6,10 @@ Loads the 512-trained DiffVax checkpoint and applies patch_immunize at
   - Edit Disruption Rate (EDR) on SD 1.5 inpainting
   - PSNR/SSIM of immunized vs original image (imperceptibility)
 
+Edit protocol: immunize at 1088px (with patches), then DOWNSCALE to 512px
+before editing. This matches real adversary workflow (SD 1.5 is 512px-native)
+and avoids OOM from 1088px self-attention maps (which are 18x larger than 512px).
+
 Usage:
     python run_patch_eval.py \
         --checkpoint ../../../../checkpoints/diffvax_trained.pth \
@@ -16,8 +20,8 @@ Usage:
 
 import argparse
 import csv
-import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 import torch
@@ -33,50 +37,46 @@ from diffvax.model import NestedUNet
 from diffvax.attack import Attack
 from diffvax.patch_immunize import patch_immunize
 from diffvax.utils import prepare_mask_and_masked_image, get_train_val_image_prompt_list
-from eval_metrics import psnr as compute_psnr_fn, ssim as compute_ssim_fn
+from eval_metrics import psnr as _psnr, ssim as _ssim
 
 
-TARGET_RESOLUTION = 1088
+TARGET_RESOLUTION = 1088   # resolution at which immunization is applied
+EDIT_RESOLUTION = 512      # resolution at which editing occurs (SD 1.5 is 512-native)
 PATCH_SIZE = 512
 STRIDE_CONDITIONS = {
-    "no_overlap": 512,
+    "no_overlap":    512,
     "25pct_overlap": 384,
     "50pct_overlap": 256,
-    "baseline_512": None,  # direct 512x512 inference
+    "baseline_512":  None,  # immunize at 512, then upscale — no patch tiling
 }
 NUM_INFERENCE_STEPS = 20
-GUIDANCE_SCALE = 7.5
 
 
 def tensor_to_pil(t: torch.Tensor) -> Image.Image:
-    """Convert (1,3,H,W) tensor in [-1,1] to PIL RGB."""
-    t = (t.float().squeeze(0).cpu().clamp(-1, 1) + 1) / 2
-    return TF.to_pil_image(t)
+    """Convert (1,3,H,W) or (3,H,W) tensor in [-1,1] to PIL RGB."""
+    if t.dim() == 4:
+        t = t.squeeze(0)
+    return TF.to_pil_image((t.float().cpu().clamp(-1, 1) + 1) / 2)
 
 
-def compute_ssim(img_a: torch.Tensor, img_b: torch.Tensor) -> float:
-    return compute_ssim_fn(img_a, img_b)
+def pil_to_tensor(pil: Image.Image) -> torch.Tensor:
+    """Convert PIL RGB to (1,3,H,W) tensor in [-1,1]."""
+    return TF.to_tensor(pil).unsqueeze(0) * 2 - 1
 
 
-def compute_psnr(img_a: torch.Tensor, img_b: torch.Tensor) -> float:
-    return compute_psnr_fn(img_a, img_b)
-
-
-def run_edit(attack_model, pil_image, pil_mask, prompt, resolution):
-    """Run SD 1.5 inpainting and return edited image tensor."""
-    pil_image = pil_image.resize((resolution, resolution))
-    pil_mask = pil_mask.resize((resolution, resolution))
-    mask_t, masked_image_t, image_t = prepare_mask_and_masked_image(pil_image, pil_mask)
-
-    edited = attack_model.attack(
-        prompt=[prompt],
-        masked_image=masked_image_t.half().cuda(),
-        mask=mask_t.half().cuda(),
-        height=resolution,
-        width=resolution,
-        num_inference_steps=NUM_INFERENCE_STEPS,
-        batch_size=1,
-    )
+def run_edit(attack_model, pil_image_512, pil_mask_512, prompt):
+    """Run SD 1.5 inpainting at 512px and return edited tensor (cpu, float)."""
+    mask_t, masked_t, _ = prepare_mask_and_masked_image(pil_image_512, pil_mask_512)
+    with torch.no_grad():
+        edited = attack_model.attack(
+            prompt=[prompt],
+            masked_image=masked_t.half().cuda(),
+            mask=mask_t.half().cuda(),
+            height=EDIT_RESOLUTION,
+            width=EDIT_RESOLUTION,
+            num_inference_steps=NUM_INFERENCE_STEPS,
+            batch_size=1,
+        )
     return edited.float().cpu()
 
 
@@ -97,74 +97,97 @@ def main():
     model.load_state_dict(torch.load(args.checkpoint, weights_only=True))
     model.training = False
 
-    # Load attack model (SD 1.5)
+    # Load SD 1.5 attack model with memory optimisations
     attack_model = Attack(args.attack_model)
+    attack_model.model.enable_attention_slicing()      # ~2x memory reduction for self-attention
+    # enable_model_cpu_offload conflicts with the manual .cuda() calls in attack.py
+    # so we skip it here and rely on attention_slicing + empty_cache instead
 
     # Load validation data
     _, val_list = get_train_val_image_prompt_list(args.data_dir)
     val_list = val_list[:args.n_images]
 
     results = []
+    data_path = Path(args.data_dir)
 
     pbar = tqdm(val_list, desc="Evaluating H2")
     for item in pbar:
         image_name = item["image"]
-        prompts = item["prompts"][:2]  # use first 2 prompts per image
+        prompts = item["prompts"][:2]
 
-        data_path = Path(args.data_dir)
-        pil_image = Image.open(data_path / "validation" / "images" / image_name).convert("RGB")
+        pil_image = Image.open(
+            data_path / "validation" / "images" / image_name
+        ).convert("RGB")
         mask_name = "mask_" + Path(image_name).stem + ".png"
-        pil_mask = Image.open(data_path / "validation" / "masks" / mask_name).convert("L")
+        pil_mask = Image.open(
+            data_path / "validation" / "masks" / mask_name
+        ).convert("L")
 
-        # Upscale to target resolution
+        # 512px versions (for baseline condition and editing)
+        pil_image_512 = pil_image.resize((EDIT_RESOLUTION, EDIT_RESOLUTION), Image.LANCZOS)
+        pil_mask_512 = pil_mask.resize((EDIT_RESOLUTION, EDIT_RESOLUTION), Image.NEAREST)
+        orig_t_512 = pil_to_tensor(pil_image_512)  # (1,3,512,512) in [-1,1]
+
+        # 1088px versions (for patch immunization)
         pil_image_1088 = pil_image.resize((TARGET_RESOLUTION, TARGET_RESOLUTION), Image.LANCZOS)
         pil_mask_1088 = pil_mask.resize((TARGET_RESOLUTION, TARGET_RESOLUTION), Image.NEAREST)
+        mask_t_1088, _, image_t_1088 = prepare_mask_and_masked_image(pil_image_1088, pil_mask_1088)
+        image_t_1088 = image_t_1088.cuda()
+        mask_t_1088 = mask_t_1088.cuda()
 
-        # Prepare tensors at 1088
-        mask_t, masked_t, image_t = prepare_mask_and_masked_image(pil_image_1088, pil_mask_1088)
-        image_t_half = image_t.half().cuda()
-        mask_t_half = mask_t.half().cuda()
+        # Precompute: edit the CLEAN image once per image (shared across conditions)
+        # Immunization-quality metrics compare against this baseline edit
+        clean_edits = {}
+        for prompt in prompts:
+            with torch.no_grad():
+                clean_edits[prompt] = run_edit(attack_model, pil_image_512, pil_mask_512, prompt)
+        torch.cuda.empty_cache()
 
         for condition_name, stride in STRIDE_CONDITIONS.items():
             if stride is None:
-                # Baseline: resize to 512, immunize at 512, resize back
-                pil_512 = pil_image.resize((512, 512))
-                pil_mask_512 = pil_mask.resize((512, 512))
-                mask_512, _, img_512 = prepare_mask_and_masked_image(pil_512, pil_mask_512)
-                immunized_512 = model(img_512.float().cuda())
-                immunized_512 = torch.clamp(img_512.cuda() + immunized_512 * (1 - mask_512.cuda()), -1, 1)
-                # Upscale immunized back to 1088 for fair comparison
-                immunized_pil = tensor_to_pil(immunized_512).resize((TARGET_RESOLUTION, TARGET_RESOLUTION), Image.LANCZOS)
-                immunized_t = TF.to_tensor(immunized_pil).unsqueeze(0) * 2 - 1  # (1,3,H,W) in [-1,1]
+                # Baseline: immunize at 512, scale back to 1088 for imperceptibility
+                # then downscale to 512 for editing (round-trip to test upscale-downscale)
+                mask_512, _, img_512 = prepare_mask_and_masked_image(pil_image_512, pil_mask_512)
+                with torch.no_grad():
+                    perturb_512 = model(img_512.cuda())
+                    perturb_512 = perturb_512 * (1 - mask_512.cuda())
+                    immunized_512_t = torch.clamp(img_512.cuda() + perturb_512, -1, 1)
+                del perturb_512
+
+                # Imperceptibility measured at 512 for baseline
+                psnr_val = _psnr(immunized_512_t.float().cpu(), img_512)
+                ssim_val = _ssim(immunized_512_t.float().cpu(), img_512)
+
+                # Editing: use the 512-immunized image directly
+                immunized_pil_for_edit = tensor_to_pil(immunized_512_t.cpu())
+                del immunized_512_t
             else:
-                immunized_t = patch_immunize(
-                    model, image_t_half.float(), mask_t_half.float(),
-                    patch_size=PATCH_SIZE, stride=stride,
+                # Patch immunization at 1088
+                with torch.no_grad():
+                    immunized_1088_t = patch_immunize(
+                        model, image_t_1088.float(), mask_t_1088.float(),
+                        patch_size=PATCH_SIZE, stride=stride,
+                    )
+
+                # Imperceptibility measured at 1088
+                psnr_val = _psnr(immunized_1088_t.float().cpu(), image_t_1088.float().cpu())
+                ssim_val = _ssim(immunized_1088_t.float().cpu(), image_t_1088.float().cpu())
+
+                # Downscale to 512 for editing (adversary uses 512px editor)
+                immunized_pil_for_edit = tensor_to_pil(immunized_1088_t.cpu()).resize(
+                    (EDIT_RESOLUTION, EDIT_RESOLUTION), Image.LANCZOS
                 )
+                del immunized_1088_t
 
-            immunized_pil = tensor_to_pil(immunized_t.unsqueeze(0) if immunized_t.dim() == 3 else immunized_t)
-            orig_pil = pil_image_1088
-
-            # Imperceptibility metrics
-            orig_t = image_t_half.float()
-            imm_t = immunized_t.cuda().float() if immunized_t.dim() == 4 else immunized_t.unsqueeze(0).cuda().float()
-            psnr_val = compute_psnr(imm_t, orig_t)
-            ssim_val = compute_ssim(imm_t, orig_t)
+            torch.cuda.empty_cache()
 
             for prompt in prompts:
-                # Edit clean image
-                edited_clean = run_edit(
-                    attack_model, orig_pil, pil_mask_1088, prompt, TARGET_RESOLUTION
-                )
-                # Edit immunized image
-                edited_imm = run_edit(
-                    attack_model, immunized_pil, pil_mask_1088, prompt, TARGET_RESOLUTION
-                )
+                edited_clean = clean_edits[prompt]
+                edited_imm = run_edit(attack_model, immunized_pil_for_edit, pil_mask_512, prompt)
+                torch.cuda.empty_cache()
 
-                # EDR: immunized edit should have lower SSIM vs clean edit (more disrupted)
-                # Both edited images and orig_t are at TARGET_RESOLUTION x TARGET_RESOLUTION
-                ssim_clean_edit = compute_ssim(edited_clean.cuda(), orig_t)
-                ssim_imm_edit = compute_ssim(edited_imm.cuda(), orig_t)
+                ssim_clean_edit = _ssim(edited_clean.cuda().float(), orig_t_512.cuda().float())
+                ssim_imm_edit = _ssim(edited_imm.cuda().float(), orig_t_512.cuda().float())
                 disrupted = ssim_imm_edit < ssim_clean_edit - 0.05
 
                 results.append({
@@ -178,6 +201,9 @@ def main():
                     "disrupted": int(disrupted),
                 })
 
+        del image_t_1088, mask_t_1088
+        torch.cuda.empty_cache()
+
     # Write CSV
     csv_path = out_dir / "patch_edr_metrics.csv"
     if results:
@@ -188,7 +214,6 @@ def main():
 
     # Summary by condition
     print("\n=== H2 Summary ===")
-    from collections import defaultdict
     by_cond = defaultdict(list)
     for r in results:
         by_cond[r["condition"]].append(r)
@@ -199,7 +224,8 @@ def main():
         avg_ssim = sum(r["ssim_immunized"] for r in rows) / len(rows)
         print(f"  {cond:20s}: EDR={edr:.3f}  PSNR={avg_psnr:.1f}  SSIM={avg_ssim:.4f}")
 
-    print(f"\nFull results saved to {csv_path}")
+    print(f"\nEdit protocol: immunize at {TARGET_RESOLUTION}px, edit at {EDIT_RESOLUTION}px")
+    print(f"Full results saved to {csv_path}")
 
 
 if __name__ == "__main__":
