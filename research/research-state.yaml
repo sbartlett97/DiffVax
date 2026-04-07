@@ -130,5 +130,8 @@ resolved_constraints:
 decisions:
   - "2026-04-06: Bootstrap complete. All wrappers implemented."
   - "2026-04-07: H4 VAE feature loss added to training loop (config: train_multimodel_h4.yml)"
-  - "2026-04-07: Run order: H2 (free) → H1a → H6 → H3 (if H2 fails) → H4"
+  - "2026-04-07: Run order: H2 (free) → H1a → H6 → H3 (if H2 fails) → H4 → H7"
   - "2026-04-07: H2 CPU prelim — stride must be 256 (50% overlap) to avoid seam artifacts at 1088px. Updated patch_immunize.py default."
+  - "2026-04-07: H7 added — JPEG-robust training is critical for social media product (Instagram/Twitter apply q=70-75)"
+  - "2026-04-07: FLUX model changed from FLUX.2-Klein-4B → FLUX.1-schnell. Klein is T5-only (no CLIP), incompatible with FluxInpaintPipeline."
+  - "2026-04-07: eval_transfer.py extended with --jpeg-qualities flag for H7 evaluation"

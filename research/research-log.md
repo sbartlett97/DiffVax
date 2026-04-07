@@ -1,5 +1,15 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-07 — FLUX Model Fix + Eval Infrastructure
+
+**Critical fix**: FLUX.2-Klein-4B is T5-only (no CLIP encoder), incompatible with `FluxInpaintPipeline`. Changed all configs to `FLUX.1-schnell` (distilled, dual-encoder, 4 steps, guidance_scale=0).
+
+**`attack_flux.py`**: added try/except for T5-only FLUX models, auto-detection of distilled vs non-distilled (schnell → guidance_scale=0, dev → 3.5), default guidance_scale changed to 0.0.
+
+**`eval_transfer.py` rewritten**: added `--jpeg-qualities` flag for H7 protocol, `torch.no_grad()`, `torch.cuda.empty_cache()`, clean edits precomputed once per image.
+
+**`research/src/plot_results.py`**: new publication-ready plotting for H1/H2/H6/H7.
+
 ## 2026-04-07 — H7: JPEG-Robust Training + GPU Debugging
 
 **Critical discovery**: Social media compression (Instagram q=75, Twitter q=70) defeats standard immunization perturbations. High-frequency DCT perturbations are the MOST vulnerable to JPEG — opposite of what H5 assumed.
