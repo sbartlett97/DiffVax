@@ -12,7 +12,7 @@ import gc
 from diffvax.model import NestedUNet
 from diffvax.utils import set_seed_lib
 
-scaler = torch.cuda.amp.GradScaler()
+scaler = torch.amp.GradScaler("cuda")
 
 
 class ImmunizationDataset(torch.utils.data.Dataset):
@@ -73,6 +73,13 @@ class DiffVaxImmunization:
         # Loaded lazily on first use to avoid memory overhead when not needed.
         self._shared_vae = None
         self._vae_loss_beta = config.get("vae_loss_beta", 0.0)
+
+        # H7: JPEG augmentation for compression-robust immunization (social media uploads).
+        # Instagram/Twitter apply JPEG at q=70-75 on upload, stripping high-freq perturbations.
+        # Training with JPEG augmentation (STE gradient) forces energy into JPEG-survivor bands.
+        # Reference: DCT-Shield (ICCV 2025, arXiv:2504.17894)
+        self._jpeg_prob = config.get("jpeg_augment_prob", 0.0)
+        self._jpeg_quality_range = tuple(config.get("jpeg_quality_range", [70, 85]))
 
     def _get_shared_vae(self):
         """Lazily load shared VAE for cross-model feature loss (H4)."""
@@ -160,10 +167,22 @@ class DiffVaxImmunization:
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
+
+                # H7: JPEG augmentation — forces perturbations into JPEG-survivor
+                # frequency bands (social media robustness). Uses STE so gradients
+                # still flow through the immunization network.
+                img_adv_for_attack = img_adv
+                if self._jpeg_prob > 0:
+                    from diffvax.jpeg_augment import jpeg_augment_ste, should_apply_jpeg
+                    if should_apply_jpeg(self._jpeg_prob):
+                        img_adv_for_attack = jpeg_augment_ste(
+                            img_adv.float(), quality_range=self._jpeg_quality_range
+                        ).to(img_adv.dtype)
+
                 h, w = img_batch.shape[-2], img_batch.shape[-1]
                 img_out = self.attack_model.attack(
                     prompt=prompt_batch,
-                    masked_image=img_adv,
+                    masked_image=img_adv_for_attack,
                     mask=mask_batch,
                     height=h,
                     width=w,

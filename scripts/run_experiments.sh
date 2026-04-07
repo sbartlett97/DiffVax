@@ -113,6 +113,26 @@ run_h4() {
     log "H4 done."
 }
 
+run_h7() {
+    log "=== H7: JPEG-robust training (social media compression) ==="
+    python3 scripts/train.py \
+        --config configs/train_multimodel_h7.yml \
+        --data-dir "$DATA_DIR" \
+        --output-dir "$OUTPUT_DIR/h7"
+    H7_CKPT=$(find "$OUTPUT_DIR/h7" -name "*_final.pth" | sort | tail -1)
+    H1A_CKPT=$(find "$OUTPUT_DIR/h1a" -name "*_final.pth" | sort | tail -1 || echo "")
+    if [ -n "$H1A_CKPT" ]; then
+        log "=== H7: Transfer comparison vs H1a (no JPEG aug) ==="
+        python3 research/experiments/H1-multimodel-transfer/code/eval_transfer.py \
+            --checkpoints "h1a_no_jpeg=$H1A_CKPT" "h7_jpeg_robust=$H7_CKPT" \
+            --eval-models sd15 flux_schnell sd35 \
+            --data-dir "$DATA_DIR" \
+            --output-dir research/experiments/H7-jpeg-robust/results/ \
+            --n-images 50
+    fi
+    log "H7 done."
+}
+
 run_h6() {
     log "=== H6: Purification robustness ==="
     SD15_CKPT="$PROJECT_DIR/checkpoints/diffvax_trained.pth"
@@ -140,13 +160,15 @@ case "$EXPERIMENT" in
     h3)   run_h3 ;;
     h4)   run_h4 ;;
     h6)   run_h6 ;;
+    h7)   run_h7 ;;
     all)
         run_h2
         run_h1a
         run_h6
+        run_h7
         ;;
     *)
-        echo "Usage: $0 [h2|h1a|h1b|h3|h4|h6|all]"
+        echo "Usage: $0 [h2|h1a|h1b|h3|h4|h6|h7|all]"
         exit 1
         ;;
 esac

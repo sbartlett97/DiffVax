@@ -1,0 +1,42 @@
+# DiffVax H7 experiment: JPEG-robust multi-model training
+# Adds JPEG augmentation (q=70-85) during training to force perturbations
+# into DCT frequency bands that survive social media upload compression.
+#
+# Social media context:
+#   Instagram: ~q=75 JPEG equivalent on upload
+#   Twitter/X:  strong JPEG re-compression (~q=70)
+# Reference: DCT-Shield (ICCV 2025, arXiv:2504.17894)
+
+# Training
+iter_num: 10000
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+
+# Model
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_h7_jpeg_robust"
+
+# Resolution
+resolution: 512
+
+# Attack model: Stable Diffusion Inpainting (SD 1.5 UNet)
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.25
+
+# Attack model: FLUX.2 Klein 4B (DiT)
+flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_probability: 0.75
+
+# H7: JPEG augmentation for compression-robust immunization
+# Apply JPEG compression (q=70-85) to immunized image before attack with STE gradient
+jpeg_augment_prob: 0.5      # apply JPEG 50% of training steps
+jpeg_quality_range: [70, 85] # simulate Instagram (75) and Twitter (~70)
+
+# Dataset paths (relative to data_dir)
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
