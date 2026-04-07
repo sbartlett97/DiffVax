@@ -65,6 +65,15 @@ LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to 
 
 ---
 
+## Lessons and Constraints (Updated 2026-04-07)
+
+- **NestedUNet is genuinely resolution-agnostic**: Tested at 256×384, 512×512, 768×768 on CPU — all work correctly
+- **FLUX pack/unpack math verified**: All target resolutions (512, 768, 1024, 1088) produce correct roundtrip latent shapes
+- **patch_immunize mask constraint verified**: Zero perturbation in edit region confirmed with bounded input
+- **train_multimodel.yml was missing** from git — recreated. Always track config files.
+- **VAE feature loss implementation verified**: Returns negative scalar (correct — we minimise it to maximise latent distance)
+- **No GPU available locally**: H2 is the highest-priority experiment since it requires only inference, not training
+
 ## Open Questions
 
 1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)?
@@ -72,3 +81,5 @@ LADD (SIGGRAPH Asia 2024) shows latent-space adversarial perturbations scale to 
 3. What is the optimal mix of attack models during training for best cross-model generalization?
 4. Can frequency-domain perturbation constraints improve imperceptibility at high resolution?
 5. How does gpt-image-edit's resistance to transfer attacks compare to open-source models?
+6. Does FLUX-based purification fail on DiffVax-FLUX immunized images? (H6, critical for product)
+7. Is the VAE feature loss (H4) worth the additional compute vs plain multi-model training (H1a)?
