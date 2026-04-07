@@ -21,20 +21,65 @@ from diffvax.utils import (
 )
 
 
+def _build_attack_model(config):
+    """Construct the appropriate attack model from config.
+
+    Supports three modes:
+    - Single SD 1.5 model (original): ``attack_model_link`` key only
+    - Single FLUX model: ``flux_model_link`` key only
+    - Multi-model: both keys present, selected randomly per batch according to
+      ``sd_probability`` / ``flux_probability`` (and optionally ``sd3_probability``
+      / ``sd3_model_link`` for SD 3.5)
+    """
+    has_sd = "attack_model_link" in config
+    has_flux = "flux_model_link" in config
+    has_sd3 = "sd3_model_link" in config
+
+    if has_sd and not has_flux and not has_sd3:
+        return Attack(config["attack_model_link"])
+
+    if has_flux and not has_sd and not has_sd3:
+        from diffvax.attack_flux import FluxAttack
+        return FluxAttack(config["flux_model_link"])
+
+    # Multi-model: assemble spec list
+    from diffvax.attack_multi import MultiAttack
+    specs = []
+    if has_sd:
+        specs.append({
+            "type": "sd15",
+            "link": config["attack_model_link"],
+            "prob": config.get("sd_probability", 0.5),
+        })
+    if has_flux:
+        specs.append({
+            "type": "flux",
+            "link": config["flux_model_link"],
+            "prob": config.get("flux_probability", 0.5),
+        })
+    if has_sd3:
+        specs.append({
+            "type": "sd3",
+            "link": config["sd3_model_link"],
+            "prob": config.get("sd3_probability", 0.1),
+        })
+    return MultiAttack(specs)
+
+
 def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     iter_num = config["iter_num"]
     immunization_model_name = config["immunization_model"]
     alpha = config["alpha"]
     batch_size = config["batch_size"]
     train_all = config["train_all"]
-    attack_model_link = config["attack_model_link"]
 
-    attack_model = Attack(attack_model_link)
+    attack_model = _build_attack_model(config)
 
     immunization_config = {
         "iter_num": iter_num,
         "learning_rate": config["learning_rate"],
         "immunization_model": immunization_model_name,
+        "vae_loss_beta": config.get("vae_loss_beta", 0.0),
     }
     immunization_mdl = DiffVaxImmunization(
         attack_model, immunization_config, output_dir=output_dir
@@ -53,6 +98,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     # Support both dataset layouts: images/masks or cropped_images/sam_masks
     images_subdir = config.get("images_subdir", "train/images")
     masks_subdir = config.get("masks_subdir", "train/masks")
+    resolution = config.get("resolution", 512)
 
     for image_ind, image_name in enumerate(image_name_list):
         image = load_image(
@@ -61,6 +107,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             is_mask=False,
             images_subdir=images_subdir,
             masks_subdir=masks_subdir,
+            resolution=resolution,
         )
         image_mask = load_image(
             image_name,
@@ -68,6 +115,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             is_mask=True,
             images_subdir=images_subdir,
             masks_subdir=masks_subdir,
+            resolution=resolution,
         )
         mask_torch, image_torch, non_masked_image_torch = prepare_mask_and_masked_image(
             image, image_mask
