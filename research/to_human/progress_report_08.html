@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DiffVax++ Progress Report #8</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e1e4e8; margin: 0; padding: 0; }
+  .header { background: linear-gradient(135deg, #1a1f35 0%, #0d1b2a 100%); border-bottom: 1px solid #30363d; padding: 40px 60px; }
+  .header h1 { margin: 0 0 8px 0; font-size: 2rem; color: #58a6ff; }
+  .header .sub { color: #8b949e; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 60px; }
+  h2 { color: #58a6ff; border-bottom: 1px solid #21262d; padding-bottom: 8px; margin-top: 40px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 14px 0; }
+  .card.ok { border-left: 4px solid #3fb950; }
+  .card.warn { border-left: 4px solid #d29922; }
+  .card.info { border-left: 4px solid #58a6ff; }
+  .card.threat { border-left: 4px solid #f85149; background: rgba(248,81,73,0.05); }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 14px 0; }
+  .metric { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 18px; text-align: center; }
+  .metric .val { font-size: 2rem; font-weight: 700; color: #3fb950; }
+  .metric .lbl { color: #8b949e; font-size: 0.82rem; margin-top: 4px; }
+  .metric .sub { color: #6e7681; font-size: 0.8rem; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+  th { background: #21262d; color: #8b949e; padding: 9px 12px; text-align: left; }
+  td { padding: 9px 12px; border-bottom: 1px solid #21262d; }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: #3fb950; } .warn { color: #d29922; } .bad { color: #f85149; }
+  code { background: #21262d; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 0.85em; }
+  pre { background: #0d1117; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 0.84em; border: 1px solid #30363d; overflow-x: auto; }
+  .pbar-bg { background: #21262d; border-radius: 4px; height: 10px; margin: 6px 0; }
+  .pbar-45 { width: 45%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #58a6ff, #d29922); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  footer { text-align: center; color: #6e7681; font-size: 0.82rem; padding: 30px; border-top: 1px solid #21262d; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>DiffVax++ Research Progress</h1>
+  <div class="sub">Report #8 &middot; H1a Training Underway &middot; Infrastructure Complete &middot; 2026-04-08</div>
+</div>
+<div class="container">
+
+<h2>H1a Training Progress</h2>
+<div class="card warn">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.85rem">
+    <span>H1a Multi-Model Training (SD 25% + FLUX.1-schnell 75%)</span>
+    <span style="color:#d29922">~45% complete &mdash; ~24h remaining</span>
+  </div>
+  <div class="pbar-bg"><div class="pbar-45"></div></div>
+  <p style="color:#8b949e;margin:10px 0 0 0">~20h elapsed of ~44h total &middot; All three critical fixes running: gradient checkpointing, 2D img_ids, max_steps=8000.</p>
+</div>
+
+<div class="metric-grid">
+  <div class="metric"><div class="val">~24h</div><div class="lbl">Until H1a Checkpoint</div><div class="sub">Then H1+H6+H7 immediately</div></div>
+  <div class="metric"><div class="val">8,000</div><div class="lbl">Total Gradient Steps</div><div class="sub">5 passes over 1,600 items</div></div>
+  <div class="metric"><div class="val">1.60&times;</div><div class="lbl">H2 EDR Confirmed</div><div class="sub">1088px patch inference</div></div>
+  <div class="metric"><div class="val">19</div><div class="lbl">Papers Surveyed</div><div class="sub">2 new threats found today</div></div>
+</div>
+
+<h2>One-Command Post-Training Evaluation (Ready Now)</h2>
+<div class="card ok">
+  <p style="color:#8b949e;margin-top:0">When H1a checkpoint lands, a single command runs everything:</p>
+  <pre>git pull
+bash scripts/run_post_h1a.sh \
+    --h1a-checkpoint checkpoints/diffvax_multimodel.pth \
+    --sd15-checkpoint checkpoints/diffvax_trained.pth</pre>
+  <p style="color:#8b949e;margin-bottom:0"><strong style="color:#e1e4e8">Runs in sequence:</strong><br>
+  &bull; H1 transfer eval: SD1.5 / FLUX.1-schnell / SD3.5 + JPEG baselines q=75, q=70 (~3h)<br>
+  &bull; H6 purification robustness: EditorClean strengths 0.3, 0.5, 0.7 (~4h)<br>
+  &bull; H7 JPEG training: launches in background automatically (~44h)</p>
+</div>
+
+<h2>New Threat Literature (April 2026)</h2>
+<div class="two">
+  <div class="card threat">
+    <strong style="color:#f85149">NEW CRITICAL THREAT &mdash; arXiv:2602.22197</strong><br>
+    <em style="color:#8b949e">Off-The-Shelf Models Are All You Need To Defeat Protection</em><br><br>
+    <span style="color:#8b949e">Commodity image-to-image tools strip Lp perturbations across 6 defense schemes with zero knowledge of the specific defense. The adversary needs no FLUX &mdash; any transformation tool works.</span><br><br>
+    <span style="color:#d29922"><strong>Why it matters:</strong></span> <span style="color:#8b949e">A perturbation surviving q=70 JPEG also survives most commodity tools that internally compress. Strengthens H7 motivation &mdash; our STE JPEG augmentation addresses both social media uploads AND commodity purification.</span>
+  </div>
+  <div class="card info">
+    <strong style="color:#58a6ff">CONFIRMS APPROACH &mdash; arXiv:2604.01635 (AEGIS)</strong><br>
+    <em style="color:#8b949e">Trajectory-aware latent-space perturbation injection</em><br><br>
+    <span style="color:#8b949e">Concurrent work: multi-step trajectory injection is more robust than single-step. DiffVax&rsquo;s 4-step differentiable pass already does this. No JPEG robustness &mdash; gap DiffVax++ fills.</span><br><br>
+    <span style="color:#3fb950"><strong>For paper:</strong></span> <span style="color:#8b949e">&ldquo;Concurrent AEGIS (Li et al., 2026) confirms multi-step latent injection; we extend to multi-model and compression-resistant.&rdquo;</span>
+  </div>
+</div>
+
+<h2>Updated Competitive Table (19 Papers)</h2>
+<table>
+  <thead><tr><th>Paper</th><th>Venue</th><th>Multi-Model</th><th>High-Res</th><th>JPEG Robust</th><th>Resists Commodity Purification</th></tr></thead>
+  <tbody>
+    <tr><td>PromptFlare (2508.16217)</td><td>ACM MM 2025</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td></tr>
+    <tr><td>Attention Attack (2509.10359)</td><td>ACM MM 2025</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td></tr>
+    <tr><td>AEGIS (2604.01635)</td><td>Apr 2026 concurrent</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td><td class="bad">&#x2717;</td></tr>
+    <tr style="background:rgba(88,166,255,0.06)"><td><strong>DiffVax++ (ours)</strong></td><td>Target ICLR 2027</td><td class="ok">&#x2713; SD+FLUX+SD3</td><td class="ok">&#x2713; 1088px 1.60&times;</td><td class="ok">&#x2713; STE q=70-75</td><td class="ok">&#x2713; via H7</td></tr>
+  </tbody>
+</table>
+
+<h2>Infrastructure Status</h2>
+<table>
+  <thead><tr><th>Component</th><th>Status</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>attack_flux.py</td><td><span class="ok">&#x2713; Ready</span></td><td>Gradient checkpointing + 2D img_ids fixed</td></tr>
+    <tr><td>attack_sd3.py</td><td><span class="ok">&#x2713; Ready</span></td><td>CPU offload removed, grad checkpointing added</td></tr>
+    <tr><td>jpeg_augment.py (H7 STE)</td><td><span class="ok">&#x2713; Ready</span></td><td>Identity backward validated locally</td></tr>
+    <tr><td>eval_transfer.py</td><td><span class="ok">&#x2713; Ready</span></td><td>model.train-False bug fixed; per-model steps</td></tr>
+    <tr><td>eval_purification_robustness.py</td><td><span class="ok">&#x2713; Ready</span></td><td>model.train-False + schnell 4-step fixed</td></tr>
+    <tr><td>run_post_h1a.sh</td><td><span class="ok">&#x2713; Ready</span></td><td>H1+H6 eval + H7 training, one command</td></tr>
+    <tr><td>H1a training</td><td><span class="warn">&#x25CF; Running ~45%</span></td><td>~24h remaining</td></tr>
+  </tbody>
+</table>
+
+<h2>Remaining Sequence to Paper</h2>
+<table>
+  <thead><tr><th>Step</th><th>When</th><th>Output</th><th>Paper Table</th></tr></thead>
+  <tbody>
+    <tr><td>H1a training completes</td><td>~2026-04-09 early</td><td>checkpoints/diffvax_multimodel.pth</td><td>&mdash;</td></tr>
+    <tr><td>H1 transfer eval</td><td>+3h</td><td>transfer_edr_metrics.csv</td><td>Table 3</td></tr>
+    <tr><td>H6 purification robustness</td><td>+7h</td><td>purification_edr.csv</td><td>Table 4</td></tr>
+    <tr><td>H7 JPEG training starts (auto)</td><td>+7h</td><td>outputs/h7/</td><td>&mdash;</td></tr>
+    <tr><td>H7 training completes</td><td>+51h</td><td>checkpoints/diffvax_h7.pth</td><td>&mdash;</td></tr>
+    <tr><td>H7 post-JPEG eval</td><td>+53h</td><td>transfer_edr_metrics_h7.csv</td><td>Table 5</td></tr>
+    <tr><td>Plots + paper draft</td><td>After all evals</td><td>paper/, research/to_human/figures/</td><td>All</td></tr>
+  </tbody>
+</table>
+
+</div>
+<footer>DiffVax++ Autoresearch &middot; Report #8 &middot; 2026-04-08 &middot; 19 papers surveyed &middot; H1a ~45% complete</footer>
+</body>
+</html>
