@@ -81,6 +81,12 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
         "immunization_model": immunization_model_name,
         "vae_loss_beta": config.get("vae_loss_beta", 0.0),
         "max_steps": config.get("max_steps", None),
+        # H7: JPEG augmentation — must be forwarded or training silently runs without it
+        "jpeg_augment_prob": config.get("jpeg_augment_prob", 0.0),
+        "jpeg_quality_range": config.get("jpeg_quality_range", [70, 85]),
+        # Checkpoint / stop-file controls
+        "checkpoint_every": config.get("checkpoint_every", 5),
+        "stop_file": config.get("stop_file", "/tmp/diffvax_stop"),
     }
     immunization_mdl = DiffVaxImmunization(
         attack_model, immunization_config, output_dir=output_dir

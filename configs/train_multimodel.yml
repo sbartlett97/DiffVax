@@ -9,6 +9,7 @@
 # Previous run: max_steps=8000 (5 epochs, 3.4h) stopped before convergence
 iter_num: 10000
 max_steps: 16000
+checkpoint_every: 5    # save checkpoint every 5 epochs (touch /tmp/diffvax_stop for clean exit)
 learning_rate: 0.000005
 batch_size: 1
 alpha: 4

@@ -100,7 +100,7 @@ echo ""
 echo ">>> Step 3/3: Starting H7 JPEG-robust training in background"
 echo "    Config: ${H7_CONFIG}"
 echo "    Training SD(25%) + FLUX(75%) + JPEG aug (q=70-85, p=0.5)"
-echo "    Expected: ~44h with max_steps=8000"
+echo "    Expected: ~7h with max_steps=16000 (1.52s/step observed)"
 echo ""
 
 H7_OUT="${PROJECT_ROOT}/outputs/h7"
