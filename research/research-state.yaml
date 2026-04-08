@@ -131,6 +131,10 @@ known_constraints:
   - "SD 3.5 may require bfloat16 (not float16) on some GPU configs."
 
 resolved_constraints:
+  - "FIXED 2026-04-08: train.py missing jpeg_augment_prob/jpeg_quality_range/checkpoint_every forwarding to DiffVaxImmunization — H7 JPEG augmentation was silently disabled. Fixed."
+  - "FIXED 2026-04-08: H6 purification mask was all-zeros (no-op). FluxAttack denoising step resets latents to original at every step when mask=0. Fixed to all-ones (full reconstruction)."
+  - "VERIFIED 2026-04-08: H2 CSV numbers confirmed from raw data: baseline_512=0.250, no_overlap=0.300, 25pct=0.330, 50pct=0.400, ratio=1.60x — matches paper exactly."
+  - "SEARCHED 2026-04-08: 2025-2026 literature sweep — no new immunization competitors found that beat DiffVax++ on any deployment dimension. Competitive positioning holds."
   - "FIXED 2026-04-06: Loss /512 → /h (resolution-agnostic)"
   - "FIXED 2026-04-06: FLUX attack wrapper implemented (attack_flux.py)"
   - "FIXED 2026-04-06: SD 3.5 attack wrapper implemented (attack_sd3.py)"

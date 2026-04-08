@@ -1,5 +1,32 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-08 — Pipeline Audit: Two More Critical Bugs Fixed
+
+**Bug 1: train.py not forwarding jpeg_augment_prob to DiffVaxImmunization (CRITICAL for H7)**
+- Root cause: immunization_config in train.py only had 5 keys; DiffVaxImmunization reads jpeg_augment_prob from self.config
+- Effect: H7 JPEG augmentation would run silently with prob=0.0 (disabled) regardless of config
+- Fix: Added jpeg_augment_prob, jpeg_quality_range, checkpoint_every, stop_file to immunization_config
+- File: scripts/train.py
+
+**Bug 2: H6 purification mask was all-zeros → purification was a no-op (CRITICAL for H6)**
+- Root cause: FluxAttack denoising step: latents = latents * mask + image_latents * (1-mask)
+  With mask=0 everywhere, this resets to image_latents on every step → identity
+- Effect: H6 eval would show 0% purification for ALL methods — making H6 meaningless
+- Fix: Changed empty_mask (all zeros) → full_mask (all ones) in purify_with_flux()
+- File: research/experiments/H6-purification-robustness/code/eval_purification_robustness.py
+
+**H2 numbers cross-verified from raw CSV data:**
+- baseline_512: EDR=0.250, PSNR=32.71, SSIM=0.9646 ✓
+- no_overlap: EDR=0.300, PSNR=30.29, SSIM=0.9557 ✓
+- 25pct_overlap: EDR=0.330, PSNR=28.91, SSIM=0.9475 ✓
+- 50pct_overlap: EDR=0.400, PSNR=28.69, SSIM=0.9432 ✓
+- Ratio: exactly 1.600× ✓ — paper numbers are correct
+
+**Literature sweep (2025-2026):** No new immunization competitors found that beat DiffVax++
+on any of the three deployment dimensions. Competitive positioning confirmed.
+
+---
+
 ## 2026-04-08 — Config Fix: max_steps Corrected + Paper Sections Drafted
 
 **max_steps recalculation** (all multi-model configs updated):
