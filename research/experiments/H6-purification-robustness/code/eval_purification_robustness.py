@@ -40,8 +40,8 @@ from eval_metrics import psnr as _psnr, ssim as _ssim
 
 
 RESOLUTION = 512
-PURIFICATION_STEPS = 20  # EditorClean uses full denoise
-EDIT_STEPS = 20
+PURIFICATION_STEPS = 4   # FLUX.1-schnell is distilled for 4 steps; using 20 degrades quality
+EDIT_STEPS = 4    # FLUX.1-schnell edit steps (distilled 4-step model)
 PROMPTS_PER_IMAGE = 3
 
 
@@ -134,7 +134,7 @@ def main():
         print(f"\nLoading checkpoint: {ckpt_name}")
         model = NestedUNet(num_classes=3).cuda()
         model.load_state_dict(torch.load(ckpt_path, weights_only=True))
-        model.training = False
+        model.eval()  # sets dropout/batchnorm to inference mode
 
         pbar = tqdm(val_list, desc=f"H6 eval — {ckpt_name}")
         for item in pbar:
