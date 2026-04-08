@@ -63,22 +63,26 @@ def apply_immunization(model: torch.nn.Module, image_t: torch.Tensor, mask_t: to
 
 
 def purify_with_flux(flux_model: FluxAttack, image_t: torch.Tensor, strength: float = 0.3) -> torch.Tensor:
-    """Run FLUX reconstruction over the entire image (empty mask = full reconstruction).
+    """Run FLUX reconstruction over the entire image to remove adversarial perturbation.
 
-    This is the EditorClean purification strategy from arXiv:2603.13028.
-    An all-zero mask means the model reconstructs the whole image from scratch,
-    removing the adversarial perturbation in the process.
+    EditorClean strategy (arXiv:2603.13028): reconstruct the FULL image using FLUX.1-fill.
+    This removes adversarial perturbations while (ideally) preserving semantic content.
+
+    Implementation note: mask must be ALL-ONES (1=inpaint everywhere) so the denoising
+    loop processes the full image. With mask=0, the FluxAttack denoising step resets
+    latents to the original on every step → purification is identity (no-op).
 
     Args:
         strength: Purification aggressiveness (0.3=mild, 0.5=moderate, 0.7=strong).
-                  Higher = better at removing perturbations but more image distortion.
+                  Higher = more noise added = better perturbation removal but more distortion.
     """
-    empty_mask = torch.zeros(1, 1, RESOLUTION, RESOLUTION, device="cuda")
+    # Full mask: 1 everywhere = reconstruct the entire image (EditorClean strategy)
+    full_mask = torch.ones(1, 1, RESOLUTION, RESOLUTION, device="cuda")
     with torch.no_grad():
         purified = flux_model.attack(
             prompt=[""],
             masked_image=image_t.half().cuda(),
-            mask=empty_mask,
+            mask=full_mask,
             height=RESOLUTION,
             width=RESOLUTION,
             num_inference_steps=PURIFICATION_STEPS,
