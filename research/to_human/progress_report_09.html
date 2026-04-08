@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DiffVax++ Progress Report #9</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e1e4e8; margin: 0; }
+  .hdr { background: linear-gradient(135deg, #1a1f35, #0d1b2a); border-bottom: 1px solid #30363d; padding: 40px 60px; }
+  .hdr h1 { margin: 0 0 6px; font-size: 1.9rem; color: #58a6ff; }
+  .hdr .sub { color: #8b949e; font-size: 0.95rem; }
+  .c { max-width: 1100px; margin: 0 auto; padding: 36px 60px; }
+  h2 { color: #58a6ff; border-bottom: 1px solid #21262d; padding-bottom: 7px; margin-top: 38px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 12px 0; }
+  .card.ok { border-left: 4px solid #3fb950; }
+  .card.warn { border-left: 4px solid #d29922; }
+  .card.bad { border-left: 4px solid #f85149; background: rgba(248,81,73,0.05); }
+  .card.info { border-left: 4px solid #58a6ff; }
+  .mg { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin: 14px 0; }
+  .m { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 18px; text-align: center; }
+  .m .v { font-size: 2rem; font-weight: 700; color: #3fb950; }
+  .m .l { color: #8b949e; font-size: 0.82rem; margin-top: 4px; }
+  .m .s { color: #6e7681; font-size: 0.8rem; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88rem; }
+  th { background: #21262d; color: #8b949e; padding: 9px 12px; text-align: left; }
+  td { padding: 9px 12px; border-bottom: 1px solid #21262d; }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: #3fb950; } .w { color: #d29922; } .bad { color: #f85149; }
+  code { background: #21262d; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 0.85em; }
+  pre { background: #0d1117; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 0.84em; border: 1px solid #30363d; overflow-x: auto; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  footer { text-align: center; color: #6e7681; font-size: 0.82rem; padding: 30px; border-top: 1px solid #21262d; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>DiffVax++ Research Progress</h1>
+  <div class="sub">Report #9 &middot; Training Bug Diagnosed &middot; Paper Drafts Written &middot; 2026-04-08</div>
+</div>
+<div class="c">
+
+<h2>What Just Happened (Important)</h2>
+<div class="card bad">
+  <strong style="color:#f85149">H1a Training Bug Diagnosed: max_steps Was Never Enforced</strong><br><br>
+  <span style="color:#8b949e"><strong>Root cause:</strong> <code>DiffVaxImmunization.__init__</code> extracted individual config values but never stored <code>self.config = config</code>. The line <code>max_steps = self.config.get("max_steps", None)</code> would raise <code>AttributeError</code> &mdash; meaning the GPU ran old code without max_steps at all, continuing past 8,000 steps for all 10,000 epochs.<br><br>
+  <strong>Result:</strong> Training ran 26+ epochs (&asymp;41,600 steps) and converged &mdash; but no checkpoint was saved (only saves at epoch 10,000 or on NaN loss).</span><br><br>
+  <strong style="color:#d29922">Action required: kill training, git pull, restart.</strong>
+</div>
+
+<div class="card ok">
+  <strong style="color:#3fb950">All Three Bugs Fixed and Committed</strong>
+  <ol style="color:#8b949e; margin:10px 0">
+    <li><code>self.config = config</code> added to <code>DiffVaxImmunization.__init__</code> &mdash; max_steps now works</li>
+    <li>Periodic checkpoints every 5 epochs (<code>checkpoint_every: 5</code>, configurable)</li>
+    <li>Stop-file mechanism: <code>touch /tmp/diffvax_stop</code> &rarr; saves checkpoint and exits cleanly</li>
+  </ol>
+  <pre>git pull
+python scripts/train.py --config configs/train_multimodel.yml</pre>
+  <span style="color:#8b949e">With fixes: stops after 8,000 steps (~5 epochs &asymp; 3.3h at 1.5s/step). Saves checkpoint at epoch 5 AND final.pth.</span>
+</div>
+
+<h2>Good News: Model Has Converged</h2>
+<div class="card info">
+  <p style="color:#8b949e; margin-top:0">Despite the bug, 26 epochs of training produced a fully converged model. The loss data is actually valuable &mdash; it documents convergence speed for the paper.</p>
+  <table>
+    <thead><tr><th>Phase</th><th>Loss1 (edit disruption)</th><th>Loss2 (perturbation norm)</th><th>Interpretation</th></tr></thead>
+    <tbody>
+      <tr><td>Epochs 1&ndash;5</td><td>0.149 &rarr; 0.907 (bimodal)</td><td>0.952 &rarr; 0.158</td><td>Model learning; FLUX steps dominate high-loss</td></tr>
+      <tr><td>Epochs 6&ndash;13</td><td>0.033 &ndash; 0.138</td><td>0.021 &ndash; 0.113</td><td>Rapid convergence; perturbation shrinking</td></tr>
+      <tr style="background:rgba(63,185,80,0.07)"><td><strong>Epochs 14+</strong></td><td><strong>0.057 &ndash; 0.112</strong></td><td><strong>0.004 &ndash; 0.019</strong></td><td><strong>Converged. Stable for 14+ epochs</strong></td></tr>
+    </tbody>
+  </table>
+  <p style="color:#8b949e; margin-bottom:0"><strong>Bimodal pattern insight:</strong> High-loss spikes (&gt;0.8) = FLUX epochs (harder adversary); low-loss epochs (&lt;0.1) = SD1.5 epochs. This alternating curriculum is analogous to GAN training &mdash; documented as a training insight in the paper Method section.</p>
+</div>
+
+<h2>Paper Writing Progress</h2>
+<div class="mg">
+  <div class="m"><div class="v">3/6</div><div class="l">Paper Sections Drafted</div><div class="s">Intro + Related Work + Method</div></div>
+  <div class="m"><div class="v">~50%</div><div class="l">Paper Complete</div><div class="s">Missing: Experiments, Analysis, Conclusion</div></div>
+  <div class="m"><div class="v">1.60&times;</div><div class="l">H2 EDR Confirmed</div><div class="s">Only result fully in paper</div></div>
+  <div class="m"><div class="v">19</div><div class="l">Papers Cited</div><div class="s">In related work</div></div>
+</div>
+
+<div class="two">
+  <div class="card ok">
+    <strong>Introduction (paper/introduction_draft.md)</strong><br>
+    <span style="color:#8b949e">&bull; Three deployment gaps framed clearly<br>
+    &bull; Commodity purification threat (Pleimling 2026) in threat model<br>
+    &bull; Three contributions with surprising angles<br>
+    &bull; EDR placeholders for pending H1/H6/H7 results</span>
+  </div>
+  <div class="card ok">
+    <strong>Related Work (paper/related_work_draft.md)</strong><br>
+    <span style="color:#8b949e">&bull; 5 subsections covering all relevant areas<br>
+    &bull; Explicit gap analysis for PromptFlare, IDProtector<br>
+    &bull; Table 1: coverage matrix (7 methods &times; 3 dimensions)</span>
+  </div>
+</div>
+<div class="card ok" style="margin-top:0">
+  <strong>Method (paper/method_draft.md)</strong><br>
+  <span style="color:#8b949e">&bull; Formal loss equations for DiffVax baseline + all extensions<br>
+  &bull; Multi-model routing probability formulation<br>
+  &bull; Patch blending math + perturbation accumulation explanation<br>
+  &bull; STE JPEG forward/backward formulation with novelty positioning<br>
+  &bull; VAE feature loss (H4 ablation) formulated</span>
+</div>
+
+<h2>What Remains for the Paper</h2>
+<table>
+  <thead><tr><th>Section</th><th>Status</th><th>Blocking</th></tr></thead>
+  <tbody>
+    <tr><td>Introduction</td><td><span class="ok">&#x2713; Draft, fill [X] placeholders</span></td><td>H1/H6/H7 results</td></tr>
+    <tr><td>Related Work</td><td><span class="ok">&#x2713; Complete</span></td><td>&mdash;</td></tr>
+    <tr><td>Method</td><td><span class="ok">&#x2713; Complete</span></td><td>&mdash;</td></tr>
+    <tr><td>Experiments</td><td><span class="w">&#x25CF; Tables drafted, results pending</span></td><td>H1a checkpoint</td></tr>
+    <tr><td>Analysis</td><td><span class="w">&#x25CF; Outline only</span></td><td>H1a checkpoint</td></tr>
+    <tr><td>Conclusion</td><td><span class="bad">&#x2717; Not started</span></td><td>H1/H6/H7 results</td></tr>
+    <tr><td>Figures</td><td><span class="w">&#x25CF; H2 fig done; 4 more needed</span></td><td>H1/H6/H7 results</td></tr>
+  </tbody>
+</table>
+
+<h2>Restart Instructions</h2>
+<pre># On GPU instance:
+# 1. Kill current training (Ctrl+C — weights NOT saved, but model was converged anyway)
+# 2. Pull all fixes:
+git pull
+# 3. Restart — will now stop correctly at 8,000 steps, save checkpoint at epoch 5:
+python scripts/train.py --config configs/train_multimodel.yml
+# Expected: ~3.3h to epoch 5 checkpoint, ~3.3h to final.pth (if 1.5s/step)
+# Checkpoint locations: outputs/models/N/sd15_all_images_*_epoch5.pth
+#                       outputs/models/N/sd15_all_images_*_final.pth</pre>
+
+</div>
+<footer>DiffVax++ Autoresearch &middot; Report #9 &middot; 2026-04-08 &middot; 3 paper sections drafted &middot; Awaiting H1a restart</footer>
+</body>
+</html>
