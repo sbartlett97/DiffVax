@@ -1,0 +1,1801 @@
+checkpoint,eval_model,jpeg_quality,image,prompt,psnr_immunized,ssim_imm_orig,ssim_clean_edit,ssim_imm_edit,disrupted
+sd15_only,sd15,none,image_1.png,A person in a weekend market,89.232,1.0,0.4474,0.4635,0
+sd15_only,sd15,none,image_1.png,A person in a police evidence room,89.232,1.0,0.4076,0.3857,0
+sd15_only,sd15,75,image_1.png,A person in a weekend market,38.408,0.9634,0.4474,0.4508,0
+sd15_only,sd15,75,image_1.png,A person in a police evidence room,38.408,0.9634,0.4076,0.4348,0
+sd15_only,sd15,70,image_1.png,A person in a weekend market,37.81,0.959,0.4474,0.4447,0
+sd15_only,sd15,70,image_1.png,A person in a police evidence room,37.81,0.959,0.4076,0.4204,0
+sd15_only,sd15,none,image_3.png,A person in a weekend market,86.853,1.0,0.4461,0.4875,0
+sd15_only,sd15,none,image_3.png,A person in a TV newsroom,86.853,1.0,0.3356,0.3584,0
+sd15_only,sd15,75,image_3.png,A person in a weekend market,37.249,0.9599,0.4461,0.4373,0
+sd15_only,sd15,75,image_3.png,A person in a TV newsroom,37.249,0.9599,0.3356,0.3589,0
+sd15_only,sd15,70,image_3.png,A person in a weekend market,36.643,0.9545,0.4461,0.4172,0
+sd15_only,sd15,70,image_3.png,A person in a TV newsroom,36.643,0.9545,0.3356,0.3396,0
+sd15_only,sd15,none,image_5.png,A person in a church sanctuary,86.978,1.0,0.4457,0.4434,0
+sd15_only,sd15,none,image_5.png,A person in a charity art auction,86.978,1.0,0.5788,0.5831,0
+sd15_only,sd15,75,image_5.png,A person in a church sanctuary,37.806,0.9654,0.4457,0.3947,1
+sd15_only,sd15,75,image_5.png,A person in a charity art auction,37.806,0.9654,0.5788,0.5405,0
+sd15_only,sd15,70,image_5.png,A person in a church sanctuary,37.087,0.9606,0.4457,0.4591,0
+sd15_only,sd15,70,image_5.png,A person in a charity art auction,37.087,0.9606,0.5788,0.6086,0
+sd15_only,sd15,none,image_9.png,A person in a sports field,57.011,0.9996,0.3409,0.4428,0
+sd15_only,sd15,none,image_9.png,A person in a waterside cafe,57.011,0.9996,0.467,0.4703,0
+sd15_only,sd15,75,image_9.png,A person in a sports field,39.42,0.9719,0.3409,0.4662,0
+sd15_only,sd15,75,image_9.png,A person in a waterside cafe,39.42,0.9719,0.467,0.4068,1
+sd15_only,sd15,70,image_9.png,A person in a sports field,38.575,0.9674,0.3409,0.433,0
+sd15_only,sd15,70,image_9.png,A person in a waterside cafe,38.575,0.9674,0.467,0.4417,0
+sd15_only,sd15,none,image_13.png,A person in a drive-in theater,89.086,1.0,0.6543,0.6348,0
+sd15_only,sd15,none,image_13.png,A person in a shelter,89.086,1.0,0.5082,0.6181,0
+sd15_only,sd15,75,image_13.png,A person in a drive-in theater,38.48,0.9651,0.6543,0.5337,1
+sd15_only,sd15,75,image_13.png,A person in a shelter,38.48,0.9651,0.5082,0.6917,0
+sd15_only,sd15,70,image_13.png,A person in a drive-in theater,37.811,0.9611,0.6543,0.5558,1
+sd15_only,sd15,70,image_13.png,A person in a shelter,37.811,0.9611,0.5082,0.6692,0
+sd15_only,sd15,none,image_18.png,A person in a food truck park,87.81,1.0,0.7206,0.614,1
+sd15_only,sd15,none,image_18.png,A person in a ice cream parlor,87.81,1.0,0.5755,0.6682,0
+sd15_only,sd15,75,image_18.png,A person in a food truck park,38.419,0.9691,0.7206,0.6834,0
+sd15_only,sd15,75,image_18.png,A person in a ice cream parlor,38.419,0.9691,0.5755,0.6461,0
+sd15_only,sd15,70,image_18.png,A person in a food truck park,37.703,0.9652,0.7206,0.7102,0
+sd15_only,sd15,70,image_18.png,A person in a ice cream parlor,37.703,0.9652,0.5755,0.6223,0
+sd15_only,sd15,none,image_22.png,A person in a betting shop,61.366,0.9998,0.6318,0.6308,0
+sd15_only,sd15,none,image_22.png,A person in a charity art auction,61.366,0.9998,0.5512,0.5893,0
+sd15_only,sd15,75,image_22.png,A person in a betting shop,38.69,0.9647,0.6318,0.6321,0
+sd15_only,sd15,75,image_22.png,A person in a charity art auction,38.69,0.9647,0.5512,0.639,0
+sd15_only,sd15,70,image_22.png,A person in a betting shop,38.106,0.9606,0.6318,0.6678,0
+sd15_only,sd15,70,image_22.png,A person in a charity art auction,38.106,0.9606,0.5512,0.6417,0
+sd15_only,sd15,none,image_23.png,A person in a shelter,84.291,1.0,0.4556,0.5112,0
+sd15_only,sd15,none,image_23.png,A person in a local art market,84.291,1.0,0.4913,0.5092,0
+sd15_only,sd15,75,image_23.png,A person in a shelter,37.597,0.9565,0.4556,0.5006,0
+sd15_only,sd15,75,image_23.png,A person in a local art market,37.597,0.9565,0.4913,0.5321,0
+sd15_only,sd15,70,image_23.png,A person in a shelter,37.016,0.9514,0.4556,0.4721,0
+sd15_only,sd15,70,image_23.png,A person in a local art market,37.016,0.9514,0.4913,0.5205,0
+sd15_only,sd15,none,image_29.png,A person in a historic landmark event,87.776,1.0,0.6818,0.6679,0
+sd15_only,sd15,none,image_29.png,A person in a gymnasium,87.776,1.0,0.7761,0.6708,1
+sd15_only,sd15,75,image_29.png,A person in a historic landmark event,39.314,0.9752,0.6818,0.6212,1
+sd15_only,sd15,75,image_29.png,A person in a gymnasium,39.314,0.9752,0.7761,0.7438,0
+sd15_only,sd15,70,image_29.png,A person in a historic landmark event,38.652,0.9724,0.6818,0.6458,0
+sd15_only,sd15,70,image_29.png,A person in a gymnasium,38.652,0.9724,0.7761,0.7328,0
+sd15_only,sd15,none,image_32.png,A person in a local art market,86.915,1.0,0.5294,0.5303,0
+sd15_only,sd15,none,image_32.png,A person in a pet festival,86.915,1.0,0.5335,0.5574,0
+sd15_only,sd15,75,image_32.png,A person in a local art market,37.775,0.9637,0.5294,0.5634,0
+sd15_only,sd15,75,image_32.png,A person in a pet festival,37.775,0.9637,0.5335,0.5894,0
+sd15_only,sd15,70,image_32.png,A person in a local art market,37.18,0.9593,0.5294,0.5834,0
+sd15_only,sd15,70,image_32.png,A person in a pet festival,37.18,0.9593,0.5335,0.5687,0
+sd15_only,sd15,none,image_33.png,A person in a basement,80.061,1.0,0.4269,0.3772,0
+sd15_only,sd15,none,image_33.png,A person in a movie set,80.061,1.0,0.4375,0.327,1
+sd15_only,sd15,75,image_33.png,A person in a basement,39.657,0.9671,0.4269,0.3526,1
+sd15_only,sd15,75,image_33.png,A person in a movie set,39.657,0.9671,0.4375,0.3999,0
+sd15_only,sd15,70,image_33.png,A person in a basement,39.04,0.9629,0.4269,0.2906,1
+sd15_only,sd15,70,image_33.png,A person in a movie set,39.04,0.9629,0.4375,0.3982,0
+sd15_only,sd15,none,image_37.png,A person in a garage,78.357,1.0,0.6509,0.732,0
+sd15_only,sd15,none,image_37.png,A person in a tech startup launch,78.357,1.0,0.6519,0.6823,0
+sd15_only,sd15,75,image_37.png,A person in a garage,39.036,0.9693,0.6509,0.6844,0
+sd15_only,sd15,75,image_37.png,A person in a tech startup launch,39.036,0.9693,0.6519,0.7223,0
+sd15_only,sd15,70,image_37.png,A person in a garage,38.47,0.9664,0.6509,0.6732,0
+sd15_only,sd15,70,image_37.png,A person in a tech startup launch,38.47,0.9664,0.6519,0.688,0
+sd15_only,sd15,none,image_47.png,A person in a hot dog stand,87.729,1.0,0.5991,0.6137,0
+sd15_only,sd15,none,image_47.png,A person in a creative writing event,87.729,1.0,0.5573,0.5857,0
+sd15_only,sd15,75,image_47.png,A person in a hot dog stand,38.041,0.9673,0.5991,0.6306,0
+sd15_only,sd15,75,image_47.png,A person in a creative writing event,38.041,0.9673,0.5573,0.5618,0
+sd15_only,sd15,70,image_47.png,A person in a hot dog stand,37.462,0.9638,0.5991,0.6358,0
+sd15_only,sd15,70,image_47.png,A person in a creative writing event,37.462,0.9638,0.5573,0.6147,0
+sd15_only,sd15,none,image_49.png,A person in a music and arts festival,86.681,1.0,0.6132,0.6229,0
+sd15_only,sd15,none,image_49.png,A person in a bus stop shelter,86.681,1.0,0.6118,0.5618,1
+sd15_only,sd15,75,image_49.png,A person in a music and arts festival,38.351,0.9596,0.6132,0.6168,0
+sd15_only,sd15,75,image_49.png,A person in a bus stop shelter,38.351,0.9596,0.6118,0.5903,0
+sd15_only,sd15,70,image_49.png,A person in a music and arts festival,37.745,0.9543,0.6132,0.6333,0
+sd15_only,sd15,70,image_49.png,A person in a bus stop shelter,37.745,0.9543,0.6118,0.5978,0
+sd15_only,sd15,none,image_53.png,A person in a parking structure,87.27,1.0,0.5924,0.4772,1
+sd15_only,sd15,none,image_53.png,A person in a science museum exhibit,87.27,1.0,0.5623,0.4698,1
+sd15_only,sd15,75,image_53.png,A person in a parking structure,38.573,0.9643,0.5924,0.5783,0
+sd15_only,sd15,75,image_53.png,A person in a science museum exhibit,38.573,0.9643,0.5623,0.5944,0
+sd15_only,sd15,70,image_53.png,A person in a parking structure,37.943,0.959,0.5924,0.5941,0
+sd15_only,sd15,70,image_53.png,A person in a science museum exhibit,37.943,0.959,0.5623,0.4976,1
+sd15_only,sd15,none,image_57.png,A person in a gym sauna,88.102,1.0,0.5739,0.4876,1
+sd15_only,sd15,none,image_57.png,A person in a community theater production,88.102,1.0,0.6745,0.4686,1
+sd15_only,sd15,75,image_57.png,A person in a gym sauna,38.139,0.9664,0.5739,0.612,0
+sd15_only,sd15,75,image_57.png,A person in a community theater production,38.139,0.9664,0.6745,0.6936,0
+sd15_only,sd15,70,image_57.png,A person in a gym sauna,37.534,0.9627,0.5739,0.4753,1
+sd15_only,sd15,70,image_57.png,A person in a community theater production,37.534,0.9627,0.6745,0.5559,1
+sd15_only,sd15,none,image_58.png,A person in a costume shop,75.955,1.0,0.6006,0.6376,0
+sd15_only,sd15,none,image_58.png,A person in a candle shop,75.955,1.0,0.5842,0.5589,0
+sd15_only,sd15,75,image_58.png,A person in a costume shop,34.496,0.9444,0.6006,0.579,0
+sd15_only,sd15,75,image_58.png,A person in a candle shop,34.496,0.9444,0.5842,0.5916,0
+sd15_only,sd15,70,image_58.png,A person in a costume shop,33.856,0.9381,0.6006,0.5857,0
+sd15_only,sd15,70,image_58.png,A person in a candle shop,33.856,0.9381,0.5842,0.6162,0
+sd15_only,sd15,none,image_66.png,A person in a gym sauna,89.388,1.0,0.6732,0.7056,0
+sd15_only,sd15,none,image_66.png,A person in a technology fair,89.388,1.0,0.7908,0.7606,0
+sd15_only,sd15,75,image_66.png,A person in a gym sauna,40.2,0.9763,0.6732,0.6922,0
+sd15_only,sd15,75,image_66.png,A person in a technology fair,40.2,0.9763,0.7908,0.7548,0
+sd15_only,sd15,70,image_66.png,A person in a gym sauna,39.578,0.9737,0.6732,0.6456,0
+sd15_only,sd15,70,image_66.png,A person in a technology fair,39.578,0.9737,0.7908,0.758,0
+sd15_only,sd15,none,image_67.png,A person in a butcher’s shop,88.827,1.0,0.6777,0.6846,0
+sd15_only,sd15,none,image_67.png,A person in a pet festival,88.827,1.0,0.7142,0.7674,0
+sd15_only,sd15,75,image_67.png,A person in a butcher’s shop,39.683,0.9727,0.6777,0.7148,0
+sd15_only,sd15,75,image_67.png,A person in a pet festival,39.683,0.9727,0.7142,0.7494,0
+sd15_only,sd15,70,image_67.png,A person in a butcher’s shop,38.983,0.9696,0.6777,0.6898,0
+sd15_only,sd15,70,image_67.png,A person in a pet festival,38.983,0.9696,0.7142,0.7956,0
+sd15_only,sd15,none,image_73.png,A person in a locker room,86.084,1.0,0.4372,0.4337,0
+sd15_only,sd15,none,image_73.png,A person in a street market,86.084,1.0,0.4873,0.5186,0
+sd15_only,sd15,75,image_73.png,A person in a locker room,37.504,0.9552,0.4372,0.4795,0
+sd15_only,sd15,75,image_73.png,A person in a street market,37.504,0.9552,0.4873,0.4709,0
+sd15_only,sd15,70,image_73.png,A person in a locker room,36.891,0.9502,0.4372,0.4725,0
+sd15_only,sd15,70,image_73.png,A person in a street market,36.891,0.9502,0.4873,0.4693,0
+sd15_only,sd15,none,image_80.png,A person in a hot dog stand,83.598,1.0,0.4775,0.5224,0
+sd15_only,sd15,none,image_80.png,A person in a bridal fitting room,83.598,1.0,0.5252,0.5087,0
+sd15_only,sd15,75,image_80.png,A person in a hot dog stand,37.282,0.9632,0.4775,0.5465,0
+sd15_only,sd15,75,image_80.png,A person in a bridal fitting room,37.282,0.9632,0.5252,0.5661,0
+sd15_only,sd15,70,image_80.png,A person in a hot dog stand,36.501,0.9573,0.4775,0.5648,0
+sd15_only,sd15,70,image_80.png,A person in a bridal fitting room,36.501,0.9573,0.5252,0.5566,0
+sd15_only,sd15,none,image_82.png,A person in a beach resort,89.514,1.0,0.6928,0.6839,0
+sd15_only,sd15,none,image_82.png,A person in a transit station,89.514,1.0,0.6993,0.6975,0
+sd15_only,sd15,75,image_82.png,A person in a beach resort,40.209,0.9737,0.6928,0.7029,0
+sd15_only,sd15,75,image_82.png,A person in a transit station,40.209,0.9737,0.6993,0.645,1
+sd15_only,sd15,70,image_82.png,A person in a beach resort,39.469,0.9697,0.6928,0.6896,0
+sd15_only,sd15,70,image_82.png,A person in a transit station,39.469,0.9697,0.6993,0.6925,0
+sd15_only,sd15,none,image_93.png,A person in a motel room,82.869,1.0,0.6252,0.438,1
+sd15_only,sd15,none,image_93.png,A person in a tech launch event,82.869,1.0,0.5663,0.6135,0
+sd15_only,sd15,75,image_93.png,A person in a motel room,35.343,0.9631,0.6252,0.5598,1
+sd15_only,sd15,75,image_93.png,A person in a tech launch event,35.343,0.9631,0.5663,0.5278,0
+sd15_only,sd15,70,image_93.png,A person in a motel room,34.618,0.9582,0.6252,0.5277,1
+sd15_only,sd15,70,image_93.png,A person in a tech launch event,34.618,0.9582,0.5663,0.5454,0
+sd15_only,sd15,none,image_94.png,A person in a computer lab,76.658,1.0,0.5856,0.545,0
+sd15_only,sd15,none,image_94.png,A person in a lobby,76.658,1.0,0.5381,0.4967,0
+sd15_only,sd15,75,image_94.png,A person in a computer lab,37.508,0.9684,0.5856,0.3751,1
+sd15_only,sd15,75,image_94.png,A person in a lobby,37.508,0.9684,0.5381,0.6547,0
+sd15_only,sd15,70,image_94.png,A person in a computer lab,36.77,0.9642,0.5856,0.589,0
+sd15_only,sd15,70,image_94.png,A person in a lobby,36.77,0.9642,0.5381,0.5664,0
+sd15_only,sd15,none,image_104.png,A person in a pet festival,87.855,1.0,0.5823,0.5814,0
+sd15_only,sd15,none,image_104.png,A person in a slum,87.855,1.0,0.4516,0.4465,0
+sd15_only,sd15,75,image_104.png,A person in a pet festival,38.819,0.9665,0.5823,0.6187,0
+sd15_only,sd15,75,image_104.png,A person in a slum,38.819,0.9665,0.4516,0.5174,0
+sd15_only,sd15,70,image_104.png,A person in a pet festival,38.204,0.9625,0.5823,0.5488,0
+sd15_only,sd15,70,image_104.png,A person in a slum,38.204,0.9625,0.4516,0.5292,0
+sd15_only,sd15,none,image_110.png,A person in a gym sauna,89.367,1.0,0.5197,0.6324,0
+sd15_only,sd15,none,image_110.png,A person in a glass factory,89.367,1.0,0.6647,0.6486,0
+sd15_only,sd15,75,image_110.png,A person in a gym sauna,39.318,0.9699,0.5197,0.6012,0
+sd15_only,sd15,75,image_110.png,A person in a glass factory,39.318,0.9699,0.6647,0.7212,0
+sd15_only,sd15,70,image_110.png,A person in a gym sauna,38.719,0.9665,0.5197,0.5274,0
+sd15_only,sd15,70,image_110.png,A person in a glass factory,38.719,0.9665,0.6647,0.6173,0
+sd15_only,sd15,none,image_115.png,A person in a tram stop,86.178,1.0,0.5855,0.579,0
+sd15_only,sd15,none,image_115.png,A person in a fish market,86.178,1.0,0.5499,0.533,0
+sd15_only,sd15,75,image_115.png,A person in a tram stop,36.618,0.959,0.5855,0.5587,0
+sd15_only,sd15,75,image_115.png,A person in a fish market,36.618,0.959,0.5499,0.5406,0
+sd15_only,sd15,70,image_115.png,A person in a tram stop,35.864,0.9532,0.5855,0.5567,0
+sd15_only,sd15,70,image_115.png,A person in a fish market,35.864,0.9532,0.5499,0.5205,0
+sd15_only,sd15,none,image_121.png,A person in a basement,88.546,1.0,0.5976,0.5948,0
+sd15_only,sd15,none,image_121.png,A person in a dormitory,88.546,1.0,0.6068,0.5545,1
+sd15_only,sd15,75,image_121.png,A person in a basement,39.151,0.968,0.5976,0.5836,0
+sd15_only,sd15,75,image_121.png,A person in a dormitory,39.151,0.968,0.6068,0.6664,0
+sd15_only,sd15,70,image_121.png,A person in a basement,38.559,0.964,0.5976,0.6196,0
+sd15_only,sd15,70,image_121.png,A person in a dormitory,38.559,0.964,0.6068,0.6112,0
+sd15_only,sd15,none,image_129.png,A person in a tech startup,86.221,1.0,0.6143,0.613,0
+sd15_only,sd15,none,image_129.png,A person in a brewery tour,86.221,1.0,0.6105,0.6629,0
+sd15_only,sd15,75,image_129.png,A person in a tech startup,37.872,0.9747,0.6143,0.6095,0
+sd15_only,sd15,75,image_129.png,A person in a brewery tour,37.872,0.9747,0.6105,0.6569,0
+sd15_only,sd15,70,image_129.png,A person in a tech startup,37.154,0.9712,0.6143,0.6151,0
+sd15_only,sd15,70,image_129.png,A person in a brewery tour,37.154,0.9712,0.6105,0.6424,0
+sd15_only,sd15,none,image_133.png,A person in a laundry room,81.012,1.0,0.297,0.2905,0
+sd15_only,sd15,none,image_133.png,A person in a tech startup,81.012,1.0,0.2871,0.3085,0
+sd15_only,sd15,75,image_133.png,A person in a laundry room,34.986,0.962,0.297,0.2971,0
+sd15_only,sd15,75,image_133.png,A person in a tech startup,34.986,0.962,0.2871,0.3017,0
+sd15_only,sd15,70,image_133.png,A person in a laundry room,34.354,0.9569,0.297,0.2912,0
+sd15_only,sd15,70,image_133.png,A person in a tech startup,34.354,0.9569,0.2871,0.3193,0
+sd15_only,sd15,none,image_135.png,A person in a music studio,85.55,1.0,0.5368,0.5212,0
+sd15_only,sd15,none,image_135.png,A person in a local crafts market,85.55,1.0,0.5658,0.5478,0
+sd15_only,sd15,75,image_135.png,A person in a music studio,37.128,0.9565,0.5368,0.4705,1
+sd15_only,sd15,75,image_135.png,A person in a local crafts market,37.128,0.9565,0.5658,0.5762,0
+sd15_only,sd15,70,image_135.png,A person in a music studio,36.489,0.9514,0.5368,0.5728,0
+sd15_only,sd15,70,image_135.png,A person in a local crafts market,36.489,0.9514,0.5658,0.5718,0
+sd15_only,sd15,none,image_142.png,A person in a bowling alley,90.546,1.0,0.5738,0.5637,0
+sd15_only,sd15,none,image_142.png,A person in a climbing wall,90.546,1.0,0.5546,0.5429,0
+sd15_only,sd15,75,image_142.png,A person in a bowling alley,38.947,0.9624,0.5738,0.5814,0
+sd15_only,sd15,75,image_142.png,A person in a climbing wall,38.947,0.9624,0.5546,0.5448,0
+sd15_only,sd15,70,image_142.png,A person in a bowling alley,38.353,0.9578,0.5738,0.5771,0
+sd15_only,sd15,70,image_142.png,A person in a climbing wall,38.353,0.9578,0.5546,0.516,0
+sd15_only,sd15,none,image_149.png,A person in a music and arts festival,90.458,1.0,0.5711,0.564,0
+sd15_only,sd15,none,image_149.png,A person in a costume party,90.458,1.0,0.5532,0.5816,0
+sd15_only,sd15,75,image_149.png,A person in a music and arts festival,40.573,0.9676,0.5711,0.6342,0
+sd15_only,sd15,75,image_149.png,A person in a costume party,40.573,0.9676,0.5532,0.5842,0
+sd15_only,sd15,70,image_149.png,A person in a music and arts festival,39.959,0.9635,0.5711,0.6064,0
+sd15_only,sd15,70,image_149.png,A person in a costume party,39.959,0.9635,0.5532,0.4757,1
+sd15_only,sd15,none,image_151.png,A person in a charity art auction,73.329,1.0,0.6928,0.6622,0
+sd15_only,sd15,none,image_151.png,A person in a customs checkpoint,73.329,1.0,0.6425,0.6965,0
+sd15_only,sd15,75,image_151.png,A person in a charity art auction,39.517,0.9607,0.6928,0.6581,0
+sd15_only,sd15,75,image_151.png,A person in a customs checkpoint,39.517,0.9607,0.6425,0.6849,0
+sd15_only,sd15,70,image_151.png,A person in a charity art auction,38.926,0.9562,0.6928,0.6851,0
+sd15_only,sd15,70,image_151.png,A person in a customs checkpoint,38.926,0.9562,0.6425,0.6864,0
+sd15_only,sd15,none,image_152.png,A person in a city food tour,87.704,1.0,0.6193,0.6057,0
+sd15_only,sd15,none,image_152.png,A person in a flea market,87.704,1.0,0.5789,0.5435,0
+sd15_only,sd15,75,image_152.png,A person in a city food tour,38.405,0.9636,0.6193,0.596,0
+sd15_only,sd15,75,image_152.png,A person in a flea market,38.405,0.9636,0.5789,0.612,0
+sd15_only,sd15,70,image_152.png,A person in a city food tour,37.805,0.9592,0.6193,0.6425,0
+sd15_only,sd15,70,image_152.png,A person in a flea market,37.805,0.9592,0.5789,0.5951,0
+sd15_only,sd15,none,image_160.png,A person in a flower garden,55.168,0.9999,0.5164,0.5229,0
+sd15_only,sd15,none,image_160.png,A person in a sports field,55.168,0.9999,0.5256,0.5532,0
+sd15_only,sd15,75,image_160.png,A person in a flower garden,36.635,0.9549,0.5164,0.5153,0
+sd15_only,sd15,75,image_160.png,A person in a sports field,36.635,0.9549,0.5256,0.5442,0
+sd15_only,sd15,70,image_160.png,A person in a flower garden,36.002,0.9497,0.5164,0.5274,0
+sd15_only,sd15,70,image_160.png,A person in a sports field,36.002,0.9497,0.5256,0.513,0
+sd15_only,sd15,none,image_163.png,A person in a slum,85.929,1.0,0.385,0.387,0
+sd15_only,sd15,none,image_163.png,A person in a nightclub,85.929,1.0,0.3628,0.3547,0
+sd15_only,sd15,75,image_163.png,A person in a slum,37.266,0.9674,0.385,0.3972,0
+sd15_only,sd15,75,image_163.png,A person in a nightclub,37.266,0.9674,0.3628,0.3372,0
+sd15_only,sd15,70,image_163.png,A person in a slum,36.274,0.9608,0.385,0.3868,0
+sd15_only,sd15,70,image_163.png,A person in a nightclub,36.274,0.9608,0.3628,0.3466,0
+sd15_only,sd15,none,image_165.png,A person in a digital art gallery,86.975,1.0,0.5714,0.4956,1
+sd15_only,sd15,none,image_165.png,A person in a cocktail bar,86.975,1.0,0.4613,0.5341,0
+sd15_only,sd15,75,image_165.png,A person in a digital art gallery,38.145,0.9638,0.5714,0.4452,1
+sd15_only,sd15,75,image_165.png,A person in a cocktail bar,38.145,0.9638,0.4613,0.3956,1
+sd15_only,sd15,70,image_165.png,A person in a digital art gallery,37.483,0.9594,0.5714,0.5036,1
+sd15_only,sd15,70,image_165.png,A person in a cocktail bar,37.483,0.9594,0.4613,0.5167,0
+sd15_only,sd15,none,image_169.png,A person in a technology fair,90.012,1.0,0.6221,0.6645,0
+sd15_only,sd15,none,image_169.png,A person in a food truck park,90.012,1.0,0.6184,0.687,0
+sd15_only,sd15,75,image_169.png,A person in a technology fair,38.645,0.9644,0.6221,0.6239,0
+sd15_only,sd15,75,image_169.png,A person in a food truck park,38.645,0.9644,0.6184,0.6824,0
+sd15_only,sd15,70,image_169.png,A person in a technology fair,38.074,0.96,0.6221,0.5757,0
+sd15_only,sd15,70,image_169.png,A person in a food truck park,38.074,0.96,0.6184,0.665,0
+sd15_only,sd15,none,image_170.png,A person in a casino lounge,58.789,0.9999,0.4771,0.5202,0
+sd15_only,sd15,none,image_170.png,A person in a dance festival,58.789,0.9999,0.5126,0.4979,0
+sd15_only,sd15,75,image_170.png,A person in a casino lounge,37.211,0.9664,0.4771,0.4683,0
+sd15_only,sd15,75,image_170.png,A person in a dance festival,37.211,0.9664,0.5126,0.481,0
+sd15_only,sd15,70,image_170.png,A person in a casino lounge,36.662,0.9624,0.4771,0.4877,0
+sd15_only,sd15,70,image_170.png,A person in a dance festival,36.662,0.9624,0.5126,0.4963,0
+sd15_only,sd15,none,image_180.png,A person in a rooftop lounge,89.445,1.0,0.4344,0.4315,0
+sd15_only,sd15,none,image_180.png,A person in a gym sauna,89.445,1.0,0.4355,0.409,0
+sd15_only,sd15,75,image_180.png,A person in a rooftop lounge,35.464,0.9489,0.4344,0.4658,0
+sd15_only,sd15,75,image_180.png,A person in a gym sauna,35.464,0.9489,0.4355,0.4503,0
+sd15_only,sd15,70,image_180.png,A person in a rooftop lounge,34.882,0.9425,0.4344,0.4762,0
+sd15_only,sd15,70,image_180.png,A person in a gym sauna,34.882,0.9425,0.4355,0.4163,0
+sd15_only,sd15,none,image_181.png,A person in a butcher shop,91.779,1.0,0.5139,0.5104,0
+sd15_only,sd15,none,image_181.png,A person in a highway rest stop,91.779,1.0,0.5514,0.4663,1
+sd15_only,sd15,75,image_181.png,A person in a butcher shop,40.192,0.9658,0.5139,0.6245,0
+sd15_only,sd15,75,image_181.png,A person in a highway rest stop,40.192,0.9658,0.5514,0.5894,0
+sd15_only,sd15,70,image_181.png,A person in a butcher shop,39.617,0.9621,0.5139,0.5349,0
+sd15_only,sd15,70,image_181.png,A person in a highway rest stop,39.617,0.9621,0.5514,0.5861,0
+sd15_only,sd15,none,image_185.png,A person in a golf course clubhouse,89.413,1.0,0.6154,0.59,0
+sd15_only,sd15,none,image_185.png,A person in a rehab facility,89.413,1.0,0.6094,0.6331,0
+sd15_only,sd15,75,image_185.png,A person in a golf course clubhouse,38.523,0.968,0.6154,0.5868,0
+sd15_only,sd15,75,image_185.png,A person in a rehab facility,38.523,0.968,0.6094,0.6217,0
+sd15_only,sd15,70,image_185.png,A person in a golf course clubhouse,37.94,0.9642,0.6154,0.5775,0
+sd15_only,sd15,70,image_185.png,A person in a rehab facility,37.94,0.9642,0.6094,0.5988,0
+sd15_only,sd15,none,image_186.png,A person in a community arts and crafts market,78.125,1.0,0.5951,0.5804,0
+sd15_only,sd15,none,image_186.png,A person in a church sanctuary,78.125,1.0,0.5683,0.4052,1
+sd15_only,sd15,75,image_186.png,A person in a community arts and crafts market,35.882,0.9654,0.5951,0.4671,1
+sd15_only,sd15,75,image_186.png,A person in a church sanctuary,35.882,0.9654,0.5683,0.5336,0
+sd15_only,sd15,70,image_186.png,A person in a community arts and crafts market,35.1,0.9609,0.5951,0.5639,0
+sd15_only,sd15,70,image_186.png,A person in a church sanctuary,35.1,0.9609,0.5683,0.4255,1
+sd15_only,sd15,none,image_189.png,A person in a vintage arts fair,84.628,1.0,0.4948,0.5188,0
+sd15_only,sd15,none,image_189.png,A person in a bowling alley,84.628,1.0,0.4471,0.4207,0
+sd15_only,sd15,75,image_189.png,A person in a vintage arts fair,35.649,0.9561,0.4948,0.5196,0
+sd15_only,sd15,75,image_189.png,A person in a bowling alley,35.649,0.9561,0.4471,0.4496,0
+sd15_only,sd15,70,image_189.png,A person in a vintage arts fair,35.021,0.9513,0.4948,0.5207,0
+sd15_only,sd15,70,image_189.png,A person in a bowling alley,35.021,0.9513,0.4471,0.448,0
+sd15_only,sd15,none,image_201.png,A person in a high-end restaurant,88.0,1.0,0.5434,0.3949,1
+sd15_only,sd15,none,image_201.png,A person in a bowling alley,88.0,1.0,0.4761,0.399,1
+sd15_only,sd15,75,image_201.png,A person in a high-end restaurant,38.861,0.9611,0.5434,0.3704,1
+sd15_only,sd15,75,image_201.png,A person in a bowling alley,38.861,0.9611,0.4761,0.4551,0
+sd15_only,sd15,70,image_201.png,A person in a high-end restaurant,38.32,0.9559,0.5434,0.4878,1
+sd15_only,sd15,70,image_201.png,A person in a bowling alley,38.32,0.9559,0.4761,0.4665,0
+sd15_only,sd15,none,image_203.png,A person in a gymnasium,88.822,1.0,0.7377,0.7078,0
+sd15_only,sd15,none,image_203.png,A person in a brothel,88.822,1.0,0.8258,0.6225,1
+sd15_only,sd15,75,image_203.png,A person in a gymnasium,40.105,0.9774,0.7377,0.6793,1
+sd15_only,sd15,75,image_203.png,A person in a brothel,40.105,0.9774,0.8258,0.4837,1
+sd15_only,sd15,70,image_203.png,A person in a gymnasium,39.505,0.9748,0.7377,0.5974,1
+sd15_only,sd15,70,image_203.png,A person in a brothel,39.505,0.9748,0.8258,0.7066,1
+sd15_only,sd15,none,image_209.png,A person in a summer camp,85.107,1.0,0.4635,0.4754,0
+sd15_only,sd15,none,image_209.png,A person in a TV studio,85.107,1.0,0.5147,0.531,0
+sd15_only,sd15,75,image_209.png,A person in a summer camp,38.369,0.9667,0.4635,0.4699,0
+sd15_only,sd15,75,image_209.png,A person in a TV studio,38.369,0.9667,0.5147,0.4808,0
+sd15_only,sd15,70,image_209.png,A person in a summer camp,37.519,0.961,0.4635,0.4845,0
+sd15_only,sd15,70,image_209.png,A person in a TV studio,37.519,0.961,0.5147,0.4819,0
+sd15_only,sd15,none,image_212.png,A person in a street vendor stand,67.684,1.0,0.6334,0.5261,1
+sd15_only,sd15,none,image_212.png,A person in a dog park picnic,67.684,1.0,0.6123,0.6971,0
+sd15_only,sd15,75,image_212.png,A person in a street vendor stand,38.251,0.9716,0.6334,0.5045,1
+sd15_only,sd15,75,image_212.png,A person in a dog park picnic,38.251,0.9716,0.6123,0.7101,0
+sd15_only,sd15,70,image_212.png,A person in a street vendor stand,37.593,0.968,0.6334,0.5443,1
+sd15_only,sd15,70,image_212.png,A person in a dog park picnic,37.593,0.968,0.6123,0.7019,0
+sd15_only,sd15,none,image_213.png,A person in a science museum exhibit,90.413,1.0,0.6445,0.5687,1
+sd15_only,sd15,none,image_213.png,A person in a woodworking shop,90.413,1.0,0.6293,0.6267,0
+sd15_only,sd15,75,image_213.png,A person in a science museum exhibit,39.004,0.9698,0.6445,0.6009,0
+sd15_only,sd15,75,image_213.png,A person in a woodworking shop,39.004,0.9698,0.6293,0.5691,1
+sd15_only,sd15,70,image_213.png,A person in a science museum exhibit,38.463,0.966,0.6445,0.5774,1
+sd15_only,sd15,70,image_213.png,A person in a woodworking shop,38.463,0.966,0.6293,0.5862,0
+multimodel_h1a,sd15,none,image_1.png,A person in a weekend market,50.412,0.9989,0.435,0.3933,0
+multimodel_h1a,sd15,none,image_1.png,A person in a police evidence room,50.412,0.9989,0.4788,0.4898,0
+multimodel_h1a,sd15,75,image_1.png,A person in a weekend market,38.228,0.9628,0.435,0.4376,0
+multimodel_h1a,sd15,75,image_1.png,A person in a police evidence room,38.228,0.9628,0.4788,0.4104,1
+multimodel_h1a,sd15,70,image_1.png,A person in a weekend market,37.647,0.9585,0.435,0.4118,0
+multimodel_h1a,sd15,70,image_1.png,A person in a police evidence room,37.647,0.9585,0.4788,0.4112,1
+multimodel_h1a,sd15,none,image_3.png,A person in a weekend market,45.07,0.9971,0.4779,0.481,0
+multimodel_h1a,sd15,none,image_3.png,A person in a TV newsroom,45.07,0.9971,0.3258,0.3918,0
+multimodel_h1a,sd15,75,image_3.png,A person in a weekend market,36.676,0.958,0.4779,0.4767,0
+multimodel_h1a,sd15,75,image_3.png,A person in a TV newsroom,36.676,0.958,0.3258,0.3916,0
+multimodel_h1a,sd15,70,image_3.png,A person in a weekend market,36.154,0.9528,0.4779,0.4691,0
+multimodel_h1a,sd15,70,image_3.png,A person in a TV newsroom,36.154,0.9528,0.3258,0.4155,0
+multimodel_h1a,sd15,none,image_5.png,A person in a church sanctuary,43.575,0.9946,0.4644,0.4829,0
+multimodel_h1a,sd15,none,image_5.png,A person in a charity art auction,43.575,0.9946,0.5339,0.5625,0
+multimodel_h1a,sd15,75,image_5.png,A person in a church sanctuary,36.966,0.962,0.4644,0.4315,0
+multimodel_h1a,sd15,75,image_5.png,A person in a charity art auction,36.966,0.962,0.5339,0.5852,0
+multimodel_h1a,sd15,70,image_5.png,A person in a church sanctuary,36.376,0.9574,0.4644,0.4198,0
+multimodel_h1a,sd15,70,image_5.png,A person in a charity art auction,36.376,0.9574,0.5339,0.5343,0
+multimodel_h1a,sd15,none,image_9.png,A person in a sports field,42.984,0.9945,0.4663,0.4039,1
+multimodel_h1a,sd15,none,image_9.png,A person in a waterside cafe,42.984,0.9945,0.5352,0.4901,0
+multimodel_h1a,sd15,75,image_9.png,A person in a sports field,38.156,0.9685,0.4663,0.4159,1
+multimodel_h1a,sd15,75,image_9.png,A person in a waterside cafe,38.156,0.9685,0.5352,0.4824,1
+multimodel_h1a,sd15,70,image_9.png,A person in a sports field,37.502,0.9638,0.4663,0.4631,0
+multimodel_h1a,sd15,70,image_9.png,A person in a waterside cafe,37.502,0.9638,0.5352,0.4255,1
+multimodel_h1a,sd15,none,image_13.png,A person in a drive-in theater,47.54,0.9971,0.5441,0.4602,1
+multimodel_h1a,sd15,none,image_13.png,A person in a shelter,47.54,0.9971,0.6041,0.5484,1
+multimodel_h1a,sd15,75,image_13.png,A person in a drive-in theater,38.107,0.963,0.5441,0.5587,0
+multimodel_h1a,sd15,75,image_13.png,A person in a shelter,38.107,0.963,0.6041,0.6857,0
+multimodel_h1a,sd15,70,image_13.png,A person in a drive-in theater,37.483,0.959,0.5441,0.6259,0
+multimodel_h1a,sd15,70,image_13.png,A person in a shelter,37.483,0.959,0.6041,0.6576,0
+multimodel_h1a,sd15,none,image_18.png,A person in a food truck park,42.291,0.9955,0.6573,0.695,0
+multimodel_h1a,sd15,none,image_18.png,A person in a ice cream parlor,42.291,0.9955,0.6901,0.7074,0
+multimodel_h1a,sd15,75,image_18.png,A person in a food truck park,37.064,0.9657,0.6573,0.6873,0
+multimodel_h1a,sd15,75,image_18.png,A person in a ice cream parlor,37.064,0.9657,0.6901,0.6221,1
+multimodel_h1a,sd15,70,image_18.png,A person in a food truck park,36.544,0.962,0.6573,0.6532,0
+multimodel_h1a,sd15,70,image_18.png,A person in a ice cream parlor,36.544,0.962,0.6901,0.6742,0
+multimodel_h1a,sd15,none,image_22.png,A person in a betting shop,43.42,0.9944,0.6382,0.6234,0
+multimodel_h1a,sd15,none,image_22.png,A person in a charity art auction,43.42,0.9944,0.6215,0.5803,0
+multimodel_h1a,sd15,75,image_22.png,A person in a betting shop,37.435,0.9604,0.6382,0.633,0
+multimodel_h1a,sd15,75,image_22.png,A person in a charity art auction,37.435,0.9604,0.6215,0.6243,0
+multimodel_h1a,sd15,70,image_22.png,A person in a betting shop,36.994,0.9564,0.6382,0.6423,0
+multimodel_h1a,sd15,70,image_22.png,A person in a charity art auction,36.994,0.9564,0.6215,0.6391,0
+multimodel_h1a,sd15,none,image_23.png,A person in a shelter,38.516,0.9893,0.5095,0.4872,0
+multimodel_h1a,sd15,none,image_23.png,A person in a local art market,38.516,0.9893,0.498,0.4968,0
+multimodel_h1a,sd15,75,image_23.png,A person in a shelter,35.144,0.949,0.5095,0.4707,0
+multimodel_h1a,sd15,75,image_23.png,A person in a local art market,35.144,0.949,0.498,0.5115,0
+multimodel_h1a,sd15,70,image_23.png,A person in a shelter,34.801,0.9439,0.5095,0.4788,0
+multimodel_h1a,sd15,70,image_23.png,A person in a local art market,34.801,0.9439,0.498,0.4866,0
+multimodel_h1a,sd15,none,image_29.png,A person in a historic landmark event,46.2,0.9973,0.6874,0.6806,0
+multimodel_h1a,sd15,none,image_29.png,A person in a gymnasium,46.2,0.9973,0.7036,0.6782,0
+multimodel_h1a,sd15,75,image_29.png,A person in a historic landmark event,38.733,0.9735,0.6874,0.5729,1
+multimodel_h1a,sd15,75,image_29.png,A person in a gymnasium,38.733,0.9735,0.7036,0.727,0
+multimodel_h1a,sd15,70,image_29.png,A person in a historic landmark event,38.153,0.9706,0.6874,0.7338,0
+multimodel_h1a,sd15,70,image_29.png,A person in a gymnasium,38.153,0.9706,0.7036,0.7021,0
+multimodel_h1a,sd15,none,image_32.png,A person in a local art market,43.178,0.9958,0.5353,0.5268,0
+multimodel_h1a,sd15,none,image_32.png,A person in a pet festival,43.178,0.9958,0.5416,0.5679,0
+multimodel_h1a,sd15,75,image_32.png,A person in a local art market,36.786,0.9607,0.5353,0.5474,0
+multimodel_h1a,sd15,75,image_32.png,A person in a pet festival,36.786,0.9607,0.5416,0.569,0
+multimodel_h1a,sd15,70,image_32.png,A person in a local art market,36.302,0.9564,0.5353,0.5539,0
+multimodel_h1a,sd15,70,image_32.png,A person in a pet festival,36.302,0.9564,0.5416,0.5281,0
+multimodel_h1a,sd15,none,image_33.png,A person in a basement,43.344,0.9932,0.3456,0.3202,0
+multimodel_h1a,sd15,none,image_33.png,A person in a movie set,43.344,0.9932,0.4692,0.3885,1
+multimodel_h1a,sd15,75,image_33.png,A person in a basement,38.391,0.9625,0.3456,0.3158,0
+multimodel_h1a,sd15,75,image_33.png,A person in a movie set,38.391,0.9625,0.4692,0.3756,1
+multimodel_h1a,sd15,70,image_33.png,A person in a basement,37.91,0.9583,0.3456,0.401,0
+multimodel_h1a,sd15,70,image_33.png,A person in a movie set,37.91,0.9583,0.4692,0.5145,0
+multimodel_h1a,sd15,none,image_37.png,A person in a garage,43.003,0.9965,0.6426,0.701,0
+multimodel_h1a,sd15,none,image_37.png,A person in a tech startup launch,43.003,0.9965,0.6358,0.7275,0
+multimodel_h1a,sd15,75,image_37.png,A person in a garage,37.702,0.9666,0.6426,0.6591,0
+multimodel_h1a,sd15,75,image_37.png,A person in a tech startup launch,37.702,0.9666,0.6358,0.7152,0
+multimodel_h1a,sd15,70,image_37.png,A person in a garage,37.308,0.9637,0.6426,0.622,0
+multimodel_h1a,sd15,70,image_37.png,A person in a tech startup launch,37.308,0.9637,0.6358,0.7216,0
+multimodel_h1a,sd15,none,image_47.png,A person in a hot dog stand,46.341,0.9974,0.6449,0.6201,0
+multimodel_h1a,sd15,none,image_47.png,A person in a creative writing event,46.341,0.9974,0.5943,0.6125,0
+multimodel_h1a,sd15,75,image_47.png,A person in a hot dog stand,37.624,0.9657,0.6449,0.6367,0
+multimodel_h1a,sd15,75,image_47.png,A person in a creative writing event,37.624,0.9657,0.5943,0.6005,0
+multimodel_h1a,sd15,70,image_47.png,A person in a hot dog stand,37.104,0.9622,0.6449,0.6657,0
+multimodel_h1a,sd15,70,image_47.png,A person in a creative writing event,37.104,0.9622,0.5943,0.5805,0
+multimodel_h1a,sd15,none,image_49.png,A person in a music and arts festival,47.628,0.9947,0.614,0.6373,0
+multimodel_h1a,sd15,none,image_49.png,A person in a bus stop shelter,47.628,0.9947,0.6503,0.5804,1
+multimodel_h1a,sd15,75,image_49.png,A person in a music and arts festival,37.953,0.9545,0.614,0.633,0
+multimodel_h1a,sd15,75,image_49.png,A person in a bus stop shelter,37.953,0.9545,0.6503,0.5845,1
+multimodel_h1a,sd15,70,image_49.png,A person in a music and arts festival,37.416,0.9498,0.614,0.6153,0
+multimodel_h1a,sd15,70,image_49.png,A person in a bus stop shelter,37.416,0.9498,0.6503,0.5792,1
+multimodel_h1a,sd15,none,image_53.png,A person in a parking structure,45.519,0.9964,0.6064,0.5366,1
+multimodel_h1a,sd15,none,image_53.png,A person in a science museum exhibit,45.519,0.9964,0.5566,0.5242,0
+multimodel_h1a,sd15,75,image_53.png,A person in a parking structure,37.874,0.962,0.6064,0.5963,0
+multimodel_h1a,sd15,75,image_53.png,A person in a science museum exhibit,37.874,0.962,0.5566,0.569,0
+multimodel_h1a,sd15,70,image_53.png,A person in a parking structure,37.352,0.9567,0.6064,0.5904,0
+multimodel_h1a,sd15,70,image_53.png,A person in a science museum exhibit,37.352,0.9567,0.5566,0.515,0
+multimodel_h1a,sd15,none,image_57.png,A person in a gym sauna,45.04,0.9944,0.5137,0.6466,0
+multimodel_h1a,sd15,none,image_57.png,A person in a community theater production,45.04,0.9944,0.6779,0.6417,0
+multimodel_h1a,sd15,75,image_57.png,A person in a gym sauna,37.519,0.9628,0.5137,0.64,0
+multimodel_h1a,sd15,75,image_57.png,A person in a community theater production,37.519,0.9628,0.6779,0.6224,1
+multimodel_h1a,sd15,70,image_57.png,A person in a gym sauna,36.99,0.9591,0.5137,0.6401,0
+multimodel_h1a,sd15,70,image_57.png,A person in a community theater production,36.99,0.9591,0.6779,0.5772,1
+multimodel_h1a,sd15,none,image_58.png,A person in a costume shop,37.513,0.9861,0.5957,0.5762,0
+multimodel_h1a,sd15,none,image_58.png,A person in a candle shop,37.513,0.9861,0.5704,0.6016,0
+multimodel_h1a,sd15,75,image_58.png,A person in a costume shop,32.804,0.9357,0.5957,0.5793,0
+multimodel_h1a,sd15,75,image_58.png,A person in a candle shop,32.804,0.9357,0.5704,0.5281,0
+multimodel_h1a,sd15,70,image_58.png,A person in a costume shop,32.389,0.9301,0.5957,0.5351,1
+multimodel_h1a,sd15,70,image_58.png,A person in a candle shop,32.389,0.9301,0.5704,0.5934,0
+multimodel_h1a,sd15,none,image_66.png,A person in a gym sauna,47.528,0.9975,0.6632,0.671,0
+multimodel_h1a,sd15,none,image_66.png,A person in a technology fair,47.528,0.9975,0.741,0.7703,0
+multimodel_h1a,sd15,75,image_66.png,A person in a gym sauna,39.689,0.9746,0.6632,0.7008,0
+multimodel_h1a,sd15,75,image_66.png,A person in a technology fair,39.689,0.9746,0.741,0.6981,0
+multimodel_h1a,sd15,70,image_66.png,A person in a gym sauna,39.161,0.9722,0.6632,0.6662,0
+multimodel_h1a,sd15,70,image_66.png,A person in a technology fair,39.161,0.9722,0.741,0.7313,0
+multimodel_h1a,sd15,none,image_67.png,A person in a butcher’s shop,41.475,0.9938,0.7245,0.634,1
+multimodel_h1a,sd15,none,image_67.png,A person in a pet festival,41.475,0.9938,0.6982,0.7195,0
+multimodel_h1a,sd15,75,image_67.png,A person in a butcher’s shop,37.506,0.9675,0.7245,0.6734,1
+multimodel_h1a,sd15,75,image_67.png,A person in a pet festival,37.506,0.9675,0.6982,0.713,0
+multimodel_h1a,sd15,70,image_67.png,A person in a butcher’s shop,37.085,0.9643,0.7245,0.584,1
+multimodel_h1a,sd15,70,image_67.png,A person in a pet festival,37.085,0.9643,0.6982,0.6539,0
+multimodel_h1a,sd15,none,image_73.png,A person in a locker room,47.907,0.9984,0.4694,0.4184,1
+multimodel_h1a,sd15,none,image_73.png,A person in a street market,47.907,0.9984,0.5707,0.4845,1
+multimodel_h1a,sd15,75,image_73.png,A person in a locker room,37.237,0.9541,0.4694,0.4081,1
+multimodel_h1a,sd15,75,image_73.png,A person in a street market,37.237,0.9541,0.5707,0.53,0
+multimodel_h1a,sd15,70,image_73.png,A person in a locker room,36.656,0.949,0.4694,0.4198,0
+multimodel_h1a,sd15,70,image_73.png,A person in a street market,36.656,0.949,0.5707,0.5301,0
+multimodel_h1a,sd15,none,image_80.png,A person in a hot dog stand,42.9,0.9931,0.5118,0.5246,0
+multimodel_h1a,sd15,none,image_80.png,A person in a bridal fitting room,42.9,0.9931,0.4762,0.4987,0
+multimodel_h1a,sd15,75,image_80.png,A person in a hot dog stand,36.395,0.959,0.5118,0.5235,0
+multimodel_h1a,sd15,75,image_80.png,A person in a bridal fitting room,36.395,0.959,0.4762,0.5442,0
+multimodel_h1a,sd15,70,image_80.png,A person in a hot dog stand,35.771,0.9534,0.5118,0.5124,0
+multimodel_h1a,sd15,70,image_80.png,A person in a bridal fitting room,35.771,0.9534,0.4762,0.5161,0
+multimodel_h1a,sd15,none,image_82.png,A person in a beach resort,40.996,0.9955,0.6662,0.6614,0
+multimodel_h1a,sd15,none,image_82.png,A person in a transit station,40.996,0.9955,0.7028,0.644,1
+multimodel_h1a,sd15,75,image_82.png,A person in a beach resort,37.471,0.9701,0.6662,0.6737,0
+multimodel_h1a,sd15,75,image_82.png,A person in a transit station,37.471,0.9701,0.7028,0.7146,0
+multimodel_h1a,sd15,70,image_82.png,A person in a beach resort,37.061,0.9663,0.6662,0.6516,0
+multimodel_h1a,sd15,70,image_82.png,A person in a transit station,37.061,0.9663,0.7028,0.6627,0
+multimodel_h1a,sd15,none,image_93.png,A person in a motel room,41.862,0.9941,0.4873,0.5868,0
+multimodel_h1a,sd15,none,image_93.png,A person in a tech launch event,41.862,0.9941,0.575,0.6199,0
+multimodel_h1a,sd15,75,image_93.png,A person in a motel room,34.695,0.9594,0.4873,0.5072,0
+multimodel_h1a,sd15,75,image_93.png,A person in a tech launch event,34.695,0.9594,0.575,0.5326,0
+multimodel_h1a,sd15,70,image_93.png,A person in a motel room,34.09,0.9549,0.4873,0.5389,0
+multimodel_h1a,sd15,70,image_93.png,A person in a tech launch event,34.09,0.9549,0.575,0.6566,0
+multimodel_h1a,sd15,none,image_94.png,A person in a computer lab,43.162,0.9943,0.5089,0.4974,0
+multimodel_h1a,sd15,none,image_94.png,A person in a lobby,43.162,0.9943,0.5516,0.5724,0
+multimodel_h1a,sd15,75,image_94.png,A person in a computer lab,36.57,0.9647,0.5089,0.6451,0
+multimodel_h1a,sd15,75,image_94.png,A person in a lobby,36.57,0.9647,0.5516,0.5858,0
+multimodel_h1a,sd15,70,image_94.png,A person in a computer lab,35.97,0.9605,0.5089,0.4187,1
+multimodel_h1a,sd15,70,image_94.png,A person in a lobby,35.97,0.9605,0.5516,0.4693,1
+multimodel_h1a,sd15,none,image_104.png,A person in a pet festival,47.933,0.9976,0.5464,0.631,0
+multimodel_h1a,sd15,none,image_104.png,A person in a slum,47.933,0.9976,0.4886,0.5522,0
+multimodel_h1a,sd15,75,image_104.png,A person in a pet festival,38.502,0.9653,0.5464,0.5212,0
+multimodel_h1a,sd15,75,image_104.png,A person in a slum,38.502,0.9653,0.4886,0.5423,0
+multimodel_h1a,sd15,70,image_104.png,A person in a pet festival,37.915,0.9613,0.5464,0.5705,0
+multimodel_h1a,sd15,70,image_104.png,A person in a slum,37.915,0.9613,0.4886,0.3952,1
+multimodel_h1a,sd15,none,image_110.png,A person in a gym sauna,47.177,0.9975,0.4743,0.5497,0
+multimodel_h1a,sd15,none,image_110.png,A person in a glass factory,47.177,0.9975,0.7337,0.6551,1
+multimodel_h1a,sd15,75,image_110.png,A person in a gym sauna,38.83,0.9683,0.4743,0.594,0
+multimodel_h1a,sd15,75,image_110.png,A person in a glass factory,38.83,0.9683,0.7337,0.6403,1
+multimodel_h1a,sd15,70,image_110.png,A person in a gym sauna,38.289,0.9647,0.4743,0.596,0
+multimodel_h1a,sd15,70,image_110.png,A person in a glass factory,38.289,0.9647,0.7337,0.6893,0
+multimodel_h1a,sd15,none,image_115.png,A person in a tram stop,44.678,0.9942,0.5722,0.5585,0
+multimodel_h1a,sd15,none,image_115.png,A person in a fish market,44.678,0.9942,0.574,0.5009,1
+multimodel_h1a,sd15,75,image_115.png,A person in a tram stop,36.149,0.9561,0.5722,0.5353,0
+multimodel_h1a,sd15,75,image_115.png,A person in a fish market,36.149,0.9561,0.574,0.5656,0
+multimodel_h1a,sd15,70,image_115.png,A person in a tram stop,35.456,0.95,0.5722,0.5452,0
+multimodel_h1a,sd15,70,image_115.png,A person in a fish market,35.456,0.95,0.574,0.5796,0
+multimodel_h1a,sd15,none,image_121.png,A person in a basement,41.246,0.9957,0.5772,0.6173,0
+multimodel_h1a,sd15,none,image_121.png,A person in a dormitory,41.246,0.9957,0.6015,0.6004,0
+multimodel_h1a,sd15,75,image_121.png,A person in a basement,37.018,0.9647,0.5772,0.5849,0
+multimodel_h1a,sd15,75,image_121.png,A person in a dormitory,37.018,0.9647,0.6015,0.5969,0
+multimodel_h1a,sd15,70,image_121.png,A person in a basement,36.647,0.9607,0.5772,0.6056,0
+multimodel_h1a,sd15,70,image_121.png,A person in a dormitory,36.647,0.9607,0.6015,0.5962,0
+multimodel_h1a,sd15,none,image_129.png,A person in a tech startup,45.088,0.9969,0.6257,0.6341,0
+multimodel_h1a,sd15,none,image_129.png,A person in a brewery tour,45.088,0.9969,0.6157,0.6657,0
+multimodel_h1a,sd15,75,image_129.png,A person in a tech startup,37.344,0.9728,0.6257,0.6384,0
+multimodel_h1a,sd15,75,image_129.png,A person in a brewery tour,37.344,0.9728,0.6157,0.6191,0
+multimodel_h1a,sd15,70,image_129.png,A person in a tech startup,36.702,0.9694,0.6257,0.6295,0
+multimodel_h1a,sd15,70,image_129.png,A person in a brewery tour,36.702,0.9694,0.6157,0.655,0
+multimodel_h1a,sd15,none,image_133.png,A person in a laundry room,42.067,0.9928,0.2772,0.2736,0
+multimodel_h1a,sd15,none,image_133.png,A person in a tech startup,42.067,0.9928,0.31,0.2757,0
+multimodel_h1a,sd15,75,image_133.png,A person in a laundry room,34.442,0.9574,0.2772,0.2957,0
+multimodel_h1a,sd15,75,image_133.png,A person in a tech startup,34.442,0.9574,0.31,0.2921,0
+multimodel_h1a,sd15,70,image_133.png,A person in a laundry room,33.868,0.9525,0.2772,0.2628,0
+multimodel_h1a,sd15,70,image_133.png,A person in a tech startup,33.868,0.9525,0.31,0.2778,0
+multimodel_h1a,sd15,none,image_135.png,A person in a music studio,45.064,0.9954,0.5106,0.4995,0
+multimodel_h1a,sd15,none,image_135.png,A person in a local crafts market,45.064,0.9954,0.529,0.5665,0
+multimodel_h1a,sd15,75,image_135.png,A person in a music studio,36.678,0.9538,0.5106,0.5161,0
+multimodel_h1a,sd15,75,image_135.png,A person in a local crafts market,36.678,0.9538,0.529,0.5835,0
+multimodel_h1a,sd15,70,image_135.png,A person in a music studio,36.12,0.9491,0.5106,0.5701,0
+multimodel_h1a,sd15,70,image_135.png,A person in a local crafts market,36.12,0.9491,0.529,0.5674,0
+multimodel_h1a,sd15,none,image_142.png,A person in a bowling alley,48.255,0.998,0.5602,0.5917,0
+multimodel_h1a,sd15,none,image_142.png,A person in a climbing wall,48.255,0.998,0.5585,0.5303,0
+multimodel_h1a,sd15,75,image_142.png,A person in a bowling alley,38.606,0.9612,0.5602,0.5916,0
+multimodel_h1a,sd15,75,image_142.png,A person in a climbing wall,38.606,0.9612,0.5585,0.591,0
+multimodel_h1a,sd15,70,image_142.png,A person in a bowling alley,38.037,0.9567,0.5602,0.5643,0
+multimodel_h1a,sd15,70,image_142.png,A person in a climbing wall,38.037,0.9567,0.5585,0.5365,0
+multimodel_h1a,sd15,none,image_149.png,A person in a music and arts festival,43.115,0.9957,0.6129,0.5973,0
+multimodel_h1a,sd15,none,image_149.png,A person in a costume party,43.115,0.9957,0.5859,0.5645,0
+multimodel_h1a,sd15,75,image_149.png,A person in a music and arts festival,38.608,0.9644,0.6129,0.6241,0
+multimodel_h1a,sd15,75,image_149.png,A person in a costume party,38.608,0.9644,0.5859,0.5901,0
+multimodel_h1a,sd15,70,image_149.png,A person in a music and arts festival,38.172,0.9602,0.6129,0.531,1
+multimodel_h1a,sd15,70,image_149.png,A person in a costume party,38.172,0.9602,0.5859,0.5383,0
+multimodel_h1a,sd15,none,image_151.png,A person in a charity art auction,48.552,0.9975,0.6711,0.6378,0
+multimodel_h1a,sd15,none,image_151.png,A person in a customs checkpoint,48.552,0.9975,0.677,0.6708,0
+multimodel_h1a,sd15,75,image_151.png,A person in a charity art auction,39.102,0.9591,0.6711,0.6757,0
+multimodel_h1a,sd15,75,image_151.png,A person in a customs checkpoint,39.102,0.9591,0.677,0.7001,0
+multimodel_h1a,sd15,70,image_151.png,A person in a charity art auction,38.58,0.9546,0.6711,0.6696,0
+multimodel_h1a,sd15,70,image_151.png,A person in a customs checkpoint,38.58,0.9546,0.677,0.6899,0
+multimodel_h1a,sd15,none,image_152.png,A person in a city food tour,47.015,0.998,0.645,0.5755,1
+multimodel_h1a,sd15,none,image_152.png,A person in a flea market,47.015,0.998,0.5661,0.573,0
+multimodel_h1a,sd15,75,image_152.png,A person in a city food tour,38.001,0.9624,0.645,0.5791,1
+multimodel_h1a,sd15,75,image_152.png,A person in a flea market,38.001,0.9624,0.5661,0.5755,0
+multimodel_h1a,sd15,70,image_152.png,A person in a city food tour,37.438,0.958,0.645,0.6279,0
+multimodel_h1a,sd15,70,image_152.png,A person in a flea market,37.438,0.958,0.5661,0.6186,0
+multimodel_h1a,sd15,none,image_160.png,A person in a flower garden,40.989,0.9936,0.5272,0.5147,0
+multimodel_h1a,sd15,none,image_160.png,A person in a sports field,40.989,0.9936,0.5197,0.5316,0
+multimodel_h1a,sd15,75,image_160.png,A person in a flower garden,35.522,0.9512,0.5272,0.516,0
+multimodel_h1a,sd15,75,image_160.png,A person in a sports field,35.522,0.9512,0.5197,0.5557,0
+multimodel_h1a,sd15,70,image_160.png,A person in a flower garden,35.025,0.9457,0.5272,0.5129,0
+multimodel_h1a,sd15,70,image_160.png,A person in a sports field,35.025,0.9457,0.5197,0.5212,0
+multimodel_h1a,sd15,none,image_163.png,A person in a slum,40.964,0.9968,0.384,0.3673,0
+multimodel_h1a,sd15,none,image_163.png,A person in a nightclub,40.964,0.9968,0.3144,0.3217,0
+multimodel_h1a,sd15,75,image_163.png,A person in a slum,35.696,0.9647,0.384,0.3812,0
+multimodel_h1a,sd15,75,image_163.png,A person in a nightclub,35.696,0.9647,0.3144,0.3296,0
+multimodel_h1a,sd15,70,image_163.png,A person in a slum,34.989,0.9583,0.384,0.3676,0
+multimodel_h1a,sd15,70,image_163.png,A person in a nightclub,34.989,0.9583,0.3144,0.3509,0
+multimodel_h1a,sd15,none,image_165.png,A person in a digital art gallery,45.688,0.9971,0.3846,0.4586,0
+multimodel_h1a,sd15,none,image_165.png,A person in a cocktail bar,45.688,0.9971,0.4294,0.4738,0
+multimodel_h1a,sd15,75,image_165.png,A person in a digital art gallery,37.615,0.9618,0.3846,0.4825,0
+multimodel_h1a,sd15,75,image_165.png,A person in a cocktail bar,37.615,0.9618,0.4294,0.5893,0
+multimodel_h1a,sd15,70,image_165.png,A person in a digital art gallery,37.038,0.9573,0.3846,0.5173,0
+multimodel_h1a,sd15,70,image_165.png,A person in a cocktail bar,37.038,0.9573,0.4294,0.4684,0
+multimodel_h1a,sd15,none,image_169.png,A person in a technology fair,45.332,0.9934,0.667,0.6233,0
+multimodel_h1a,sd15,none,image_169.png,A person in a food truck park,45.332,0.9934,0.6817,0.695,0
+multimodel_h1a,sd15,75,image_169.png,A person in a technology fair,37.992,0.9602,0.667,0.5813,1
+multimodel_h1a,sd15,75,image_169.png,A person in a food truck park,37.992,0.9602,0.6817,0.6899,0
+multimodel_h1a,sd15,70,image_169.png,A person in a technology fair,37.504,0.956,0.667,0.6413,0
+multimodel_h1a,sd15,70,image_169.png,A person in a food truck park,37.504,0.956,0.6817,0.6976,0
+multimodel_h1a,sd15,none,image_170.png,A person in a casino lounge,39.83,0.9955,0.5032,0.4764,0
+multimodel_h1a,sd15,none,image_170.png,A person in a dance festival,39.83,0.9955,0.4894,0.5071,0
+multimodel_h1a,sd15,75,image_170.png,A person in a casino lounge,35.335,0.9627,0.5032,0.4717,0
+multimodel_h1a,sd15,75,image_170.png,A person in a dance festival,35.335,0.9627,0.4894,0.5013,0
+multimodel_h1a,sd15,70,image_170.png,A person in a casino lounge,34.988,0.9586,0.5032,0.529,0
+multimodel_h1a,sd15,70,image_170.png,A person in a dance festival,34.988,0.9586,0.4894,0.4749,0
+multimodel_h1a,sd15,none,image_180.png,A person in a rooftop lounge,39.018,0.9922,0.4336,0.4269,0
+multimodel_h1a,sd15,none,image_180.png,A person in a gym sauna,39.018,0.9922,0.4219,0.4706,0
+multimodel_h1a,sd15,75,image_180.png,A person in a rooftop lounge,33.957,0.9432,0.4336,0.437,0
+multimodel_h1a,sd15,75,image_180.png,A person in a gym sauna,33.957,0.9432,0.4219,0.4333,0
+multimodel_h1a,sd15,70,image_180.png,A person in a rooftop lounge,33.546,0.9367,0.4336,0.4492,0
+multimodel_h1a,sd15,70,image_180.png,A person in a gym sauna,33.546,0.9367,0.4219,0.4435,0
+multimodel_h1a,sd15,none,image_181.png,A person in a butcher shop,50.728,0.9985,0.548,0.5412,0
+multimodel_h1a,sd15,none,image_181.png,A person in a highway rest stop,50.728,0.9985,0.5721,0.5513,0
+multimodel_h1a,sd15,75,image_181.png,A person in a butcher shop,39.901,0.9647,0.548,0.5769,0
+multimodel_h1a,sd15,75,image_181.png,A person in a highway rest stop,39.901,0.9647,0.5721,0.5611,0
+multimodel_h1a,sd15,70,image_181.png,A person in a butcher shop,39.385,0.961,0.548,0.4927,1
+multimodel_h1a,sd15,70,image_181.png,A person in a highway rest stop,39.385,0.961,0.5721,0.5363,0
+multimodel_h1a,sd15,none,image_185.png,A person in a golf course clubhouse,49.211,0.9975,0.5888,0.6058,0
+multimodel_h1a,sd15,none,image_185.png,A person in a rehab facility,49.211,0.9975,0.6183,0.611,0
+multimodel_h1a,sd15,75,image_185.png,A person in a golf course clubhouse,38.264,0.9661,0.5888,0.6176,0
+multimodel_h1a,sd15,75,image_185.png,A person in a rehab facility,38.264,0.9661,0.6183,0.6326,0
+multimodel_h1a,sd15,70,image_185.png,A person in a golf course clubhouse,37.708,0.9623,0.5888,0.5612,0
+multimodel_h1a,sd15,70,image_185.png,A person in a rehab facility,37.708,0.9623,0.6183,0.6423,0
+multimodel_h1a,sd15,none,image_186.png,A person in a community arts and crafts market,38.322,0.9913,0.4849,0.4977,0
+multimodel_h1a,sd15,none,image_186.png,A person in a church sanctuary,38.322,0.9913,0.5285,0.351,1
+multimodel_h1a,sd15,75,image_186.png,A person in a community arts and crafts market,34.485,0.9587,0.4849,0.4974,0
+multimodel_h1a,sd15,75,image_186.png,A person in a church sanctuary,34.485,0.9587,0.5285,0.4033,1
+multimodel_h1a,sd15,70,image_186.png,A person in a community arts and crafts market,33.941,0.9546,0.4849,0.5854,0
+multimodel_h1a,sd15,70,image_186.png,A person in a church sanctuary,33.941,0.9546,0.5285,0.4908,0
+multimodel_h1a,sd15,none,image_189.png,A person in a vintage arts fair,42.335,0.9948,0.5049,0.4831,0
+multimodel_h1a,sd15,none,image_189.png,A person in a bowling alley,42.335,0.9948,0.4564,0.4449,0
+multimodel_h1a,sd15,75,image_189.png,A person in a vintage arts fair,34.979,0.9528,0.5049,0.4999,0
+multimodel_h1a,sd15,75,image_189.png,A person in a bowling alley,34.979,0.9528,0.4564,0.4302,0
+multimodel_h1a,sd15,70,image_189.png,A person in a vintage arts fair,34.472,0.9482,0.5049,0.5398,0
+multimodel_h1a,sd15,70,image_189.png,A person in a bowling alley,34.472,0.9482,0.4564,0.4115,0
+multimodel_h1a,sd15,none,image_201.png,A person in a high-end restaurant,47.916,0.9974,0.5203,0.4441,1
+multimodel_h1a,sd15,none,image_201.png,A person in a bowling alley,47.916,0.9974,0.4026,0.4156,0
+multimodel_h1a,sd15,75,image_201.png,A person in a high-end restaurant,38.435,0.9595,0.5203,0.4167,1
+multimodel_h1a,sd15,75,image_201.png,A person in a bowling alley,38.435,0.9595,0.4026,0.3456,1
+multimodel_h1a,sd15,70,image_201.png,A person in a high-end restaurant,37.934,0.9544,0.5203,0.4296,1
+multimodel_h1a,sd15,70,image_201.png,A person in a bowling alley,37.934,0.9544,0.4026,0.3894,0
+multimodel_h1a,sd15,none,image_203.png,A person in a gymnasium,45.548,0.9966,0.6778,0.7239,0
+multimodel_h1a,sd15,none,image_203.png,A person in a brothel,45.548,0.9966,0.7249,0.6658,1
+multimodel_h1a,sd15,75,image_203.png,A person in a gymnasium,39.214,0.9749,0.6778,0.7571,0
+multimodel_h1a,sd15,75,image_203.png,A person in a brothel,39.214,0.9749,0.7249,0.7343,0
+multimodel_h1a,sd15,70,image_203.png,A person in a gymnasium,38.763,0.9724,0.6778,0.7344,0
+multimodel_h1a,sd15,70,image_203.png,A person in a brothel,38.763,0.9724,0.7249,0.6986,0
+multimodel_h1a,sd15,none,image_209.png,A person in a summer camp,47.179,0.9969,0.4968,0.4836,0
+multimodel_h1a,sd15,none,image_209.png,A person in a TV studio,47.179,0.9969,0.4784,0.4999,0
+multimodel_h1a,sd15,75,image_209.png,A person in a summer camp,37.956,0.9646,0.4968,0.4511,0
+multimodel_h1a,sd15,75,image_209.png,A person in a TV studio,37.956,0.9646,0.4784,0.4927,0
+multimodel_h1a,sd15,70,image_209.png,A person in a summer camp,37.167,0.9587,0.4968,0.5078,0
+multimodel_h1a,sd15,70,image_209.png,A person in a TV studio,37.167,0.9587,0.4784,0.4942,0
+multimodel_h1a,sd15,none,image_212.png,A person in a street vendor stand,45.791,0.9952,0.6117,0.7043,0
+multimodel_h1a,sd15,none,image_212.png,A person in a dog park picnic,45.791,0.9952,0.6816,0.6624,0
+multimodel_h1a,sd15,75,image_212.png,A person in a street vendor stand,37.725,0.9686,0.6117,0.6633,0
+multimodel_h1a,sd15,75,image_212.png,A person in a dog park picnic,37.725,0.9686,0.6816,0.6831,0
+multimodel_h1a,sd15,70,image_212.png,A person in a street vendor stand,37.144,0.9651,0.6117,0.6434,0
+multimodel_h1a,sd15,70,image_212.png,A person in a dog park picnic,37.144,0.9651,0.6816,0.6883,0
+multimodel_h1a,sd15,none,image_213.png,A person in a science museum exhibit,49.051,0.9973,0.6109,0.5873,0
+multimodel_h1a,sd15,none,image_213.png,A person in a woodworking shop,49.051,0.9973,0.561,0.5324,0
+multimodel_h1a,sd15,75,image_213.png,A person in a science museum exhibit,38.702,0.9678,0.6109,0.5811,0
+multimodel_h1a,sd15,75,image_213.png,A person in a woodworking shop,38.702,0.9678,0.561,0.5742,0
+multimodel_h1a,sd15,70,image_213.png,A person in a science museum exhibit,38.203,0.9641,0.6109,0.6192,0
+multimodel_h1a,sd15,70,image_213.png,A person in a woodworking shop,38.203,0.9641,0.561,0.6094,0
+sd15_only,flux_schnell,none,image_1.png,A person in a weekend market,89.232,1.0,0.5506,0.5288,0
+sd15_only,flux_schnell,none,image_1.png,A person in a police evidence room,89.232,1.0,0.552,0.5554,0
+sd15_only,flux_schnell,75,image_1.png,A person in a weekend market,38.408,0.9634,0.5506,0.5326,0
+sd15_only,flux_schnell,75,image_1.png,A person in a police evidence room,38.408,0.9634,0.552,0.537,0
+sd15_only,flux_schnell,70,image_1.png,A person in a weekend market,37.81,0.959,0.5506,0.5463,0
+sd15_only,flux_schnell,70,image_1.png,A person in a police evidence room,37.81,0.959,0.552,0.525,0
+sd15_only,flux_schnell,none,image_3.png,A person in a weekend market,86.853,1.0,0.5141,0.5264,0
+sd15_only,flux_schnell,none,image_3.png,A person in a TV newsroom,86.853,1.0,0.5106,0.4984,0
+sd15_only,flux_schnell,75,image_3.png,A person in a weekend market,37.249,0.9599,0.5141,0.4938,0
+sd15_only,flux_schnell,75,image_3.png,A person in a TV newsroom,37.249,0.9599,0.5106,0.4998,0
+sd15_only,flux_schnell,70,image_3.png,A person in a weekend market,36.643,0.9545,0.5141,0.4947,0
+sd15_only,flux_schnell,70,image_3.png,A person in a TV newsroom,36.643,0.9545,0.5106,0.5197,0
+sd15_only,flux_schnell,none,image_5.png,A person in a church sanctuary,86.978,1.0,0.7583,0.7641,0
+sd15_only,flux_schnell,none,image_5.png,A person in a charity art auction,86.978,1.0,0.7668,0.7685,0
+sd15_only,flux_schnell,75,image_5.png,A person in a church sanctuary,37.806,0.9654,0.7583,0.7486,0
+sd15_only,flux_schnell,75,image_5.png,A person in a charity art auction,37.806,0.9654,0.7668,0.754,0
+sd15_only,flux_schnell,70,image_5.png,A person in a church sanctuary,37.087,0.9606,0.7583,0.7558,0
+sd15_only,flux_schnell,70,image_5.png,A person in a charity art auction,37.087,0.9606,0.7668,0.751,0
+sd15_only,flux_schnell,none,image_9.png,A person in a sports field,57.011,0.9996,0.6166,0.6288,0
+sd15_only,flux_schnell,none,image_9.png,A person in a waterside cafe,57.011,0.9996,0.5923,0.5746,0
+sd15_only,flux_schnell,75,image_9.png,A person in a sports field,39.42,0.9719,0.6166,0.623,0
+sd15_only,flux_schnell,75,image_9.png,A person in a waterside cafe,39.42,0.9719,0.5923,0.6058,0
+sd15_only,flux_schnell,70,image_9.png,A person in a sports field,38.575,0.9674,0.6166,0.5508,1
+sd15_only,flux_schnell,70,image_9.png,A person in a waterside cafe,38.575,0.9674,0.5923,0.5715,0
+sd15_only,flux_schnell,none,image_13.png,A person in a drive-in theater,89.086,1.0,0.7523,0.7535,0
+sd15_only,flux_schnell,none,image_13.png,A person in a shelter,89.086,1.0,0.7553,0.748,0
+sd15_only,flux_schnell,75,image_13.png,A person in a drive-in theater,38.48,0.9651,0.7523,0.724,0
+sd15_only,flux_schnell,75,image_13.png,A person in a shelter,38.48,0.9651,0.7553,0.7447,0
+sd15_only,flux_schnell,70,image_13.png,A person in a drive-in theater,37.811,0.9611,0.7523,0.7367,0
+sd15_only,flux_schnell,70,image_13.png,A person in a shelter,37.811,0.9611,0.7553,0.7332,0
+sd15_only,flux_schnell,none,image_18.png,A person in a food truck park,87.81,1.0,0.7736,0.7663,0
+sd15_only,flux_schnell,none,image_18.png,A person in a ice cream parlor,87.81,1.0,0.7577,0.7698,0
+sd15_only,flux_schnell,75,image_18.png,A person in a food truck park,38.419,0.9691,0.7736,0.7643,0
+sd15_only,flux_schnell,75,image_18.png,A person in a ice cream parlor,38.419,0.9691,0.7577,0.7634,0
+sd15_only,flux_schnell,70,image_18.png,A person in a food truck park,37.703,0.9652,0.7736,0.7509,0
+sd15_only,flux_schnell,70,image_18.png,A person in a ice cream parlor,37.703,0.9652,0.7577,0.7491,0
+sd15_only,flux_schnell,none,image_22.png,A person in a betting shop,61.366,0.9998,0.5966,0.6223,0
+sd15_only,flux_schnell,none,image_22.png,A person in a charity art auction,61.366,0.9998,0.6362,0.6436,0
+sd15_only,flux_schnell,75,image_22.png,A person in a betting shop,38.69,0.9647,0.5966,0.6202,0
+sd15_only,flux_schnell,75,image_22.png,A person in a charity art auction,38.69,0.9647,0.6362,0.5942,0
+sd15_only,flux_schnell,70,image_22.png,A person in a betting shop,38.106,0.9606,0.5966,0.5935,0
+sd15_only,flux_schnell,70,image_22.png,A person in a charity art auction,38.106,0.9606,0.6362,0.5913,0
+sd15_only,flux_schnell,none,image_23.png,A person in a shelter,84.291,1.0,0.5336,0.5287,0
+sd15_only,flux_schnell,none,image_23.png,A person in a local art market,84.291,1.0,0.5225,0.548,0
+sd15_only,flux_schnell,75,image_23.png,A person in a shelter,37.597,0.9565,0.5336,0.5404,0
+sd15_only,flux_schnell,75,image_23.png,A person in a local art market,37.597,0.9565,0.5225,0.5239,0
+sd15_only,flux_schnell,70,image_23.png,A person in a shelter,37.016,0.9514,0.5336,0.5345,0
+sd15_only,flux_schnell,70,image_23.png,A person in a local art market,37.016,0.9514,0.5225,0.5324,0
+sd15_only,flux_schnell,none,image_29.png,A person in a historic landmark event,87.776,1.0,0.8277,0.8163,0
+sd15_only,flux_schnell,none,image_29.png,A person in a gymnasium,87.776,1.0,0.8282,0.8289,0
+sd15_only,flux_schnell,75,image_29.png,A person in a historic landmark event,39.314,0.9752,0.8277,0.8068,0
+sd15_only,flux_schnell,75,image_29.png,A person in a gymnasium,39.314,0.9752,0.8282,0.8177,0
+sd15_only,flux_schnell,70,image_29.png,A person in a historic landmark event,38.652,0.9724,0.8277,0.8017,0
+sd15_only,flux_schnell,70,image_29.png,A person in a gymnasium,38.652,0.9724,0.8282,0.807,0
+sd15_only,flux_schnell,none,image_32.png,A person in a local art market,86.915,1.0,0.5594,0.5686,0
+sd15_only,flux_schnell,none,image_32.png,A person in a pet festival,86.915,1.0,0.5751,0.5874,0
+sd15_only,flux_schnell,75,image_32.png,A person in a local art market,37.775,0.9637,0.5594,0.5528,0
+sd15_only,flux_schnell,75,image_32.png,A person in a pet festival,37.775,0.9637,0.5751,0.5851,0
+sd15_only,flux_schnell,70,image_32.png,A person in a local art market,37.18,0.9593,0.5594,0.5609,0
+sd15_only,flux_schnell,70,image_32.png,A person in a pet festival,37.18,0.9593,0.5751,0.5946,0
+sd15_only,flux_schnell,none,image_33.png,A person in a basement,80.061,1.0,0.8304,0.8178,0
+sd15_only,flux_schnell,none,image_33.png,A person in a movie set,80.061,1.0,0.826,0.8277,0
+sd15_only,flux_schnell,75,image_33.png,A person in a basement,39.657,0.9671,0.8304,0.8165,0
+sd15_only,flux_schnell,75,image_33.png,A person in a movie set,39.657,0.9671,0.826,0.8224,0
+sd15_only,flux_schnell,70,image_33.png,A person in a basement,39.04,0.9629,0.8304,0.8155,0
+sd15_only,flux_schnell,70,image_33.png,A person in a movie set,39.04,0.9629,0.826,0.8195,0
+sd15_only,flux_schnell,none,image_37.png,A person in a garage,78.357,1.0,0.7492,0.7545,0
+sd15_only,flux_schnell,none,image_37.png,A person in a tech startup launch,78.357,1.0,0.7588,0.7415,0
+sd15_only,flux_schnell,75,image_37.png,A person in a garage,39.036,0.9693,0.7492,0.7493,0
+sd15_only,flux_schnell,75,image_37.png,A person in a tech startup launch,39.036,0.9693,0.7588,0.7337,0
+sd15_only,flux_schnell,70,image_37.png,A person in a garage,38.47,0.9664,0.7492,0.7373,0
+sd15_only,flux_schnell,70,image_37.png,A person in a tech startup launch,38.47,0.9664,0.7588,0.7314,0
+sd15_only,flux_schnell,none,image_47.png,A person in a hot dog stand,87.729,1.0,0.6889,0.6847,0
+sd15_only,flux_schnell,none,image_47.png,A person in a creative writing event,87.729,1.0,0.6798,0.7051,0
+sd15_only,flux_schnell,75,image_47.png,A person in a hot dog stand,38.041,0.9673,0.6889,0.6617,0
+sd15_only,flux_schnell,75,image_47.png,A person in a creative writing event,38.041,0.9673,0.6798,0.7001,0
+sd15_only,flux_schnell,70,image_47.png,A person in a hot dog stand,37.462,0.9638,0.6889,0.7138,0
+sd15_only,flux_schnell,70,image_47.png,A person in a creative writing event,37.462,0.9638,0.6798,0.7015,0
+sd15_only,flux_schnell,none,image_49.png,A person in a music and arts festival,86.681,1.0,0.6092,0.5989,0
+sd15_only,flux_schnell,none,image_49.png,A person in a bus stop shelter,86.681,1.0,0.6228,0.5983,0
+sd15_only,flux_schnell,75,image_49.png,A person in a music and arts festival,38.351,0.9596,0.6092,0.6046,0
+sd15_only,flux_schnell,75,image_49.png,A person in a bus stop shelter,38.351,0.9596,0.6228,0.6207,0
+sd15_only,flux_schnell,70,image_49.png,A person in a music and arts festival,37.745,0.9543,0.6092,0.6281,0
+sd15_only,flux_schnell,70,image_49.png,A person in a bus stop shelter,37.745,0.9543,0.6228,0.5878,0
+sd15_only,flux_schnell,none,image_53.png,A person in a parking structure,87.27,1.0,0.5665,0.5629,0
+sd15_only,flux_schnell,none,image_53.png,A person in a science museum exhibit,87.27,1.0,0.5754,0.5857,0
+sd15_only,flux_schnell,75,image_53.png,A person in a parking structure,38.573,0.9643,0.5665,0.5671,0
+sd15_only,flux_schnell,75,image_53.png,A person in a science museum exhibit,38.573,0.9643,0.5754,0.562,0
+sd15_only,flux_schnell,70,image_53.png,A person in a parking structure,37.943,0.959,0.5665,0.5665,0
+sd15_only,flux_schnell,70,image_53.png,A person in a science museum exhibit,37.943,0.959,0.5754,0.5622,0
+sd15_only,flux_schnell,none,image_57.png,A person in a gym sauna,88.102,1.0,0.7736,0.7645,0
+sd15_only,flux_schnell,none,image_57.png,A person in a community theater production,88.102,1.0,0.772,0.7765,0
+sd15_only,flux_schnell,75,image_57.png,A person in a gym sauna,38.139,0.9664,0.7736,0.7628,0
+sd15_only,flux_schnell,75,image_57.png,A person in a community theater production,38.139,0.9664,0.772,0.7747,0
+sd15_only,flux_schnell,70,image_57.png,A person in a gym sauna,37.534,0.9627,0.7736,0.7409,0
+sd15_only,flux_schnell,70,image_57.png,A person in a community theater production,37.534,0.9627,0.772,0.7563,0
+sd15_only,flux_schnell,none,image_58.png,A person in a costume shop,75.955,1.0,0.6822,0.7032,0
+sd15_only,flux_schnell,none,image_58.png,A person in a candle shop,75.955,1.0,0.6845,0.6859,0
+sd15_only,flux_schnell,75,image_58.png,A person in a costume shop,34.496,0.9444,0.6822,0.6799,0
+sd15_only,flux_schnell,75,image_58.png,A person in a candle shop,34.496,0.9444,0.6845,0.68,0
+sd15_only,flux_schnell,70,image_58.png,A person in a costume shop,33.856,0.9381,0.6822,0.6845,0
+sd15_only,flux_schnell,70,image_58.png,A person in a candle shop,33.856,0.9381,0.6845,0.681,0
+sd15_only,flux_schnell,none,image_66.png,A person in a gym sauna,89.388,1.0,0.8345,0.8303,0
+sd15_only,flux_schnell,none,image_66.png,A person in a technology fair,89.388,1.0,0.8395,0.8403,0
+sd15_only,flux_schnell,75,image_66.png,A person in a gym sauna,40.2,0.9763,0.8345,0.824,0
+sd15_only,flux_schnell,75,image_66.png,A person in a technology fair,40.2,0.9763,0.8395,0.8276,0
+sd15_only,flux_schnell,70,image_66.png,A person in a gym sauna,39.578,0.9737,0.8345,0.8214,0
+sd15_only,flux_schnell,70,image_66.png,A person in a technology fair,39.578,0.9737,0.8395,0.8281,0
+sd15_only,flux_schnell,none,image_67.png,A person in a butcher’s shop,88.827,1.0,0.792,0.8043,0
+sd15_only,flux_schnell,none,image_67.png,A person in a pet festival,88.827,1.0,0.8211,0.8191,0
+sd15_only,flux_schnell,75,image_67.png,A person in a butcher’s shop,39.683,0.9727,0.792,0.808,0
+sd15_only,flux_schnell,75,image_67.png,A person in a pet festival,39.683,0.9727,0.8211,0.7977,0
+sd15_only,flux_schnell,70,image_67.png,A person in a butcher’s shop,38.983,0.9696,0.792,0.8026,0
+sd15_only,flux_schnell,70,image_67.png,A person in a pet festival,38.983,0.9696,0.8211,0.8168,0
+sd15_only,flux_schnell,none,image_73.png,A person in a locker room,86.084,1.0,0.5987,0.6007,0
+sd15_only,flux_schnell,none,image_73.png,A person in a street market,86.084,1.0,0.616,0.6002,0
+sd15_only,flux_schnell,75,image_73.png,A person in a locker room,37.504,0.9552,0.5987,0.6197,0
+sd15_only,flux_schnell,75,image_73.png,A person in a street market,37.504,0.9552,0.616,0.6038,0
+sd15_only,flux_schnell,70,image_73.png,A person in a locker room,36.891,0.9502,0.5987,0.6099,0
+sd15_only,flux_schnell,70,image_73.png,A person in a street market,36.891,0.9502,0.616,0.5933,0
+sd15_only,flux_schnell,none,image_80.png,A person in a hot dog stand,83.598,1.0,0.6414,0.655,0
+sd15_only,flux_schnell,none,image_80.png,A person in a bridal fitting room,83.598,1.0,0.613,0.6309,0
+sd15_only,flux_schnell,75,image_80.png,A person in a hot dog stand,37.282,0.9632,0.6414,0.636,0
+sd15_only,flux_schnell,75,image_80.png,A person in a bridal fitting room,37.282,0.9632,0.613,0.598,0
+sd15_only,flux_schnell,70,image_80.png,A person in a hot dog stand,36.501,0.9573,0.6414,0.6207,0
+sd15_only,flux_schnell,70,image_80.png,A person in a bridal fitting room,36.501,0.9573,0.613,0.6329,0
+sd15_only,flux_schnell,none,image_82.png,A person in a beach resort,89.514,1.0,0.6759,0.6881,0
+sd15_only,flux_schnell,none,image_82.png,A person in a transit station,89.514,1.0,0.6694,0.6595,0
+sd15_only,flux_schnell,75,image_82.png,A person in a beach resort,40.209,0.9737,0.6759,0.6897,0
+sd15_only,flux_schnell,75,image_82.png,A person in a transit station,40.209,0.9737,0.6694,0.6554,0
+sd15_only,flux_schnell,70,image_82.png,A person in a beach resort,39.469,0.9697,0.6759,0.6623,0
+sd15_only,flux_schnell,70,image_82.png,A person in a transit station,39.469,0.9697,0.6694,0.6385,0
+sd15_only,flux_schnell,none,image_93.png,A person in a motel room,82.869,1.0,0.7245,0.7377,0
+sd15_only,flux_schnell,none,image_93.png,A person in a tech launch event,82.869,1.0,0.7406,0.7367,0
+sd15_only,flux_schnell,75,image_93.png,A person in a motel room,35.343,0.9631,0.7245,0.7172,0
+sd15_only,flux_schnell,75,image_93.png,A person in a tech launch event,35.343,0.9631,0.7406,0.7245,0
+sd15_only,flux_schnell,70,image_93.png,A person in a motel room,34.618,0.9582,0.7245,0.7311,0
+sd15_only,flux_schnell,70,image_93.png,A person in a tech launch event,34.618,0.9582,0.7406,0.736,0
+sd15_only,flux_schnell,none,image_94.png,A person in a computer lab,76.658,1.0,0.8604,0.8581,0
+sd15_only,flux_schnell,none,image_94.png,A person in a lobby,76.658,1.0,0.8475,0.8568,0
+sd15_only,flux_schnell,75,image_94.png,A person in a computer lab,37.508,0.9684,0.8604,0.8499,0
+sd15_only,flux_schnell,75,image_94.png,A person in a lobby,37.508,0.9684,0.8475,0.8504,0
+sd15_only,flux_schnell,70,image_94.png,A person in a computer lab,36.77,0.9642,0.8604,0.8335,0
+sd15_only,flux_schnell,70,image_94.png,A person in a lobby,36.77,0.9642,0.8475,0.8337,0
+sd15_only,flux_schnell,none,image_104.png,A person in a pet festival,87.855,1.0,0.7301,0.7372,0
+sd15_only,flux_schnell,none,image_104.png,A person in a slum,87.855,1.0,0.7281,0.7405,0
+sd15_only,flux_schnell,75,image_104.png,A person in a pet festival,38.819,0.9665,0.7301,0.7171,0
+sd15_only,flux_schnell,75,image_104.png,A person in a slum,38.819,0.9665,0.7281,0.7284,0
+sd15_only,flux_schnell,70,image_104.png,A person in a pet festival,38.204,0.9625,0.7301,0.7251,0
+sd15_only,flux_schnell,70,image_104.png,A person in a slum,38.204,0.9625,0.7281,0.7077,0
+sd15_only,flux_schnell,none,image_110.png,A person in a gym sauna,89.367,1.0,0.7371,0.7359,0
+sd15_only,flux_schnell,none,image_110.png,A person in a glass factory,89.367,1.0,0.7304,0.7321,0
+sd15_only,flux_schnell,75,image_110.png,A person in a gym sauna,39.318,0.9699,0.7371,0.7341,0
+sd15_only,flux_schnell,75,image_110.png,A person in a glass factory,39.318,0.9699,0.7304,0.7148,0
+sd15_only,flux_schnell,70,image_110.png,A person in a gym sauna,38.719,0.9665,0.7371,0.7244,0
+sd15_only,flux_schnell,70,image_110.png,A person in a glass factory,38.719,0.9665,0.7304,0.7558,0
+sd15_only,flux_schnell,none,image_115.png,A person in a tram stop,86.178,1.0,0.6251,0.6267,0
+sd15_only,flux_schnell,none,image_115.png,A person in a fish market,86.178,1.0,0.6143,0.6207,0
+sd15_only,flux_schnell,75,image_115.png,A person in a tram stop,36.618,0.959,0.6251,0.6315,0
+sd15_only,flux_schnell,75,image_115.png,A person in a fish market,36.618,0.959,0.6143,0.6242,0
+sd15_only,flux_schnell,70,image_115.png,A person in a tram stop,35.864,0.9532,0.6251,0.6217,0
+sd15_only,flux_schnell,70,image_115.png,A person in a fish market,35.864,0.9532,0.6143,0.6158,0
+sd15_only,flux_schnell,none,image_121.png,A person in a basement,88.546,1.0,0.7015,0.7076,0
+sd15_only,flux_schnell,none,image_121.png,A person in a dormitory,88.546,1.0,0.7079,0.7091,0
+sd15_only,flux_schnell,75,image_121.png,A person in a basement,39.151,0.968,0.7015,0.7013,0
+sd15_only,flux_schnell,75,image_121.png,A person in a dormitory,39.151,0.968,0.7079,0.7143,0
+sd15_only,flux_schnell,70,image_121.png,A person in a basement,38.559,0.964,0.7015,0.6939,0
+sd15_only,flux_schnell,70,image_121.png,A person in a dormitory,38.559,0.964,0.7079,0.6895,0
+sd15_only,flux_schnell,none,image_129.png,A person in a tech startup,86.221,1.0,0.7012,0.666,0
+sd15_only,flux_schnell,none,image_129.png,A person in a brewery tour,86.221,1.0,0.6924,0.7103,0
+sd15_only,flux_schnell,75,image_129.png,A person in a tech startup,37.872,0.9747,0.7012,0.7015,0
+sd15_only,flux_schnell,75,image_129.png,A person in a brewery tour,37.872,0.9747,0.6924,0.6793,0
+sd15_only,flux_schnell,70,image_129.png,A person in a tech startup,37.154,0.9712,0.7012,0.6732,0
+sd15_only,flux_schnell,70,image_129.png,A person in a brewery tour,37.154,0.9712,0.6924,0.6989,0
+sd15_only,flux_schnell,none,image_133.png,A person in a laundry room,81.012,1.0,0.3955,0.4251,0
+sd15_only,flux_schnell,none,image_133.png,A person in a tech startup,81.012,1.0,0.4407,0.4341,0
+sd15_only,flux_schnell,75,image_133.png,A person in a laundry room,34.986,0.962,0.3955,0.3973,0
+sd15_only,flux_schnell,75,image_133.png,A person in a tech startup,34.986,0.962,0.4407,0.4412,0
+sd15_only,flux_schnell,70,image_133.png,A person in a laundry room,34.354,0.9569,0.3955,0.4221,0
+sd15_only,flux_schnell,70,image_133.png,A person in a tech startup,34.354,0.9569,0.4407,0.3767,1
+sd15_only,flux_schnell,none,image_135.png,A person in a music studio,85.55,1.0,0.6627,0.6662,0
+sd15_only,flux_schnell,none,image_135.png,A person in a local crafts market,85.55,1.0,0.6753,0.6775,0
+sd15_only,flux_schnell,75,image_135.png,A person in a music studio,37.128,0.9565,0.6627,0.6534,0
+sd15_only,flux_schnell,75,image_135.png,A person in a local crafts market,37.128,0.9565,0.6753,0.6796,0
+sd15_only,flux_schnell,70,image_135.png,A person in a music studio,36.489,0.9514,0.6627,0.6906,0
+sd15_only,flux_schnell,70,image_135.png,A person in a local crafts market,36.489,0.9514,0.6753,0.6633,0
+sd15_only,flux_schnell,none,image_142.png,A person in a bowling alley,90.546,1.0,0.6375,0.6357,0
+sd15_only,flux_schnell,none,image_142.png,A person in a climbing wall,90.546,1.0,0.6353,0.6276,0
+sd15_only,flux_schnell,75,image_142.png,A person in a bowling alley,38.947,0.9624,0.6375,0.6064,0
+sd15_only,flux_schnell,75,image_142.png,A person in a climbing wall,38.947,0.9624,0.6353,0.6174,0
+sd15_only,flux_schnell,70,image_142.png,A person in a bowling alley,38.353,0.9578,0.6375,0.6265,0
+sd15_only,flux_schnell,70,image_142.png,A person in a climbing wall,38.353,0.9578,0.6353,0.6209,0
+sd15_only,flux_schnell,none,image_149.png,A person in a music and arts festival,90.458,1.0,0.6183,0.6046,0
+sd15_only,flux_schnell,none,image_149.png,A person in a costume party,90.458,1.0,0.602,0.6452,0
+sd15_only,flux_schnell,75,image_149.png,A person in a music and arts festival,40.573,0.9676,0.6183,0.6119,0
+sd15_only,flux_schnell,75,image_149.png,A person in a costume party,40.573,0.9676,0.602,0.6187,0
+sd15_only,flux_schnell,70,image_149.png,A person in a music and arts festival,39.959,0.9635,0.6183,0.597,0
+sd15_only,flux_schnell,70,image_149.png,A person in a costume party,39.959,0.9635,0.602,0.5938,0
+sd15_only,flux_schnell,none,image_151.png,A person in a charity art auction,73.329,1.0,0.7775,0.7545,0
+sd15_only,flux_schnell,none,image_151.png,A person in a customs checkpoint,73.329,1.0,0.7728,0.7716,0
+sd15_only,flux_schnell,75,image_151.png,A person in a charity art auction,39.517,0.9607,0.7775,0.7635,0
+sd15_only,flux_schnell,75,image_151.png,A person in a customs checkpoint,39.517,0.9607,0.7728,0.7563,0
+sd15_only,flux_schnell,70,image_151.png,A person in a charity art auction,38.926,0.9562,0.7775,0.7551,0
+sd15_only,flux_schnell,70,image_151.png,A person in a customs checkpoint,38.926,0.9562,0.7728,0.7357,0
+sd15_only,flux_schnell,none,image_152.png,A person in a city food tour,87.704,1.0,0.7027,0.7147,0
+sd15_only,flux_schnell,none,image_152.png,A person in a flea market,87.704,1.0,0.7009,0.7103,0
+sd15_only,flux_schnell,75,image_152.png,A person in a city food tour,38.405,0.9636,0.7027,0.6958,0
+sd15_only,flux_schnell,75,image_152.png,A person in a flea market,38.405,0.9636,0.7009,0.6994,0
+sd15_only,flux_schnell,70,image_152.png,A person in a city food tour,37.805,0.9592,0.7027,0.7026,0
+sd15_only,flux_schnell,70,image_152.png,A person in a flea market,37.805,0.9592,0.7009,0.7007,0
+sd15_only,flux_schnell,none,image_160.png,A person in a flower garden,55.168,0.9999,0.6059,0.6117,0
+sd15_only,flux_schnell,none,image_160.png,A person in a sports field,55.168,0.9999,0.6179,0.629,0
+sd15_only,flux_schnell,75,image_160.png,A person in a flower garden,36.635,0.9549,0.6059,0.6335,0
+sd15_only,flux_schnell,75,image_160.png,A person in a sports field,36.635,0.9549,0.6179,0.6127,0
+sd15_only,flux_schnell,70,image_160.png,A person in a flower garden,36.002,0.9497,0.6059,0.609,0
+sd15_only,flux_schnell,70,image_160.png,A person in a sports field,36.002,0.9497,0.6179,0.6353,0
+sd15_only,flux_schnell,none,image_163.png,A person in a slum,85.929,1.0,0.4092,0.3922,0
+sd15_only,flux_schnell,none,image_163.png,A person in a nightclub,85.929,1.0,0.4008,0.4054,0
+sd15_only,flux_schnell,75,image_163.png,A person in a slum,37.266,0.9674,0.4092,0.3878,0
+sd15_only,flux_schnell,75,image_163.png,A person in a nightclub,37.266,0.9674,0.4008,0.3954,0
+sd15_only,flux_schnell,70,image_163.png,A person in a slum,36.274,0.9608,0.4092,0.378,0
+sd15_only,flux_schnell,70,image_163.png,A person in a nightclub,36.274,0.9608,0.4008,0.4024,0
+sd15_only,flux_schnell,none,image_165.png,A person in a digital art gallery,86.975,1.0,0.6582,0.6442,0
+sd15_only,flux_schnell,none,image_165.png,A person in a cocktail bar,86.975,1.0,0.647,0.6436,0
+sd15_only,flux_schnell,75,image_165.png,A person in a digital art gallery,38.145,0.9638,0.6582,0.636,0
+sd15_only,flux_schnell,75,image_165.png,A person in a cocktail bar,38.145,0.9638,0.647,0.6367,0
+sd15_only,flux_schnell,70,image_165.png,A person in a digital art gallery,37.483,0.9594,0.6582,0.6324,0
+sd15_only,flux_schnell,70,image_165.png,A person in a cocktail bar,37.483,0.9594,0.647,0.6298,0
+sd15_only,flux_schnell,none,image_169.png,A person in a technology fair,90.012,1.0,0.6873,0.6776,0
+sd15_only,flux_schnell,none,image_169.png,A person in a food truck park,90.012,1.0,0.6907,0.6814,0
+sd15_only,flux_schnell,75,image_169.png,A person in a technology fair,38.645,0.9644,0.6873,0.6795,0
+sd15_only,flux_schnell,75,image_169.png,A person in a food truck park,38.645,0.9644,0.6907,0.68,0
+sd15_only,flux_schnell,70,image_169.png,A person in a technology fair,38.074,0.96,0.6873,0.6724,0
+sd15_only,flux_schnell,70,image_169.png,A person in a food truck park,38.074,0.96,0.6907,0.6695,0
+sd15_only,flux_schnell,none,image_170.png,A person in a casino lounge,58.789,0.9999,0.5509,0.5718,0
+sd15_only,flux_schnell,none,image_170.png,A person in a dance festival,58.789,0.9999,0.5833,0.5423,0
+sd15_only,flux_schnell,75,image_170.png,A person in a casino lounge,37.211,0.9664,0.5509,0.5461,0
+sd15_only,flux_schnell,75,image_170.png,A person in a dance festival,37.211,0.9664,0.5833,0.5585,0
+sd15_only,flux_schnell,70,image_170.png,A person in a casino lounge,36.662,0.9624,0.5509,0.5501,0
+sd15_only,flux_schnell,70,image_170.png,A person in a dance festival,36.662,0.9624,0.5833,0.5574,0
+sd15_only,flux_schnell,none,image_180.png,A person in a rooftop lounge,89.445,1.0,0.4846,0.4962,0
+sd15_only,flux_schnell,none,image_180.png,A person in a gym sauna,89.445,1.0,0.4939,0.4942,0
+sd15_only,flux_schnell,75,image_180.png,A person in a rooftop lounge,35.464,0.9489,0.4846,0.4761,0
+sd15_only,flux_schnell,75,image_180.png,A person in a gym sauna,35.464,0.9489,0.4939,0.4843,0
+sd15_only,flux_schnell,70,image_180.png,A person in a rooftop lounge,34.882,0.9425,0.4846,0.479,0
+sd15_only,flux_schnell,70,image_180.png,A person in a gym sauna,34.882,0.9425,0.4939,0.4957,0
+sd15_only,flux_schnell,none,image_181.png,A person in a butcher shop,91.779,1.0,0.6687,0.6846,0
+sd15_only,flux_schnell,none,image_181.png,A person in a highway rest stop,91.779,1.0,0.6908,0.6816,0
+sd15_only,flux_schnell,75,image_181.png,A person in a butcher shop,40.192,0.9658,0.6687,0.6975,0
+sd15_only,flux_schnell,75,image_181.png,A person in a highway rest stop,40.192,0.9658,0.6908,0.6854,0
+sd15_only,flux_schnell,70,image_181.png,A person in a butcher shop,39.617,0.9621,0.6687,0.6681,0
+sd15_only,flux_schnell,70,image_181.png,A person in a highway rest stop,39.617,0.9621,0.6908,0.6542,0
+sd15_only,flux_schnell,none,image_185.png,A person in a golf course clubhouse,89.413,1.0,0.5927,0.5954,0
+sd15_only,flux_schnell,none,image_185.png,A person in a rehab facility,89.413,1.0,0.5991,0.598,0
+sd15_only,flux_schnell,75,image_185.png,A person in a golf course clubhouse,38.523,0.968,0.5927,0.5894,0
+sd15_only,flux_schnell,75,image_185.png,A person in a rehab facility,38.523,0.968,0.5991,0.5815,0
+sd15_only,flux_schnell,70,image_185.png,A person in a golf course clubhouse,37.94,0.9642,0.5927,0.5905,0
+sd15_only,flux_schnell,70,image_185.png,A person in a rehab facility,37.94,0.9642,0.5991,0.5784,0
+sd15_only,flux_schnell,none,image_186.png,A person in a community arts and crafts market,78.125,1.0,0.6811,0.6783,0
+sd15_only,flux_schnell,none,image_186.png,A person in a church sanctuary,78.125,1.0,0.6818,0.6818,0
+sd15_only,flux_schnell,75,image_186.png,A person in a community arts and crafts market,35.882,0.9654,0.6811,0.6783,0
+sd15_only,flux_schnell,75,image_186.png,A person in a church sanctuary,35.882,0.9654,0.6818,0.6774,0
+sd15_only,flux_schnell,70,image_186.png,A person in a community arts and crafts market,35.1,0.9609,0.6811,0.6869,0
+sd15_only,flux_schnell,70,image_186.png,A person in a church sanctuary,35.1,0.9609,0.6818,0.6745,0
+sd15_only,flux_schnell,none,image_189.png,A person in a vintage arts fair,84.628,1.0,0.6159,0.6185,0
+sd15_only,flux_schnell,none,image_189.png,A person in a bowling alley,84.628,1.0,0.6166,0.6112,0
+sd15_only,flux_schnell,75,image_189.png,A person in a vintage arts fair,35.649,0.9561,0.6159,0.6029,0
+sd15_only,flux_schnell,75,image_189.png,A person in a bowling alley,35.649,0.9561,0.6166,0.6127,0
+sd15_only,flux_schnell,70,image_189.png,A person in a vintage arts fair,35.021,0.9513,0.6159,0.6051,0
+sd15_only,flux_schnell,70,image_189.png,A person in a bowling alley,35.021,0.9513,0.6166,0.6002,0
+sd15_only,flux_schnell,none,image_201.png,A person in a high-end restaurant,88.0,1.0,0.6549,0.6449,0
+sd15_only,flux_schnell,none,image_201.png,A person in a bowling alley,88.0,1.0,0.6566,0.6615,0
+sd15_only,flux_schnell,75,image_201.png,A person in a high-end restaurant,38.861,0.9611,0.6549,0.64,0
+sd15_only,flux_schnell,75,image_201.png,A person in a bowling alley,38.861,0.9611,0.6566,0.6542,0
+sd15_only,flux_schnell,70,image_201.png,A person in a high-end restaurant,38.32,0.9559,0.6549,0.6316,0
+sd15_only,flux_schnell,70,image_201.png,A person in a bowling alley,38.32,0.9559,0.6566,0.6514,0
+sd15_only,flux_schnell,none,image_203.png,A person in a gymnasium,88.822,1.0,0.8553,0.8477,0
+sd15_only,flux_schnell,none,image_203.png,A person in a brothel,88.822,1.0,0.8503,0.8432,0
+sd15_only,flux_schnell,75,image_203.png,A person in a gymnasium,40.105,0.9774,0.8553,0.8431,0
+sd15_only,flux_schnell,75,image_203.png,A person in a brothel,40.105,0.9774,0.8503,0.8378,0
+sd15_only,flux_schnell,70,image_203.png,A person in a gymnasium,39.505,0.9748,0.8553,0.8348,0
+sd15_only,flux_schnell,70,image_203.png,A person in a brothel,39.505,0.9748,0.8503,0.849,0
+sd15_only,flux_schnell,none,image_209.png,A person in a summer camp,85.107,1.0,0.6541,0.6494,0
+sd15_only,flux_schnell,none,image_209.png,A person in a TV studio,85.107,1.0,0.658,0.6518,0
+sd15_only,flux_schnell,75,image_209.png,A person in a summer camp,38.369,0.9667,0.6541,0.6221,0
+sd15_only,flux_schnell,75,image_209.png,A person in a TV studio,38.369,0.9667,0.658,0.635,0
+sd15_only,flux_schnell,70,image_209.png,A person in a summer camp,37.519,0.961,0.6541,0.6274,0
+sd15_only,flux_schnell,70,image_209.png,A person in a TV studio,37.519,0.961,0.658,0.6282,0
+sd15_only,flux_schnell,none,image_212.png,A person in a street vendor stand,67.684,1.0,0.8252,0.8232,0
+sd15_only,flux_schnell,none,image_212.png,A person in a dog park picnic,67.684,1.0,0.8233,0.8279,0
+sd15_only,flux_schnell,75,image_212.png,A person in a street vendor stand,38.251,0.9716,0.8252,0.8247,0
+sd15_only,flux_schnell,75,image_212.png,A person in a dog park picnic,38.251,0.9716,0.8233,0.816,0
+sd15_only,flux_schnell,70,image_212.png,A person in a street vendor stand,37.593,0.968,0.8252,0.8198,0
+sd15_only,flux_schnell,70,image_212.png,A person in a dog park picnic,37.593,0.968,0.8233,0.8279,0
+sd15_only,flux_schnell,none,image_213.png,A person in a science museum exhibit,90.413,1.0,0.6575,0.6543,0
+sd15_only,flux_schnell,none,image_213.png,A person in a woodworking shop,90.413,1.0,0.6526,0.6435,0
+sd15_only,flux_schnell,75,image_213.png,A person in a science museum exhibit,39.004,0.9698,0.6575,0.6444,0
+sd15_only,flux_schnell,75,image_213.png,A person in a woodworking shop,39.004,0.9698,0.6526,0.6368,0
+sd15_only,flux_schnell,70,image_213.png,A person in a science museum exhibit,38.463,0.966,0.6575,0.646,0
+sd15_only,flux_schnell,70,image_213.png,A person in a woodworking shop,38.463,0.966,0.6526,0.6334,0
+multimodel_h1a,flux_schnell,none,image_1.png,A person in a weekend market,50.412,0.9989,0.5447,0.545,0
+multimodel_h1a,flux_schnell,none,image_1.png,A person in a police evidence room,50.412,0.9989,0.5594,0.5297,0
+multimodel_h1a,flux_schnell,75,image_1.png,A person in a weekend market,38.228,0.9628,0.5447,0.5493,0
+multimodel_h1a,flux_schnell,75,image_1.png,A person in a police evidence room,38.228,0.9628,0.5594,0.5318,0
+multimodel_h1a,flux_schnell,70,image_1.png,A person in a weekend market,37.647,0.9585,0.5447,0.5534,0
+multimodel_h1a,flux_schnell,70,image_1.png,A person in a police evidence room,37.647,0.9585,0.5594,0.5299,0
+multimodel_h1a,flux_schnell,none,image_3.png,A person in a weekend market,45.07,0.9971,0.4884,0.4948,0
+multimodel_h1a,flux_schnell,none,image_3.png,A person in a TV newsroom,45.07,0.9971,0.4957,0.5082,0
+multimodel_h1a,flux_schnell,75,image_3.png,A person in a weekend market,36.676,0.958,0.4884,0.5002,0
+multimodel_h1a,flux_schnell,75,image_3.png,A person in a TV newsroom,36.676,0.958,0.4957,0.5131,0
+multimodel_h1a,flux_schnell,70,image_3.png,A person in a weekend market,36.154,0.9528,0.4884,0.5022,0
+multimodel_h1a,flux_schnell,70,image_3.png,A person in a TV newsroom,36.154,0.9528,0.4957,0.515,0
+multimodel_h1a,flux_schnell,none,image_5.png,A person in a church sanctuary,43.575,0.9946,0.758,0.7513,0
+multimodel_h1a,flux_schnell,none,image_5.png,A person in a charity art auction,43.575,0.9946,0.7675,0.7484,0
+multimodel_h1a,flux_schnell,75,image_5.png,A person in a church sanctuary,36.966,0.962,0.758,0.7571,0
+multimodel_h1a,flux_schnell,75,image_5.png,A person in a charity art auction,36.966,0.962,0.7675,0.7752,0
+multimodel_h1a,flux_schnell,70,image_5.png,A person in a church sanctuary,36.376,0.9574,0.758,0.7378,0
+multimodel_h1a,flux_schnell,70,image_5.png,A person in a charity art auction,36.376,0.9574,0.7675,0.7622,0
+multimodel_h1a,flux_schnell,none,image_9.png,A person in a sports field,42.984,0.9945,0.5995,0.6179,0
+multimodel_h1a,flux_schnell,none,image_9.png,A person in a waterside cafe,42.984,0.9945,0.5787,0.6125,0
+multimodel_h1a,flux_schnell,75,image_9.png,A person in a sports field,38.156,0.9685,0.5995,0.5401,1
+multimodel_h1a,flux_schnell,75,image_9.png,A person in a waterside cafe,38.156,0.9685,0.5787,0.5925,0
+multimodel_h1a,flux_schnell,70,image_9.png,A person in a sports field,37.502,0.9638,0.5995,0.6003,0
+multimodel_h1a,flux_schnell,70,image_9.png,A person in a waterside cafe,37.502,0.9638,0.5787,0.5975,0
+multimodel_h1a,flux_schnell,none,image_13.png,A person in a drive-in theater,47.54,0.9971,0.7591,0.7484,0
+multimodel_h1a,flux_schnell,none,image_13.png,A person in a shelter,47.54,0.9971,0.7454,0.7443,0
+multimodel_h1a,flux_schnell,75,image_13.png,A person in a drive-in theater,38.107,0.963,0.7591,0.7372,0
+multimodel_h1a,flux_schnell,75,image_13.png,A person in a shelter,38.107,0.963,0.7454,0.7367,0
+multimodel_h1a,flux_schnell,70,image_13.png,A person in a drive-in theater,37.483,0.959,0.7591,0.7283,0
+multimodel_h1a,flux_schnell,70,image_13.png,A person in a shelter,37.483,0.959,0.7454,0.729,0
+multimodel_h1a,flux_schnell,none,image_18.png,A person in a food truck park,42.291,0.9955,0.7709,0.7141,1
+multimodel_h1a,flux_schnell,none,image_18.png,A person in a ice cream parlor,42.291,0.9955,0.7693,0.739,0
+multimodel_h1a,flux_schnell,75,image_18.png,A person in a food truck park,37.064,0.9657,0.7709,0.7537,0
+multimodel_h1a,flux_schnell,75,image_18.png,A person in a ice cream parlor,37.064,0.9657,0.7693,0.7514,0
+multimodel_h1a,flux_schnell,70,image_18.png,A person in a food truck park,36.544,0.962,0.7709,0.7699,0
+multimodel_h1a,flux_schnell,70,image_18.png,A person in a ice cream parlor,36.544,0.962,0.7693,0.7495,0
+multimodel_h1a,flux_schnell,none,image_22.png,A person in a betting shop,43.42,0.9944,0.6089,0.592,0
+multimodel_h1a,flux_schnell,none,image_22.png,A person in a charity art auction,43.42,0.9944,0.6071,0.601,0
+multimodel_h1a,flux_schnell,75,image_22.png,A person in a betting shop,37.435,0.9604,0.6089,0.6128,0
+multimodel_h1a,flux_schnell,75,image_22.png,A person in a charity art auction,37.435,0.9604,0.6071,0.6106,0
+multimodel_h1a,flux_schnell,70,image_22.png,A person in a betting shop,36.994,0.9564,0.6089,0.5748,0
+multimodel_h1a,flux_schnell,70,image_22.png,A person in a charity art auction,36.994,0.9564,0.6071,0.6121,0
+multimodel_h1a,flux_schnell,none,image_23.png,A person in a shelter,38.516,0.9893,0.529,0.5359,0
+multimodel_h1a,flux_schnell,none,image_23.png,A person in a local art market,38.516,0.9893,0.5355,0.5284,0
+multimodel_h1a,flux_schnell,75,image_23.png,A person in a shelter,35.144,0.949,0.529,0.5306,0
+multimodel_h1a,flux_schnell,75,image_23.png,A person in a local art market,35.144,0.949,0.5355,0.5107,0
+multimodel_h1a,flux_schnell,70,image_23.png,A person in a shelter,34.801,0.9439,0.529,0.5312,0
+multimodel_h1a,flux_schnell,70,image_23.png,A person in a local art market,34.801,0.9439,0.5355,0.5318,0
+multimodel_h1a,flux_schnell,none,image_29.png,A person in a historic landmark event,46.2,0.9973,0.8268,0.8128,0
+multimodel_h1a,flux_schnell,none,image_29.png,A person in a gymnasium,46.2,0.9973,0.8256,0.8128,0
+multimodel_h1a,flux_schnell,75,image_29.png,A person in a historic landmark event,38.733,0.9735,0.8268,0.8127,0
+multimodel_h1a,flux_schnell,75,image_29.png,A person in a gymnasium,38.733,0.9735,0.8256,0.8165,0
+multimodel_h1a,flux_schnell,70,image_29.png,A person in a historic landmark event,38.153,0.9706,0.8268,0.8026,0
+multimodel_h1a,flux_schnell,70,image_29.png,A person in a gymnasium,38.153,0.9706,0.8256,0.8198,0
+multimodel_h1a,flux_schnell,none,image_32.png,A person in a local art market,43.178,0.9958,0.5862,0.5638,0
+multimodel_h1a,flux_schnell,none,image_32.png,A person in a pet festival,43.178,0.9958,0.5895,0.5728,0
+multimodel_h1a,flux_schnell,75,image_32.png,A person in a local art market,36.786,0.9607,0.5862,0.5447,0
+multimodel_h1a,flux_schnell,75,image_32.png,A person in a pet festival,36.786,0.9607,0.5895,0.5765,0
+multimodel_h1a,flux_schnell,70,image_32.png,A person in a local art market,36.302,0.9564,0.5862,0.5725,0
+multimodel_h1a,flux_schnell,70,image_32.png,A person in a pet festival,36.302,0.9564,0.5895,0.5524,0
+multimodel_h1a,flux_schnell,none,image_33.png,A person in a basement,43.344,0.9932,0.8139,0.8128,0
+multimodel_h1a,flux_schnell,none,image_33.png,A person in a movie set,43.344,0.9932,0.8157,0.8218,0
+multimodel_h1a,flux_schnell,75,image_33.png,A person in a basement,38.391,0.9625,0.8139,0.826,0
+multimodel_h1a,flux_schnell,75,image_33.png,A person in a movie set,38.391,0.9625,0.8157,0.8133,0
+multimodel_h1a,flux_schnell,70,image_33.png,A person in a basement,37.91,0.9583,0.8139,0.8045,0
+multimodel_h1a,flux_schnell,70,image_33.png,A person in a movie set,37.91,0.9583,0.8157,0.8069,0
+multimodel_h1a,flux_schnell,none,image_37.png,A person in a garage,43.003,0.9965,0.7483,0.7519,0
+multimodel_h1a,flux_schnell,none,image_37.png,A person in a tech startup launch,43.003,0.9965,0.7619,0.7454,0
+multimodel_h1a,flux_schnell,75,image_37.png,A person in a garage,37.702,0.9666,0.7483,0.7291,0
+multimodel_h1a,flux_schnell,75,image_37.png,A person in a tech startup launch,37.702,0.9666,0.7619,0.7266,0
+multimodel_h1a,flux_schnell,70,image_37.png,A person in a garage,37.308,0.9637,0.7483,0.7314,0
+multimodel_h1a,flux_schnell,70,image_37.png,A person in a tech startup launch,37.308,0.9637,0.7619,0.7332,0
+multimodel_h1a,flux_schnell,none,image_47.png,A person in a hot dog stand,46.341,0.9974,0.6911,0.7126,0
+multimodel_h1a,flux_schnell,none,image_47.png,A person in a creative writing event,46.341,0.9974,0.6847,0.6997,0
+multimodel_h1a,flux_schnell,75,image_47.png,A person in a hot dog stand,37.624,0.9657,0.6911,0.6798,0
+multimodel_h1a,flux_schnell,75,image_47.png,A person in a creative writing event,37.624,0.9657,0.6847,0.6888,0
+multimodel_h1a,flux_schnell,70,image_47.png,A person in a hot dog stand,37.104,0.9622,0.6911,0.6881,0
+multimodel_h1a,flux_schnell,70,image_47.png,A person in a creative writing event,37.104,0.9622,0.6847,0.6859,0
+multimodel_h1a,flux_schnell,none,image_49.png,A person in a music and arts festival,47.628,0.9947,0.6393,0.6011,0
+multimodel_h1a,flux_schnell,none,image_49.png,A person in a bus stop shelter,47.628,0.9947,0.6213,0.6059,0
+multimodel_h1a,flux_schnell,75,image_49.png,A person in a music and arts festival,37.953,0.9545,0.6393,0.5922,0
+multimodel_h1a,flux_schnell,75,image_49.png,A person in a bus stop shelter,37.953,0.9545,0.6213,0.5854,0
+multimodel_h1a,flux_schnell,70,image_49.png,A person in a music and arts festival,37.416,0.9498,0.6393,0.6027,0
+multimodel_h1a,flux_schnell,70,image_49.png,A person in a bus stop shelter,37.416,0.9498,0.6213,0.6109,0
+multimodel_h1a,flux_schnell,none,image_53.png,A person in a parking structure,45.519,0.9964,0.585,0.5856,0
+multimodel_h1a,flux_schnell,none,image_53.png,A person in a science museum exhibit,45.519,0.9964,0.5772,0.5696,0
+multimodel_h1a,flux_schnell,75,image_53.png,A person in a parking structure,37.874,0.962,0.585,0.561,0
+multimodel_h1a,flux_schnell,75,image_53.png,A person in a science museum exhibit,37.874,0.962,0.5772,0.5618,0
+multimodel_h1a,flux_schnell,70,image_53.png,A person in a parking structure,37.352,0.9567,0.585,0.5741,0
+multimodel_h1a,flux_schnell,70,image_53.png,A person in a science museum exhibit,37.352,0.9567,0.5772,0.5654,0
+multimodel_h1a,flux_schnell,none,image_57.png,A person in a gym sauna,45.04,0.9944,0.7722,0.7729,0
+multimodel_h1a,flux_schnell,none,image_57.png,A person in a community theater production,45.04,0.9944,0.7734,0.7586,0
+multimodel_h1a,flux_schnell,75,image_57.png,A person in a gym sauna,37.519,0.9628,0.7722,0.766,0
+multimodel_h1a,flux_schnell,75,image_57.png,A person in a community theater production,37.519,0.9628,0.7734,0.7533,0
+multimodel_h1a,flux_schnell,70,image_57.png,A person in a gym sauna,36.99,0.9591,0.7722,0.7482,0
+multimodel_h1a,flux_schnell,70,image_57.png,A person in a community theater production,36.99,0.9591,0.7734,0.7553,0
+multimodel_h1a,flux_schnell,none,image_58.png,A person in a costume shop,37.513,0.9861,0.6831,0.6799,0
+multimodel_h1a,flux_schnell,none,image_58.png,A person in a candle shop,37.513,0.9861,0.6898,0.671,0
+multimodel_h1a,flux_schnell,75,image_58.png,A person in a costume shop,32.804,0.9357,0.6831,0.6682,0
+multimodel_h1a,flux_schnell,75,image_58.png,A person in a candle shop,32.804,0.9357,0.6898,0.6587,0
+multimodel_h1a,flux_schnell,70,image_58.png,A person in a costume shop,32.389,0.9301,0.6831,0.6781,0
+multimodel_h1a,flux_schnell,70,image_58.png,A person in a candle shop,32.389,0.9301,0.6898,0.6647,0
+multimodel_h1a,flux_schnell,none,image_66.png,A person in a gym sauna,47.528,0.9975,0.8309,0.8263,0
+multimodel_h1a,flux_schnell,none,image_66.png,A person in a technology fair,47.528,0.9975,0.8255,0.8318,0
+multimodel_h1a,flux_schnell,75,image_66.png,A person in a gym sauna,39.689,0.9746,0.8309,0.8262,0
+multimodel_h1a,flux_schnell,75,image_66.png,A person in a technology fair,39.689,0.9746,0.8255,0.8137,0
+multimodel_h1a,flux_schnell,70,image_66.png,A person in a gym sauna,39.161,0.9722,0.8309,0.826,0
+multimodel_h1a,flux_schnell,70,image_66.png,A person in a technology fair,39.161,0.9722,0.8255,0.8236,0
+multimodel_h1a,flux_schnell,none,image_67.png,A person in a butcher’s shop,41.475,0.9938,0.7892,0.8181,0
+multimodel_h1a,flux_schnell,none,image_67.png,A person in a pet festival,41.475,0.9938,0.8095,0.7926,0
+multimodel_h1a,flux_schnell,75,image_67.png,A person in a butcher’s shop,37.506,0.9675,0.7892,0.7863,0
+multimodel_h1a,flux_schnell,75,image_67.png,A person in a pet festival,37.506,0.9675,0.8095,0.8029,0
+multimodel_h1a,flux_schnell,70,image_67.png,A person in a butcher’s shop,37.085,0.9643,0.7892,0.7842,0
+multimodel_h1a,flux_schnell,70,image_67.png,A person in a pet festival,37.085,0.9643,0.8095,0.7968,0
+multimodel_h1a,flux_schnell,none,image_73.png,A person in a locker room,47.907,0.9984,0.6029,0.619,0
+multimodel_h1a,flux_schnell,none,image_73.png,A person in a street market,47.907,0.9984,0.5976,0.5943,0
+multimodel_h1a,flux_schnell,75,image_73.png,A person in a locker room,37.237,0.9541,0.6029,0.609,0
+multimodel_h1a,flux_schnell,75,image_73.png,A person in a street market,37.237,0.9541,0.5976,0.6026,0
+multimodel_h1a,flux_schnell,70,image_73.png,A person in a locker room,36.656,0.949,0.6029,0.6057,0
+multimodel_h1a,flux_schnell,70,image_73.png,A person in a street market,36.656,0.949,0.5976,0.5976,0
+multimodel_h1a,flux_schnell,none,image_80.png,A person in a hot dog stand,42.9,0.9931,0.6458,0.6265,0
+multimodel_h1a,flux_schnell,none,image_80.png,A person in a bridal fitting room,42.9,0.9931,0.6325,0.6489,0
+multimodel_h1a,flux_schnell,75,image_80.png,A person in a hot dog stand,36.395,0.959,0.6458,0.642,0
+multimodel_h1a,flux_schnell,75,image_80.png,A person in a bridal fitting room,36.395,0.959,0.6325,0.6158,0
+multimodel_h1a,flux_schnell,70,image_80.png,A person in a hot dog stand,35.771,0.9534,0.6458,0.6297,0
+multimodel_h1a,flux_schnell,70,image_80.png,A person in a bridal fitting room,35.771,0.9534,0.6325,0.6268,0
+multimodel_h1a,flux_schnell,none,image_82.png,A person in a beach resort,40.996,0.9955,0.6738,0.6781,0
+multimodel_h1a,flux_schnell,none,image_82.png,A person in a transit station,40.996,0.9955,0.6802,0.6683,0
+multimodel_h1a,flux_schnell,75,image_82.png,A person in a beach resort,37.471,0.9701,0.6738,0.6656,0
+multimodel_h1a,flux_schnell,75,image_82.png,A person in a transit station,37.471,0.9701,0.6802,0.6557,0
+multimodel_h1a,flux_schnell,70,image_82.png,A person in a beach resort,37.061,0.9663,0.6738,0.6686,0
+multimodel_h1a,flux_schnell,70,image_82.png,A person in a transit station,37.061,0.9663,0.6802,0.6493,0
+multimodel_h1a,flux_schnell,none,image_93.png,A person in a motel room,41.862,0.9941,0.7123,0.7229,0
+multimodel_h1a,flux_schnell,none,image_93.png,A person in a tech launch event,41.862,0.9941,0.7316,0.7181,0
+multimodel_h1a,flux_schnell,75,image_93.png,A person in a motel room,34.695,0.9594,0.7123,0.7178,0
+multimodel_h1a,flux_schnell,75,image_93.png,A person in a tech launch event,34.695,0.9594,0.7316,0.7337,0
+multimodel_h1a,flux_schnell,70,image_93.png,A person in a motel room,34.09,0.9549,0.7123,0.7193,0
+multimodel_h1a,flux_schnell,70,image_93.png,A person in a tech launch event,34.09,0.9549,0.7316,0.7132,0
+multimodel_h1a,flux_schnell,none,image_94.png,A person in a computer lab,43.162,0.9943,0.8647,0.8523,0
+multimodel_h1a,flux_schnell,none,image_94.png,A person in a lobby,43.162,0.9943,0.8463,0.8528,0
+multimodel_h1a,flux_schnell,75,image_94.png,A person in a computer lab,36.57,0.9647,0.8647,0.8431,0
+multimodel_h1a,flux_schnell,75,image_94.png,A person in a lobby,36.57,0.9647,0.8463,0.8474,0
+multimodel_h1a,flux_schnell,70,image_94.png,A person in a computer lab,35.97,0.9605,0.8647,0.8372,0
+multimodel_h1a,flux_schnell,70,image_94.png,A person in a lobby,35.97,0.9605,0.8463,0.8287,0
+multimodel_h1a,flux_schnell,none,image_104.png,A person in a pet festival,47.933,0.9976,0.739,0.7291,0
+multimodel_h1a,flux_schnell,none,image_104.png,A person in a slum,47.933,0.9976,0.714,0.7246,0
+multimodel_h1a,flux_schnell,75,image_104.png,A person in a pet festival,38.502,0.9653,0.739,0.7141,0
+multimodel_h1a,flux_schnell,75,image_104.png,A person in a slum,38.502,0.9653,0.714,0.7132,0
+multimodel_h1a,flux_schnell,70,image_104.png,A person in a pet festival,37.915,0.9613,0.739,0.7177,0
+multimodel_h1a,flux_schnell,70,image_104.png,A person in a slum,37.915,0.9613,0.714,0.7057,0
+multimodel_h1a,flux_schnell,none,image_110.png,A person in a gym sauna,47.177,0.9975,0.7401,0.7435,0
+multimodel_h1a,flux_schnell,none,image_110.png,A person in a glass factory,47.177,0.9975,0.732,0.7311,0
+multimodel_h1a,flux_schnell,75,image_110.png,A person in a gym sauna,38.83,0.9683,0.7401,0.7174,0
+multimodel_h1a,flux_schnell,75,image_110.png,A person in a glass factory,38.83,0.9683,0.732,0.7222,0
+multimodel_h1a,flux_schnell,70,image_110.png,A person in a gym sauna,38.289,0.9647,0.7401,0.7307,0
+multimodel_h1a,flux_schnell,70,image_110.png,A person in a glass factory,38.289,0.9647,0.732,0.7205,0
+multimodel_h1a,flux_schnell,none,image_115.png,A person in a tram stop,44.678,0.9942,0.6037,0.6259,0
+multimodel_h1a,flux_schnell,none,image_115.png,A person in a fish market,44.678,0.9942,0.6137,0.6172,0
+multimodel_h1a,flux_schnell,75,image_115.png,A person in a tram stop,36.149,0.9561,0.6037,0.6176,0
+multimodel_h1a,flux_schnell,75,image_115.png,A person in a fish market,36.149,0.9561,0.6137,0.6165,0
+multimodel_h1a,flux_schnell,70,image_115.png,A person in a tram stop,35.456,0.95,0.6037,0.5989,0
+multimodel_h1a,flux_schnell,70,image_115.png,A person in a fish market,35.456,0.95,0.6137,0.6014,0
+multimodel_h1a,flux_schnell,none,image_121.png,A person in a basement,41.246,0.9957,0.7188,0.7099,0
+multimodel_h1a,flux_schnell,none,image_121.png,A person in a dormitory,41.246,0.9957,0.7008,0.702,0
+multimodel_h1a,flux_schnell,75,image_121.png,A person in a basement,37.018,0.9647,0.7188,0.706,0
+multimodel_h1a,flux_schnell,75,image_121.png,A person in a dormitory,37.018,0.9647,0.7008,0.6878,0
+multimodel_h1a,flux_schnell,70,image_121.png,A person in a basement,36.647,0.9607,0.7188,0.7029,0
+multimodel_h1a,flux_schnell,70,image_121.png,A person in a dormitory,36.647,0.9607,0.7008,0.6913,0
+multimodel_h1a,flux_schnell,none,image_129.png,A person in a tech startup,45.088,0.9969,0.6953,0.6946,0
+multimodel_h1a,flux_schnell,none,image_129.png,A person in a brewery tour,45.088,0.9969,0.6961,0.6925,0
+multimodel_h1a,flux_schnell,75,image_129.png,A person in a tech startup,37.344,0.9728,0.6953,0.7046,0
+multimodel_h1a,flux_schnell,75,image_129.png,A person in a brewery tour,37.344,0.9728,0.6961,0.7191,0
+multimodel_h1a,flux_schnell,70,image_129.png,A person in a tech startup,36.702,0.9694,0.6953,0.693,0
+multimodel_h1a,flux_schnell,70,image_129.png,A person in a brewery tour,36.702,0.9694,0.6961,0.659,0
+multimodel_h1a,flux_schnell,none,image_133.png,A person in a laundry room,42.067,0.9928,0.4374,0.4148,0
+multimodel_h1a,flux_schnell,none,image_133.png,A person in a tech startup,42.067,0.9928,0.4195,0.3921,0
+multimodel_h1a,flux_schnell,75,image_133.png,A person in a laundry room,34.442,0.9574,0.4374,0.4098,0
+multimodel_h1a,flux_schnell,75,image_133.png,A person in a tech startup,34.442,0.9574,0.4195,0.4262,0
+multimodel_h1a,flux_schnell,70,image_133.png,A person in a laundry room,33.868,0.9525,0.4374,0.3873,1
+multimodel_h1a,flux_schnell,70,image_133.png,A person in a tech startup,33.868,0.9525,0.4195,0.4003,0
+multimodel_h1a,flux_schnell,none,image_135.png,A person in a music studio,45.064,0.9954,0.6439,0.6688,0
+multimodel_h1a,flux_schnell,none,image_135.png,A person in a local crafts market,45.064,0.9954,0.6564,0.6506,0
+multimodel_h1a,flux_schnell,75,image_135.png,A person in a music studio,36.678,0.9538,0.6439,0.6602,0
+multimodel_h1a,flux_schnell,75,image_135.png,A person in a local crafts market,36.678,0.9538,0.6564,0.6659,0
+multimodel_h1a,flux_schnell,70,image_135.png,A person in a music studio,36.12,0.9491,0.6439,0.6477,0
+multimodel_h1a,flux_schnell,70,image_135.png,A person in a local crafts market,36.12,0.9491,0.6564,0.6687,0
+multimodel_h1a,flux_schnell,none,image_142.png,A person in a bowling alley,48.255,0.998,0.6389,0.6423,0
+multimodel_h1a,flux_schnell,none,image_142.png,A person in a climbing wall,48.255,0.998,0.6214,0.6277,0
+multimodel_h1a,flux_schnell,75,image_142.png,A person in a bowling alley,38.606,0.9612,0.6389,0.6278,0
+multimodel_h1a,flux_schnell,75,image_142.png,A person in a climbing wall,38.606,0.9612,0.6214,0.6362,0
+multimodel_h1a,flux_schnell,70,image_142.png,A person in a bowling alley,38.037,0.9567,0.6389,0.6038,0
+multimodel_h1a,flux_schnell,70,image_142.png,A person in a climbing wall,38.037,0.9567,0.6214,0.6256,0
+multimodel_h1a,flux_schnell,none,image_149.png,A person in a music and arts festival,43.115,0.9957,0.6239,0.6252,0
+multimodel_h1a,flux_schnell,none,image_149.png,A person in a costume party,43.115,0.9957,0.6082,0.581,0
+multimodel_h1a,flux_schnell,75,image_149.png,A person in a music and arts festival,38.608,0.9644,0.6239,0.5751,0
+multimodel_h1a,flux_schnell,75,image_149.png,A person in a costume party,38.608,0.9644,0.6082,0.6152,0
+multimodel_h1a,flux_schnell,70,image_149.png,A person in a music and arts festival,38.172,0.9602,0.6239,0.6123,0
+multimodel_h1a,flux_schnell,70,image_149.png,A person in a costume party,38.172,0.9602,0.6082,0.6001,0
+multimodel_h1a,flux_schnell,none,image_151.png,A person in a charity art auction,48.552,0.9975,0.7673,0.7836,0
+multimodel_h1a,flux_schnell,none,image_151.png,A person in a customs checkpoint,48.552,0.9975,0.7571,0.7617,0
+multimodel_h1a,flux_schnell,75,image_151.png,A person in a charity art auction,39.102,0.9591,0.7673,0.7608,0
+multimodel_h1a,flux_schnell,75,image_151.png,A person in a customs checkpoint,39.102,0.9591,0.7571,0.7399,0
+multimodel_h1a,flux_schnell,70,image_151.png,A person in a charity art auction,38.58,0.9546,0.7673,0.7619,0
+multimodel_h1a,flux_schnell,70,image_151.png,A person in a customs checkpoint,38.58,0.9546,0.7571,0.7644,0
+multimodel_h1a,flux_schnell,none,image_152.png,A person in a city food tour,47.015,0.998,0.704,0.7026,0
+multimodel_h1a,flux_schnell,none,image_152.png,A person in a flea market,47.015,0.998,0.6895,0.701,0
+multimodel_h1a,flux_schnell,75,image_152.png,A person in a city food tour,38.001,0.9624,0.704,0.7039,0
+multimodel_h1a,flux_schnell,75,image_152.png,A person in a flea market,38.001,0.9624,0.6895,0.6885,0
+multimodel_h1a,flux_schnell,70,image_152.png,A person in a city food tour,37.438,0.958,0.704,0.7146,0
+multimodel_h1a,flux_schnell,70,image_152.png,A person in a flea market,37.438,0.958,0.6895,0.69,0
+multimodel_h1a,flux_schnell,none,image_160.png,A person in a flower garden,40.989,0.9936,0.6135,0.6206,0
+multimodel_h1a,flux_schnell,none,image_160.png,A person in a sports field,40.989,0.9936,0.625,0.6148,0
+multimodel_h1a,flux_schnell,75,image_160.png,A person in a flower garden,35.522,0.9512,0.6135,0.6158,0
+multimodel_h1a,flux_schnell,75,image_160.png,A person in a sports field,35.522,0.9512,0.625,0.6107,0
+multimodel_h1a,flux_schnell,70,image_160.png,A person in a flower garden,35.025,0.9457,0.6135,0.6257,0
+multimodel_h1a,flux_schnell,70,image_160.png,A person in a sports field,35.025,0.9457,0.625,0.6123,0
+multimodel_h1a,flux_schnell,none,image_163.png,A person in a slum,40.964,0.9968,0.4178,0.3968,0
+multimodel_h1a,flux_schnell,none,image_163.png,A person in a nightclub,40.964,0.9968,0.3834,0.415,0
+multimodel_h1a,flux_schnell,75,image_163.png,A person in a slum,35.696,0.9647,0.4178,0.3843,0
+multimodel_h1a,flux_schnell,75,image_163.png,A person in a nightclub,35.696,0.9647,0.3834,0.3975,0
+multimodel_h1a,flux_schnell,70,image_163.png,A person in a slum,34.989,0.9583,0.4178,0.3953,0
+multimodel_h1a,flux_schnell,70,image_163.png,A person in a nightclub,34.989,0.9583,0.3834,0.3758,0
+multimodel_h1a,flux_schnell,none,image_165.png,A person in a digital art gallery,45.688,0.9971,0.6513,0.6528,0
+multimodel_h1a,flux_schnell,none,image_165.png,A person in a cocktail bar,45.688,0.9971,0.6419,0.6324,0
+multimodel_h1a,flux_schnell,75,image_165.png,A person in a digital art gallery,37.615,0.9618,0.6513,0.6417,0
+multimodel_h1a,flux_schnell,75,image_165.png,A person in a cocktail bar,37.615,0.9618,0.6419,0.6366,0
+multimodel_h1a,flux_schnell,70,image_165.png,A person in a digital art gallery,37.038,0.9573,0.6513,0.639,0
+multimodel_h1a,flux_schnell,70,image_165.png,A person in a cocktail bar,37.038,0.9573,0.6419,0.6156,0
+multimodel_h1a,flux_schnell,none,image_169.png,A person in a technology fair,45.332,0.9934,0.6866,0.6709,0
+multimodel_h1a,flux_schnell,none,image_169.png,A person in a food truck park,45.332,0.9934,0.682,0.6826,0
+multimodel_h1a,flux_schnell,75,image_169.png,A person in a technology fair,37.992,0.9602,0.6866,0.6748,0
+multimodel_h1a,flux_schnell,75,image_169.png,A person in a food truck park,37.992,0.9602,0.682,0.6641,0
+multimodel_h1a,flux_schnell,70,image_169.png,A person in a technology fair,37.504,0.956,0.6866,0.6652,0
+multimodel_h1a,flux_schnell,70,image_169.png,A person in a food truck park,37.504,0.956,0.682,0.6735,0
+multimodel_h1a,flux_schnell,none,image_170.png,A person in a casino lounge,39.83,0.9955,0.5571,0.5629,0
+multimodel_h1a,flux_schnell,none,image_170.png,A person in a dance festival,39.83,0.9955,0.573,0.5561,0
+multimodel_h1a,flux_schnell,75,image_170.png,A person in a casino lounge,35.335,0.9627,0.5571,0.5387,0
+multimodel_h1a,flux_schnell,75,image_170.png,A person in a dance festival,35.335,0.9627,0.573,0.5675,0
+multimodel_h1a,flux_schnell,70,image_170.png,A person in a casino lounge,34.988,0.9586,0.5571,0.5521,0
+multimodel_h1a,flux_schnell,70,image_170.png,A person in a dance festival,34.988,0.9586,0.573,0.5616,0
+multimodel_h1a,flux_schnell,none,image_180.png,A person in a rooftop lounge,39.018,0.9922,0.4829,0.5053,0
+multimodel_h1a,flux_schnell,none,image_180.png,A person in a gym sauna,39.018,0.9922,0.4941,0.4815,0
+multimodel_h1a,flux_schnell,75,image_180.png,A person in a rooftop lounge,33.957,0.9432,0.4829,0.4971,0
+multimodel_h1a,flux_schnell,75,image_180.png,A person in a gym sauna,33.957,0.9432,0.4941,0.4795,0
+multimodel_h1a,flux_schnell,70,image_180.png,A person in a rooftop lounge,33.546,0.9367,0.4829,0.4799,0
+multimodel_h1a,flux_schnell,70,image_180.png,A person in a gym sauna,33.546,0.9367,0.4941,0.4726,0
+multimodel_h1a,flux_schnell,none,image_181.png,A person in a butcher shop,50.728,0.9985,0.7001,0.6755,0
+multimodel_h1a,flux_schnell,none,image_181.png,A person in a highway rest stop,50.728,0.9985,0.7079,0.6933,0
+multimodel_h1a,flux_schnell,75,image_181.png,A person in a butcher shop,39.901,0.9647,0.7001,0.6758,0
+multimodel_h1a,flux_schnell,75,image_181.png,A person in a highway rest stop,39.901,0.9647,0.7079,0.6751,0
+multimodel_h1a,flux_schnell,70,image_181.png,A person in a butcher shop,39.385,0.961,0.7001,0.6969,0
+multimodel_h1a,flux_schnell,70,image_181.png,A person in a highway rest stop,39.385,0.961,0.7079,0.6675,0
+multimodel_h1a,flux_schnell,none,image_185.png,A person in a golf course clubhouse,49.211,0.9975,0.5906,0.5798,0
+multimodel_h1a,flux_schnell,none,image_185.png,A person in a rehab facility,49.211,0.9975,0.5884,0.5924,0
+multimodel_h1a,flux_schnell,75,image_185.png,A person in a golf course clubhouse,38.264,0.9661,0.5906,0.5884,0
+multimodel_h1a,flux_schnell,75,image_185.png,A person in a rehab facility,38.264,0.9661,0.5884,0.592,0
+multimodel_h1a,flux_schnell,70,image_185.png,A person in a golf course clubhouse,37.708,0.9623,0.5906,0.5957,0
+multimodel_h1a,flux_schnell,70,image_185.png,A person in a rehab facility,37.708,0.9623,0.5884,0.5825,0
+multimodel_h1a,flux_schnell,none,image_186.png,A person in a community arts and crafts market,38.322,0.9913,0.6798,0.6708,0
+multimodel_h1a,flux_schnell,none,image_186.png,A person in a church sanctuary,38.322,0.9913,0.6833,0.6736,0
+multimodel_h1a,flux_schnell,75,image_186.png,A person in a community arts and crafts market,34.485,0.9587,0.6798,0.6712,0
+multimodel_h1a,flux_schnell,75,image_186.png,A person in a church sanctuary,34.485,0.9587,0.6833,0.6763,0
+multimodel_h1a,flux_schnell,70,image_186.png,A person in a community arts and crafts market,33.941,0.9546,0.6798,0.6658,0
+multimodel_h1a,flux_schnell,70,image_186.png,A person in a church sanctuary,33.941,0.9546,0.6833,0.6647,0
+multimodel_h1a,flux_schnell,none,image_189.png,A person in a vintage arts fair,42.335,0.9948,0.6156,0.6013,0
+multimodel_h1a,flux_schnell,none,image_189.png,A person in a bowling alley,42.335,0.9948,0.6156,0.6175,0
+multimodel_h1a,flux_schnell,75,image_189.png,A person in a vintage arts fair,34.979,0.9528,0.6156,0.5982,0
+multimodel_h1a,flux_schnell,75,image_189.png,A person in a bowling alley,34.979,0.9528,0.6156,0.5865,0
+multimodel_h1a,flux_schnell,70,image_189.png,A person in a vintage arts fair,34.472,0.9482,0.6156,0.6029,0
+multimodel_h1a,flux_schnell,70,image_189.png,A person in a bowling alley,34.472,0.9482,0.6156,0.5908,0
+multimodel_h1a,flux_schnell,none,image_201.png,A person in a high-end restaurant,47.916,0.9974,0.6641,0.6511,0
+multimodel_h1a,flux_schnell,none,image_201.png,A person in a bowling alley,47.916,0.9974,0.6622,0.6458,0
+multimodel_h1a,flux_schnell,75,image_201.png,A person in a high-end restaurant,38.435,0.9595,0.6641,0.6391,0
+multimodel_h1a,flux_schnell,75,image_201.png,A person in a bowling alley,38.435,0.9595,0.6622,0.6567,0
+multimodel_h1a,flux_schnell,70,image_201.png,A person in a high-end restaurant,37.934,0.9544,0.6641,0.6502,0
+multimodel_h1a,flux_schnell,70,image_201.png,A person in a bowling alley,37.934,0.9544,0.6622,0.6675,0
+multimodel_h1a,flux_schnell,none,image_203.png,A person in a gymnasium,45.548,0.9966,0.8498,0.846,0
+multimodel_h1a,flux_schnell,none,image_203.png,A person in a brothel,45.548,0.9966,0.8461,0.844,0
+multimodel_h1a,flux_schnell,75,image_203.png,A person in a gymnasium,39.214,0.9749,0.8498,0.8386,0
+multimodel_h1a,flux_schnell,75,image_203.png,A person in a brothel,39.214,0.9749,0.8461,0.8262,0
+multimodel_h1a,flux_schnell,70,image_203.png,A person in a gymnasium,38.763,0.9724,0.8498,0.8419,0
+multimodel_h1a,flux_schnell,70,image_203.png,A person in a brothel,38.763,0.9724,0.8461,0.8357,0
+multimodel_h1a,flux_schnell,none,image_209.png,A person in a summer camp,47.179,0.9969,0.6636,0.6406,0
+multimodel_h1a,flux_schnell,none,image_209.png,A person in a TV studio,47.179,0.9969,0.6593,0.6499,0
+multimodel_h1a,flux_schnell,75,image_209.png,A person in a summer camp,37.956,0.9646,0.6636,0.6512,0
+multimodel_h1a,flux_schnell,75,image_209.png,A person in a TV studio,37.956,0.9646,0.6593,0.6325,0
+multimodel_h1a,flux_schnell,70,image_209.png,A person in a summer camp,37.167,0.9587,0.6636,0.6521,0
+multimodel_h1a,flux_schnell,70,image_209.png,A person in a TV studio,37.167,0.9587,0.6593,0.6363,0
+multimodel_h1a,flux_schnell,none,image_212.png,A person in a street vendor stand,45.791,0.9952,0.8245,0.8245,0
+multimodel_h1a,flux_schnell,none,image_212.png,A person in a dog park picnic,45.791,0.9952,0.8254,0.8269,0
+multimodel_h1a,flux_schnell,75,image_212.png,A person in a street vendor stand,37.725,0.9686,0.8245,0.819,0
+multimodel_h1a,flux_schnell,75,image_212.png,A person in a dog park picnic,37.725,0.9686,0.8254,0.8069,0
+multimodel_h1a,flux_schnell,70,image_212.png,A person in a street vendor stand,37.144,0.9651,0.8245,0.8124,0
+multimodel_h1a,flux_schnell,70,image_212.png,A person in a dog park picnic,37.144,0.9651,0.8254,0.8185,0
+multimodel_h1a,flux_schnell,none,image_213.png,A person in a science museum exhibit,49.051,0.9973,0.632,0.6278,0
+multimodel_h1a,flux_schnell,none,image_213.png,A person in a woodworking shop,49.051,0.9973,0.6369,0.6405,0
+multimodel_h1a,flux_schnell,75,image_213.png,A person in a science museum exhibit,38.702,0.9678,0.632,0.6265,0
+multimodel_h1a,flux_schnell,75,image_213.png,A person in a woodworking shop,38.702,0.9678,0.6369,0.6297,0
+multimodel_h1a,flux_schnell,70,image_213.png,A person in a science museum exhibit,38.203,0.9641,0.632,0.6444,0
+multimodel_h1a,flux_schnell,70,image_213.png,A person in a woodworking shop,38.203,0.9641,0.6369,0.6242,0
+sd15_only,sd35,none,image_1.png,A person in a weekend market,89.232,1.0,0.2577,0.2535,0
+sd15_only,sd35,none,image_1.png,A person in a police evidence room,89.232,1.0,0.2544,0.2535,0
+sd15_only,sd35,75,image_1.png,A person in a weekend market,38.408,0.9634,0.2577,0.251,0
+sd15_only,sd35,75,image_1.png,A person in a police evidence room,38.408,0.9634,0.2544,0.2524,0
+sd15_only,sd35,70,image_1.png,A person in a weekend market,37.81,0.959,0.2577,0.2513,0
+sd15_only,sd35,70,image_1.png,A person in a police evidence room,37.81,0.959,0.2544,0.2519,0
+sd15_only,sd35,none,image_3.png,A person in a weekend market,86.853,1.0,0.2344,0.234,0
+sd15_only,sd35,none,image_3.png,A person in a TV newsroom,86.853,1.0,0.2333,0.2348,0
+sd15_only,sd35,75,image_3.png,A person in a weekend market,37.249,0.9599,0.2344,0.2278,0
+sd15_only,sd35,75,image_3.png,A person in a TV newsroom,37.249,0.9599,0.2333,0.233,0
+sd15_only,sd35,70,image_3.png,A person in a weekend market,36.643,0.9545,0.2344,0.2338,0
+sd15_only,sd35,70,image_3.png,A person in a TV newsroom,36.643,0.9545,0.2333,0.2309,0
+sd15_only,sd35,none,image_5.png,A person in a church sanctuary,86.978,1.0,0.2398,0.2365,0
+sd15_only,sd35,none,image_5.png,A person in a charity art auction,86.978,1.0,0.2379,0.2405,0
+sd15_only,sd35,75,image_5.png,A person in a church sanctuary,37.806,0.9654,0.2398,0.2376,0
+sd15_only,sd35,75,image_5.png,A person in a charity art auction,37.806,0.9654,0.2379,0.2355,0
+sd15_only,sd35,70,image_5.png,A person in a church sanctuary,37.087,0.9606,0.2398,0.2341,0
+sd15_only,sd35,70,image_5.png,A person in a charity art auction,37.087,0.9606,0.2379,0.2352,0
+sd15_only,sd35,none,image_9.png,A person in a sports field,57.011,0.9996,0.1816,0.1802,0
+sd15_only,sd35,none,image_9.png,A person in a waterside cafe,57.011,0.9996,0.1817,0.1815,0
+sd15_only,sd35,75,image_9.png,A person in a sports field,39.42,0.9719,0.1816,0.1771,0
+sd15_only,sd35,75,image_9.png,A person in a waterside cafe,39.42,0.9719,0.1817,0.1777,0
+sd15_only,sd35,70,image_9.png,A person in a sports field,38.575,0.9674,0.1816,0.1785,0
+sd15_only,sd35,70,image_9.png,A person in a waterside cafe,38.575,0.9674,0.1817,0.1781,0
+sd15_only,sd35,none,image_13.png,A person in a drive-in theater,89.086,1.0,0.1903,0.1912,0
+sd15_only,sd35,none,image_13.png,A person in a shelter,89.086,1.0,0.1922,0.1899,0
+sd15_only,sd35,75,image_13.png,A person in a drive-in theater,38.48,0.9651,0.1903,0.1881,0
+sd15_only,sd35,75,image_13.png,A person in a shelter,38.48,0.9651,0.1922,0.1872,0
+sd15_only,sd35,70,image_13.png,A person in a drive-in theater,37.811,0.9611,0.1903,0.1856,0
+sd15_only,sd35,70,image_13.png,A person in a shelter,37.811,0.9611,0.1922,0.1899,0
+sd15_only,sd35,none,image_18.png,A person in a food truck park,87.81,1.0,0.261,0.2645,0
+sd15_only,sd35,none,image_18.png,A person in a ice cream parlor,87.81,1.0,0.2626,0.2638,0
+sd15_only,sd35,75,image_18.png,A person in a food truck park,38.419,0.9691,0.261,0.2619,0
+sd15_only,sd35,75,image_18.png,A person in a ice cream parlor,38.419,0.9691,0.2626,0.2608,0
+sd15_only,sd35,70,image_18.png,A person in a food truck park,37.703,0.9652,0.261,0.2619,0
+sd15_only,sd35,70,image_18.png,A person in a ice cream parlor,37.703,0.9652,0.2626,0.2594,0
+sd15_only,sd35,none,image_22.png,A person in a betting shop,61.366,0.9998,0.1647,0.1591,0
+sd15_only,sd35,none,image_22.png,A person in a charity art auction,61.366,0.9998,0.1637,0.1622,0
+sd15_only,sd35,75,image_22.png,A person in a betting shop,38.69,0.9647,0.1647,0.1579,0
+sd15_only,sd35,75,image_22.png,A person in a charity art auction,38.69,0.9647,0.1637,0.1582,0
+sd15_only,sd35,70,image_22.png,A person in a betting shop,38.106,0.9606,0.1647,0.1586,0
+sd15_only,sd35,70,image_22.png,A person in a charity art auction,38.106,0.9606,0.1637,0.1588,0
+sd15_only,sd35,none,image_23.png,A person in a shelter,84.291,1.0,0.2348,0.2317,0
+sd15_only,sd35,none,image_23.png,A person in a local art market,84.291,1.0,0.2327,0.2311,0
+sd15_only,sd35,75,image_23.png,A person in a shelter,37.597,0.9565,0.2348,0.2268,0
+sd15_only,sd35,75,image_23.png,A person in a local art market,37.597,0.9565,0.2327,0.2292,0
+sd15_only,sd35,70,image_23.png,A person in a shelter,37.016,0.9514,0.2348,0.2278,0
+sd15_only,sd35,70,image_23.png,A person in a local art market,37.016,0.9514,0.2327,0.2284,0
+sd15_only,sd35,none,image_29.png,A person in a historic landmark event,87.776,1.0,0.2512,0.2537,0
+sd15_only,sd35,none,image_29.png,A person in a gymnasium,87.776,1.0,0.2494,0.2495,0
+sd15_only,sd35,75,image_29.png,A person in a historic landmark event,39.314,0.9752,0.2512,0.2458,0
+sd15_only,sd35,75,image_29.png,A person in a gymnasium,39.314,0.9752,0.2494,0.2474,0
+sd15_only,sd35,70,image_29.png,A person in a historic landmark event,38.652,0.9724,0.2512,0.2468,0
+sd15_only,sd35,70,image_29.png,A person in a gymnasium,38.652,0.9724,0.2494,0.2471,0
+sd15_only,sd35,none,image_32.png,A person in a local art market,86.915,1.0,0.2058,0.2047,0
+sd15_only,sd35,none,image_32.png,A person in a pet festival,86.915,1.0,0.2074,0.2055,0
+sd15_only,sd35,75,image_32.png,A person in a local art market,37.775,0.9637,0.2058,0.2028,0
+sd15_only,sd35,75,image_32.png,A person in a pet festival,37.775,0.9637,0.2074,0.2035,0
+sd15_only,sd35,70,image_32.png,A person in a local art market,37.18,0.9593,0.2058,0.2042,0
+sd15_only,sd35,70,image_32.png,A person in a pet festival,37.18,0.9593,0.2074,0.203,0
+sd15_only,sd35,none,image_33.png,A person in a basement,80.061,1.0,0.2362,0.2364,0
+sd15_only,sd35,none,image_33.png,A person in a movie set,80.061,1.0,0.2378,0.2349,0
+sd15_only,sd35,75,image_33.png,A person in a basement,39.657,0.9671,0.2362,0.2325,0
+sd15_only,sd35,75,image_33.png,A person in a movie set,39.657,0.9671,0.2378,0.233,0
+sd15_only,sd35,70,image_33.png,A person in a basement,39.04,0.9629,0.2362,0.2334,0
+sd15_only,sd35,70,image_33.png,A person in a movie set,39.04,0.9629,0.2378,0.2317,0
+sd15_only,sd35,none,image_37.png,A person in a garage,78.357,1.0,0.2663,0.261,0
+sd15_only,sd35,none,image_37.png,A person in a tech startup launch,78.357,1.0,0.2644,0.2656,0
+sd15_only,sd35,75,image_37.png,A person in a garage,39.036,0.9693,0.2663,0.2591,0
+sd15_only,sd35,75,image_37.png,A person in a tech startup launch,39.036,0.9693,0.2644,0.2609,0
+sd15_only,sd35,70,image_37.png,A person in a garage,38.47,0.9664,0.2663,0.2589,0
+sd15_only,sd35,70,image_37.png,A person in a tech startup launch,38.47,0.9664,0.2644,0.2604,0
+sd15_only,sd35,none,image_47.png,A person in a hot dog stand,87.729,1.0,0.2305,0.2316,0
+sd15_only,sd35,none,image_47.png,A person in a creative writing event,87.729,1.0,0.2312,0.2349,0
+sd15_only,sd35,75,image_47.png,A person in a hot dog stand,38.041,0.9673,0.2305,0.2292,0
+sd15_only,sd35,75,image_47.png,A person in a creative writing event,38.041,0.9673,0.2312,0.2294,0
+sd15_only,sd35,70,image_47.png,A person in a hot dog stand,37.462,0.9638,0.2305,0.2282,0
+sd15_only,sd35,70,image_47.png,A person in a creative writing event,37.462,0.9638,0.2312,0.2293,0
+sd15_only,sd35,none,image_49.png,A person in a music and arts festival,86.681,1.0,0.2664,0.2661,0
+sd15_only,sd35,none,image_49.png,A person in a bus stop shelter,86.681,1.0,0.2704,0.2698,0
+sd15_only,sd35,75,image_49.png,A person in a music and arts festival,38.351,0.9596,0.2664,0.2606,0
+sd15_only,sd35,75,image_49.png,A person in a bus stop shelter,38.351,0.9596,0.2704,0.2618,0
+sd15_only,sd35,70,image_49.png,A person in a music and arts festival,37.745,0.9543,0.2664,0.2599,0
+sd15_only,sd35,70,image_49.png,A person in a bus stop shelter,37.745,0.9543,0.2704,0.2614,0
+sd15_only,sd35,none,image_53.png,A person in a parking structure,87.27,1.0,0.1969,0.1961,0
+sd15_only,sd35,none,image_53.png,A person in a science museum exhibit,87.27,1.0,0.1974,0.1945,0
+sd15_only,sd35,75,image_53.png,A person in a parking structure,38.573,0.9643,0.1969,0.1941,0
+sd15_only,sd35,75,image_53.png,A person in a science museum exhibit,38.573,0.9643,0.1974,0.1951,0
+sd15_only,sd35,70,image_53.png,A person in a parking structure,37.943,0.959,0.1969,0.1948,0
+sd15_only,sd35,70,image_53.png,A person in a science museum exhibit,37.943,0.959,0.1974,0.1939,0
+sd15_only,sd35,none,image_57.png,A person in a gym sauna,88.102,1.0,0.2413,0.2403,0
+sd15_only,sd35,none,image_57.png,A person in a community theater production,88.102,1.0,0.2434,0.2429,0
+sd15_only,sd35,75,image_57.png,A person in a gym sauna,38.139,0.9664,0.2413,0.2373,0
+sd15_only,sd35,75,image_57.png,A person in a community theater production,38.139,0.9664,0.2434,0.2355,0
+sd15_only,sd35,70,image_57.png,A person in a gym sauna,37.534,0.9627,0.2413,0.2373,0
+sd15_only,sd35,70,image_57.png,A person in a community theater production,37.534,0.9627,0.2434,0.2358,0
+sd15_only,sd35,none,image_58.png,A person in a costume shop,75.955,1.0,0.2531,0.2524,0
+sd15_only,sd35,none,image_58.png,A person in a candle shop,75.955,1.0,0.2509,0.2505,0
+sd15_only,sd35,75,image_58.png,A person in a costume shop,34.496,0.9444,0.2531,0.2478,0
+sd15_only,sd35,75,image_58.png,A person in a candle shop,34.496,0.9444,0.2509,0.2465,0
+sd15_only,sd35,70,image_58.png,A person in a costume shop,33.856,0.9381,0.2531,0.2478,0
+sd15_only,sd35,70,image_58.png,A person in a candle shop,33.856,0.9381,0.2509,0.2462,0
+sd15_only,sd35,none,image_66.png,A person in a gym sauna,89.388,1.0,0.2457,0.2452,0
+sd15_only,sd35,none,image_66.png,A person in a technology fair,89.388,1.0,0.2487,0.2453,0
+sd15_only,sd35,75,image_66.png,A person in a gym sauna,40.2,0.9763,0.2457,0.2444,0
+sd15_only,sd35,75,image_66.png,A person in a technology fair,40.2,0.9763,0.2487,0.244,0
+sd15_only,sd35,70,image_66.png,A person in a gym sauna,39.578,0.9737,0.2457,0.2438,0
+sd15_only,sd35,70,image_66.png,A person in a technology fair,39.578,0.9737,0.2487,0.2424,0
+sd15_only,sd35,none,image_67.png,A person in a butcher’s shop,88.827,1.0,0.2459,0.2431,0
+sd15_only,sd35,none,image_67.png,A person in a pet festival,88.827,1.0,0.2423,0.2418,0
+sd15_only,sd35,75,image_67.png,A person in a butcher’s shop,39.683,0.9727,0.2459,0.2397,0
+sd15_only,sd35,75,image_67.png,A person in a pet festival,39.683,0.9727,0.2423,0.2392,0
+sd15_only,sd35,70,image_67.png,A person in a butcher’s shop,38.983,0.9696,0.2459,0.2386,0
+sd15_only,sd35,70,image_67.png,A person in a pet festival,38.983,0.9696,0.2423,0.2393,0
+sd15_only,sd35,none,image_73.png,A person in a locker room,86.084,1.0,0.2176,0.2196,0
+sd15_only,sd35,none,image_73.png,A person in a street market,86.084,1.0,0.2177,0.2156,0
+sd15_only,sd35,75,image_73.png,A person in a locker room,37.504,0.9552,0.2176,0.2128,0
+sd15_only,sd35,75,image_73.png,A person in a street market,37.504,0.9552,0.2177,0.2124,0
+sd15_only,sd35,70,image_73.png,A person in a locker room,36.891,0.9502,0.2176,0.2122,0
+sd15_only,sd35,70,image_73.png,A person in a street market,36.891,0.9502,0.2177,0.2149,0
+sd15_only,sd35,none,image_80.png,A person in a hot dog stand,83.598,1.0,0.2281,0.2296,0
+sd15_only,sd35,none,image_80.png,A person in a bridal fitting room,83.598,1.0,0.2254,0.2278,0
+sd15_only,sd35,75,image_80.png,A person in a hot dog stand,37.282,0.9632,0.2281,0.2262,0
+sd15_only,sd35,75,image_80.png,A person in a bridal fitting room,37.282,0.9632,0.2254,0.2229,0
+sd15_only,sd35,70,image_80.png,A person in a hot dog stand,36.501,0.9573,0.2281,0.2224,0
+sd15_only,sd35,70,image_80.png,A person in a bridal fitting room,36.501,0.9573,0.2254,0.2259,0
+sd15_only,sd35,none,image_82.png,A person in a beach resort,89.514,1.0,0.1991,0.1985,0
+sd15_only,sd35,none,image_82.png,A person in a transit station,89.514,1.0,0.1991,0.199,0
+sd15_only,sd35,75,image_82.png,A person in a beach resort,40.209,0.9737,0.1991,0.1942,0
+sd15_only,sd35,75,image_82.png,A person in a transit station,40.209,0.9737,0.1991,0.1942,0
+sd15_only,sd35,70,image_82.png,A person in a beach resort,39.469,0.9697,0.1991,0.1944,0
+sd15_only,sd35,70,image_82.png,A person in a transit station,39.469,0.9697,0.1991,0.1926,0
+sd15_only,sd35,none,image_93.png,A person in a motel room,82.869,1.0,0.2809,0.2816,0
+sd15_only,sd35,none,image_93.png,A person in a tech launch event,82.869,1.0,0.283,0.2788,0
+sd15_only,sd35,75,image_93.png,A person in a motel room,35.343,0.9631,0.2809,0.281,0
+sd15_only,sd35,75,image_93.png,A person in a tech launch event,35.343,0.9631,0.283,0.2786,0
+sd15_only,sd35,70,image_93.png,A person in a motel room,34.618,0.9582,0.2809,0.2813,0
+sd15_only,sd35,70,image_93.png,A person in a tech launch event,34.618,0.9582,0.283,0.2811,0
+sd15_only,sd35,none,image_94.png,A person in a computer lab,76.658,1.0,0.2655,0.2646,0
+sd15_only,sd35,none,image_94.png,A person in a lobby,76.658,1.0,0.2677,0.2663,0
+sd15_only,sd35,75,image_94.png,A person in a computer lab,37.508,0.9684,0.2655,0.2622,0
+sd15_only,sd35,75,image_94.png,A person in a lobby,37.508,0.9684,0.2677,0.27,0
+sd15_only,sd35,70,image_94.png,A person in a computer lab,36.77,0.9642,0.2655,0.2618,0
+sd15_only,sd35,70,image_94.png,A person in a lobby,36.77,0.9642,0.2677,0.2646,0
+sd15_only,sd35,none,image_104.png,A person in a pet festival,87.855,1.0,0.1965,0.1933,0
+sd15_only,sd35,none,image_104.png,A person in a slum,87.855,1.0,0.1981,0.1964,0
+sd15_only,sd35,75,image_104.png,A person in a pet festival,38.819,0.9665,0.1965,0.1988,0
+sd15_only,sd35,75,image_104.png,A person in a slum,38.819,0.9665,0.1981,0.1934,0
+sd15_only,sd35,70,image_104.png,A person in a pet festival,38.204,0.9625,0.1965,0.1936,0
+sd15_only,sd35,70,image_104.png,A person in a slum,38.204,0.9625,0.1981,0.1979,0
+sd15_only,sd35,none,image_110.png,A person in a gym sauna,89.367,1.0,0.255,0.2535,0
+sd15_only,sd35,none,image_110.png,A person in a glass factory,89.367,1.0,0.2539,0.2556,0
+sd15_only,sd35,75,image_110.png,A person in a gym sauna,39.318,0.9699,0.255,0.2536,0
+sd15_only,sd35,75,image_110.png,A person in a glass factory,39.318,0.9699,0.2539,0.2529,0
+sd15_only,sd35,70,image_110.png,A person in a gym sauna,38.719,0.9665,0.255,0.2531,0
+sd15_only,sd35,70,image_110.png,A person in a glass factory,38.719,0.9665,0.2539,0.2561,0
+sd15_only,sd35,none,image_115.png,A person in a tram stop,86.178,1.0,0.27,0.2697,0
+sd15_only,sd35,none,image_115.png,A person in a fish market,86.178,1.0,0.268,0.2672,0
+sd15_only,sd35,75,image_115.png,A person in a tram stop,36.618,0.959,0.27,0.2699,0
+sd15_only,sd35,75,image_115.png,A person in a fish market,36.618,0.959,0.268,0.2685,0
+sd15_only,sd35,70,image_115.png,A person in a tram stop,35.864,0.9532,0.27,0.2677,0
+sd15_only,sd35,70,image_115.png,A person in a fish market,35.864,0.9532,0.268,0.267,0
+sd15_only,sd35,none,image_121.png,A person in a basement,88.546,1.0,0.2206,0.223,0
+sd15_only,sd35,none,image_121.png,A person in a dormitory,88.546,1.0,0.2187,0.221,0
+sd15_only,sd35,75,image_121.png,A person in a basement,39.151,0.968,0.2206,0.2193,0
+sd15_only,sd35,75,image_121.png,A person in a dormitory,39.151,0.968,0.2187,0.2157,0
+sd15_only,sd35,70,image_121.png,A person in a basement,38.559,0.964,0.2206,0.2184,0
+sd15_only,sd35,70,image_121.png,A person in a dormitory,38.559,0.964,0.2187,0.2161,0
+sd15_only,sd35,none,image_129.png,A person in a tech startup,86.221,1.0,0.2731,0.2718,0
+sd15_only,sd35,none,image_129.png,A person in a brewery tour,86.221,1.0,0.2717,0.273,0
+sd15_only,sd35,75,image_129.png,A person in a tech startup,37.872,0.9747,0.2731,0.2701,0
+sd15_only,sd35,75,image_129.png,A person in a brewery tour,37.872,0.9747,0.2717,0.269,0
+sd15_only,sd35,70,image_129.png,A person in a tech startup,37.154,0.9712,0.2731,0.2678,0
+sd15_only,sd35,70,image_129.png,A person in a brewery tour,37.154,0.9712,0.2717,0.2697,0
+sd15_only,sd35,none,image_133.png,A person in a laundry room,81.012,1.0,0.2079,0.2076,0
+sd15_only,sd35,none,image_133.png,A person in a tech startup,81.012,1.0,0.208,0.2076,0
+sd15_only,sd35,75,image_133.png,A person in a laundry room,34.986,0.962,0.2079,0.2045,0
+sd15_only,sd35,75,image_133.png,A person in a tech startup,34.986,0.962,0.208,0.2055,0
+sd15_only,sd35,70,image_133.png,A person in a laundry room,34.354,0.9569,0.2079,0.2047,0
+sd15_only,sd35,70,image_133.png,A person in a tech startup,34.354,0.9569,0.208,0.2045,0
+sd15_only,sd35,none,image_135.png,A person in a music studio,85.55,1.0,0.1799,0.181,0
+sd15_only,sd35,none,image_135.png,A person in a local crafts market,85.55,1.0,0.1811,0.1822,0
+sd15_only,sd35,75,image_135.png,A person in a music studio,37.128,0.9565,0.1799,0.1789,0
+sd15_only,sd35,75,image_135.png,A person in a local crafts market,37.128,0.9565,0.1811,0.177,0
+sd15_only,sd35,70,image_135.png,A person in a music studio,36.489,0.9514,0.1799,0.1766,0
+sd15_only,sd35,70,image_135.png,A person in a local crafts market,36.489,0.9514,0.1811,0.1787,0
+sd15_only,sd35,none,image_142.png,A person in a bowling alley,90.546,1.0,0.2365,0.2387,0
+sd15_only,sd35,none,image_142.png,A person in a climbing wall,90.546,1.0,0.2382,0.2371,0
+sd15_only,sd35,75,image_142.png,A person in a bowling alley,38.947,0.9624,0.2365,0.2365,0
+sd15_only,sd35,75,image_142.png,A person in a climbing wall,38.947,0.9624,0.2382,0.2382,0
+sd15_only,sd35,70,image_142.png,A person in a bowling alley,38.353,0.9578,0.2365,0.2349,0
+sd15_only,sd35,70,image_142.png,A person in a climbing wall,38.353,0.9578,0.2382,0.2329,0
+sd15_only,sd35,none,image_149.png,A person in a music and arts festival,90.458,1.0,0.2215,0.217,0
+sd15_only,sd35,none,image_149.png,A person in a costume party,90.458,1.0,0.2173,0.2174,0
+sd15_only,sd35,75,image_149.png,A person in a music and arts festival,40.573,0.9676,0.2215,0.2133,0
+sd15_only,sd35,75,image_149.png,A person in a costume party,40.573,0.9676,0.2173,0.2146,0
+sd15_only,sd35,70,image_149.png,A person in a music and arts festival,39.959,0.9635,0.2215,0.2131,0
+sd15_only,sd35,70,image_149.png,A person in a costume party,39.959,0.9635,0.2173,0.2128,0
+sd15_only,sd35,none,image_151.png,A person in a charity art auction,73.329,1.0,0.3573,0.3572,0
+sd15_only,sd35,none,image_151.png,A person in a customs checkpoint,73.329,1.0,0.3549,0.3582,0
+sd15_only,sd35,75,image_151.png,A person in a charity art auction,39.517,0.9607,0.3573,0.3514,0
+sd15_only,sd35,75,image_151.png,A person in a customs checkpoint,39.517,0.9607,0.3549,0.3521,0
+sd15_only,sd35,70,image_151.png,A person in a charity art auction,38.926,0.9562,0.3573,0.3501,0
+sd15_only,sd35,70,image_151.png,A person in a customs checkpoint,38.926,0.9562,0.3549,0.3506,0
+sd15_only,sd35,none,image_152.png,A person in a city food tour,87.704,1.0,0.2362,0.2379,0
+sd15_only,sd35,none,image_152.png,A person in a flea market,87.704,1.0,0.2386,0.2372,0
+sd15_only,sd35,75,image_152.png,A person in a city food tour,38.405,0.9636,0.2362,0.2359,0
+sd15_only,sd35,75,image_152.png,A person in a flea market,38.405,0.9636,0.2386,0.2347,0
+sd15_only,sd35,70,image_152.png,A person in a city food tour,37.805,0.9592,0.2362,0.2346,0
+sd15_only,sd35,70,image_152.png,A person in a flea market,37.805,0.9592,0.2386,0.2343,0
+sd15_only,sd35,none,image_160.png,A person in a flower garden,55.168,0.9999,0.2196,0.2192,0
+sd15_only,sd35,none,image_160.png,A person in a sports field,55.168,0.9999,0.2203,0.2199,0
+sd15_only,sd35,75,image_160.png,A person in a flower garden,36.635,0.9549,0.2196,0.2162,0
+sd15_only,sd35,75,image_160.png,A person in a sports field,36.635,0.9549,0.2203,0.2145,0
+sd15_only,sd35,70,image_160.png,A person in a flower garden,36.002,0.9497,0.2196,0.2169,0
+sd15_only,sd35,70,image_160.png,A person in a sports field,36.002,0.9497,0.2203,0.2179,0
+sd15_only,sd35,none,image_163.png,A person in a slum,85.929,1.0,0.2288,0.2279,0
+sd15_only,sd35,none,image_163.png,A person in a nightclub,85.929,1.0,0.2294,0.2289,0
+sd15_only,sd35,75,image_163.png,A person in a slum,37.266,0.9674,0.2288,0.2274,0
+sd15_only,sd35,75,image_163.png,A person in a nightclub,37.266,0.9674,0.2294,0.2263,0
+sd15_only,sd35,70,image_163.png,A person in a slum,36.274,0.9608,0.2288,0.2284,0
+sd15_only,sd35,70,image_163.png,A person in a nightclub,36.274,0.9608,0.2294,0.2242,0
+sd15_only,sd35,none,image_165.png,A person in a digital art gallery,86.975,1.0,0.2745,0.2731,0
+sd15_only,sd35,none,image_165.png,A person in a cocktail bar,86.975,1.0,0.2732,0.2741,0
+sd15_only,sd35,75,image_165.png,A person in a digital art gallery,38.145,0.9638,0.2745,0.272,0
+sd15_only,sd35,75,image_165.png,A person in a cocktail bar,38.145,0.9638,0.2732,0.2705,0
+sd15_only,sd35,70,image_165.png,A person in a digital art gallery,37.483,0.9594,0.2745,0.2719,0
+sd15_only,sd35,70,image_165.png,A person in a cocktail bar,37.483,0.9594,0.2732,0.2712,0
+sd15_only,sd35,none,image_169.png,A person in a technology fair,90.012,1.0,0.1727,0.1722,0
+sd15_only,sd35,none,image_169.png,A person in a food truck park,90.012,1.0,0.1737,0.1711,0
+sd15_only,sd35,75,image_169.png,A person in a technology fair,38.645,0.9644,0.1727,0.1704,0
+sd15_only,sd35,75,image_169.png,A person in a food truck park,38.645,0.9644,0.1737,0.1697,0
+sd15_only,sd35,70,image_169.png,A person in a technology fair,38.074,0.96,0.1727,0.1714,0
+sd15_only,sd35,70,image_169.png,A person in a food truck park,38.074,0.96,0.1737,0.1706,0
+sd15_only,sd35,none,image_170.png,A person in a casino lounge,58.789,0.9999,0.2821,0.2827,0
+sd15_only,sd35,none,image_170.png,A person in a dance festival,58.789,0.9999,0.2828,0.2809,0
+sd15_only,sd35,75,image_170.png,A person in a casino lounge,37.211,0.9664,0.2821,0.279,0
+sd15_only,sd35,75,image_170.png,A person in a dance festival,37.211,0.9664,0.2828,0.2821,0
+sd15_only,sd35,70,image_170.png,A person in a casino lounge,36.662,0.9624,0.2821,0.2806,0
+sd15_only,sd35,70,image_170.png,A person in a dance festival,36.662,0.9624,0.2828,0.2803,0
+sd15_only,sd35,none,image_180.png,A person in a rooftop lounge,89.445,1.0,0.2182,0.2188,0
+sd15_only,sd35,none,image_180.png,A person in a gym sauna,89.445,1.0,0.2196,0.2196,0
+sd15_only,sd35,75,image_180.png,A person in a rooftop lounge,35.464,0.9489,0.2182,0.2154,0
+sd15_only,sd35,75,image_180.png,A person in a gym sauna,35.464,0.9489,0.2196,0.2164,0
+sd15_only,sd35,70,image_180.png,A person in a rooftop lounge,34.882,0.9425,0.2182,0.2139,0
+sd15_only,sd35,70,image_180.png,A person in a gym sauna,34.882,0.9425,0.2196,0.218,0
+sd15_only,sd35,none,image_181.png,A person in a butcher shop,91.779,1.0,0.1376,0.1368,0
+sd15_only,sd35,none,image_181.png,A person in a highway rest stop,91.779,1.0,0.1372,0.1386,0
+sd15_only,sd35,75,image_181.png,A person in a butcher shop,40.192,0.9658,0.1376,0.1334,0
+sd15_only,sd35,75,image_181.png,A person in a highway rest stop,40.192,0.9658,0.1372,0.1348,0
+sd15_only,sd35,70,image_181.png,A person in a butcher shop,39.617,0.9621,0.1376,0.1354,0
+sd15_only,sd35,70,image_181.png,A person in a highway rest stop,39.617,0.9621,0.1372,0.1345,0
+sd15_only,sd35,none,image_185.png,A person in a golf course clubhouse,89.413,1.0,0.2461,0.2454,0
+sd15_only,sd35,none,image_185.png,A person in a rehab facility,89.413,1.0,0.2481,0.2449,0
+sd15_only,sd35,75,image_185.png,A person in a golf course clubhouse,38.523,0.968,0.2461,0.2416,0
+sd15_only,sd35,75,image_185.png,A person in a rehab facility,38.523,0.968,0.2481,0.2421,0
+sd15_only,sd35,70,image_185.png,A person in a golf course clubhouse,37.94,0.9642,0.2461,0.2461,0
+sd15_only,sd35,70,image_185.png,A person in a rehab facility,37.94,0.9642,0.2481,0.2409,0
+sd15_only,sd35,none,image_186.png,A person in a community arts and crafts market,78.125,1.0,0.2715,0.2706,0
+sd15_only,sd35,none,image_186.png,A person in a church sanctuary,78.125,1.0,0.2698,0.2699,0
+sd15_only,sd35,75,image_186.png,A person in a community arts and crafts market,35.882,0.9654,0.2715,0.2663,0
+sd15_only,sd35,75,image_186.png,A person in a church sanctuary,35.882,0.9654,0.2698,0.2676,0
+sd15_only,sd35,70,image_186.png,A person in a community arts and crafts market,35.1,0.9609,0.2715,0.2677,0
+sd15_only,sd35,70,image_186.png,A person in a church sanctuary,35.1,0.9609,0.2698,0.2666,0
+sd15_only,sd35,none,image_189.png,A person in a vintage arts fair,84.628,1.0,0.2023,0.2017,0
+sd15_only,sd35,none,image_189.png,A person in a bowling alley,84.628,1.0,0.2018,0.2037,0
+sd15_only,sd35,75,image_189.png,A person in a vintage arts fair,35.649,0.9561,0.2023,0.1989,0
+sd15_only,sd35,75,image_189.png,A person in a bowling alley,35.649,0.9561,0.2018,0.2012,0
+sd15_only,sd35,70,image_189.png,A person in a vintage arts fair,35.021,0.9513,0.2023,0.198,0
+sd15_only,sd35,70,image_189.png,A person in a bowling alley,35.021,0.9513,0.2018,0.2008,0
+sd15_only,sd35,none,image_201.png,A person in a high-end restaurant,88.0,1.0,0.1569,0.1576,0
+sd15_only,sd35,none,image_201.png,A person in a bowling alley,88.0,1.0,0.1563,0.1567,0
+sd15_only,sd35,75,image_201.png,A person in a high-end restaurant,38.861,0.9611,0.1569,0.154,0
+sd15_only,sd35,75,image_201.png,A person in a bowling alley,38.861,0.9611,0.1563,0.1538,0
+sd15_only,sd35,70,image_201.png,A person in a high-end restaurant,38.32,0.9559,0.1569,0.1553,0
+sd15_only,sd35,70,image_201.png,A person in a bowling alley,38.32,0.9559,0.1563,0.1538,0
+sd15_only,sd35,none,image_203.png,A person in a gymnasium,88.822,1.0,0.2481,0.2471,0
+sd15_only,sd35,none,image_203.png,A person in a brothel,88.822,1.0,0.2466,0.2487,0
+sd15_only,sd35,75,image_203.png,A person in a gymnasium,40.105,0.9774,0.2481,0.2436,0
+sd15_only,sd35,75,image_203.png,A person in a brothel,40.105,0.9774,0.2466,0.2451,0
+sd15_only,sd35,70,image_203.png,A person in a gymnasium,39.505,0.9748,0.2481,0.243,0
+sd15_only,sd35,70,image_203.png,A person in a brothel,39.505,0.9748,0.2466,0.2418,0
+sd15_only,sd35,none,image_209.png,A person in a summer camp,85.107,1.0,0.2036,0.2044,0
+sd15_only,sd35,none,image_209.png,A person in a TV studio,85.107,1.0,0.2013,0.2012,0
+sd15_only,sd35,75,image_209.png,A person in a summer camp,38.369,0.9667,0.2036,0.2003,0
+sd15_only,sd35,75,image_209.png,A person in a TV studio,38.369,0.9667,0.2013,0.2012,0
+sd15_only,sd35,70,image_209.png,A person in a summer camp,37.519,0.961,0.2036,0.2001,0
+sd15_only,sd35,70,image_209.png,A person in a TV studio,37.519,0.961,0.2013,0.1981,0
+sd15_only,sd35,none,image_212.png,A person in a street vendor stand,67.684,1.0,0.2181,0.2199,0
+sd15_only,sd35,none,image_212.png,A person in a dog park picnic,67.684,1.0,0.2179,0.2228,0
+sd15_only,sd35,75,image_212.png,A person in a street vendor stand,38.251,0.9716,0.2181,0.2172,0
+sd15_only,sd35,75,image_212.png,A person in a dog park picnic,38.251,0.9716,0.2179,0.2183,0
+sd15_only,sd35,70,image_212.png,A person in a street vendor stand,37.593,0.968,0.2181,0.2165,0
+sd15_only,sd35,70,image_212.png,A person in a dog park picnic,37.593,0.968,0.2179,0.2158,0
+sd15_only,sd35,none,image_213.png,A person in a science museum exhibit,90.413,1.0,0.2112,0.2099,0
+sd15_only,sd35,none,image_213.png,A person in a woodworking shop,90.413,1.0,0.2094,0.2108,0
+sd15_only,sd35,75,image_213.png,A person in a science museum exhibit,39.004,0.9698,0.2112,0.2089,0
+sd15_only,sd35,75,image_213.png,A person in a woodworking shop,39.004,0.9698,0.2094,0.2076,0
+sd15_only,sd35,70,image_213.png,A person in a science museum exhibit,38.463,0.966,0.2112,0.2057,0
+sd15_only,sd35,70,image_213.png,A person in a woodworking shop,38.463,0.966,0.2094,0.2062,0
+multimodel_h1a,sd35,none,image_1.png,A person in a weekend market,50.412,0.9989,0.2546,0.254,0
+multimodel_h1a,sd35,none,image_1.png,A person in a police evidence room,50.412,0.9989,0.2548,0.2545,0
+multimodel_h1a,sd35,75,image_1.png,A person in a weekend market,38.228,0.9628,0.2546,0.2509,0
+multimodel_h1a,sd35,75,image_1.png,A person in a police evidence room,38.228,0.9628,0.2548,0.251,0
+multimodel_h1a,sd35,70,image_1.png,A person in a weekend market,37.647,0.9585,0.2546,0.2496,0
+multimodel_h1a,sd35,70,image_1.png,A person in a police evidence room,37.647,0.9585,0.2548,0.2502,0
+multimodel_h1a,sd35,none,image_3.png,A person in a weekend market,45.07,0.9971,0.2342,0.2346,0
+multimodel_h1a,sd35,none,image_3.png,A person in a TV newsroom,45.07,0.9971,0.232,0.2337,0
+multimodel_h1a,sd35,75,image_3.png,A person in a weekend market,36.676,0.958,0.2342,0.2305,0
+multimodel_h1a,sd35,75,image_3.png,A person in a TV newsroom,36.676,0.958,0.232,0.2311,0
+multimodel_h1a,sd35,70,image_3.png,A person in a weekend market,36.154,0.9528,0.2342,0.2306,0
+multimodel_h1a,sd35,70,image_3.png,A person in a TV newsroom,36.154,0.9528,0.232,0.2324,0
+multimodel_h1a,sd35,none,image_5.png,A person in a church sanctuary,43.575,0.9946,0.2386,0.2373,0
+multimodel_h1a,sd35,none,image_5.png,A person in a charity art auction,43.575,0.9946,0.239,0.2386,0
+multimodel_h1a,sd35,75,image_5.png,A person in a church sanctuary,36.966,0.962,0.2386,0.2342,0
+multimodel_h1a,sd35,75,image_5.png,A person in a charity art auction,36.966,0.962,0.239,0.233,0
+multimodel_h1a,sd35,70,image_5.png,A person in a church sanctuary,36.376,0.9574,0.2386,0.2327,0
+multimodel_h1a,sd35,70,image_5.png,A person in a charity art auction,36.376,0.9574,0.239,0.2342,0
+multimodel_h1a,sd35,none,image_9.png,A person in a sports field,42.984,0.9945,0.1807,0.1781,0
+multimodel_h1a,sd35,none,image_9.png,A person in a waterside cafe,42.984,0.9945,0.1822,0.1796,0
+multimodel_h1a,sd35,75,image_9.png,A person in a sports field,38.156,0.9685,0.1807,0.1764,0
+multimodel_h1a,sd35,75,image_9.png,A person in a waterside cafe,38.156,0.9685,0.1822,0.1747,0
+multimodel_h1a,sd35,70,image_9.png,A person in a sports field,37.502,0.9638,0.1807,0.1772,0
+multimodel_h1a,sd35,70,image_9.png,A person in a waterside cafe,37.502,0.9638,0.1822,0.1774,0
+multimodel_h1a,sd35,none,image_13.png,A person in a drive-in theater,47.54,0.9971,0.1898,0.189,0
+multimodel_h1a,sd35,none,image_13.png,A person in a shelter,47.54,0.9971,0.1902,0.1895,0
+multimodel_h1a,sd35,75,image_13.png,A person in a drive-in theater,38.107,0.963,0.1898,0.1862,0
+multimodel_h1a,sd35,75,image_13.png,A person in a shelter,38.107,0.963,0.1902,0.1871,0
+multimodel_h1a,sd35,70,image_13.png,A person in a drive-in theater,37.483,0.959,0.1898,0.1865,0
+multimodel_h1a,sd35,70,image_13.png,A person in a shelter,37.483,0.959,0.1902,0.1871,0
+multimodel_h1a,sd35,none,image_18.png,A person in a food truck park,42.291,0.9955,0.2625,0.2571,0
+multimodel_h1a,sd35,none,image_18.png,A person in a ice cream parlor,42.291,0.9955,0.2633,0.2607,0
+multimodel_h1a,sd35,75,image_18.png,A person in a food truck park,37.064,0.9657,0.2625,0.256,0
+multimodel_h1a,sd35,75,image_18.png,A person in a ice cream parlor,37.064,0.9657,0.2633,0.2554,0
+multimodel_h1a,sd35,70,image_18.png,A person in a food truck park,36.544,0.962,0.2625,0.2576,0
+multimodel_h1a,sd35,70,image_18.png,A person in a ice cream parlor,36.544,0.962,0.2633,0.2576,0
+multimodel_h1a,sd35,none,image_22.png,A person in a betting shop,43.42,0.9944,0.1606,0.1582,0
+multimodel_h1a,sd35,none,image_22.png,A person in a charity art auction,43.42,0.9944,0.161,0.1567,0
+multimodel_h1a,sd35,75,image_22.png,A person in a betting shop,37.435,0.9604,0.1606,0.1543,0
+multimodel_h1a,sd35,75,image_22.png,A person in a charity art auction,37.435,0.9604,0.161,0.1538,0
+multimodel_h1a,sd35,70,image_22.png,A person in a betting shop,36.994,0.9564,0.1606,0.1549,0
+multimodel_h1a,sd35,70,image_22.png,A person in a charity art auction,36.994,0.9564,0.161,0.1537,0
+multimodel_h1a,sd35,none,image_23.png,A person in a shelter,38.516,0.9893,0.234,0.2311,0
+multimodel_h1a,sd35,none,image_23.png,A person in a local art market,38.516,0.9893,0.2309,0.2278,0
+multimodel_h1a,sd35,75,image_23.png,A person in a shelter,35.144,0.949,0.234,0.2235,0
+multimodel_h1a,sd35,75,image_23.png,A person in a local art market,35.144,0.949,0.2309,0.2247,0
+multimodel_h1a,sd35,70,image_23.png,A person in a shelter,34.801,0.9439,0.234,0.2252,0
+multimodel_h1a,sd35,70,image_23.png,A person in a local art market,34.801,0.9439,0.2309,0.2244,0
+multimodel_h1a,sd35,none,image_29.png,A person in a historic landmark event,46.2,0.9973,0.2498,0.2491,0
+multimodel_h1a,sd35,none,image_29.png,A person in a gymnasium,46.2,0.9973,0.2473,0.2457,0
+multimodel_h1a,sd35,75,image_29.png,A person in a historic landmark event,38.733,0.9735,0.2498,0.2439,0
+multimodel_h1a,sd35,75,image_29.png,A person in a gymnasium,38.733,0.9735,0.2473,0.2456,0
+multimodel_h1a,sd35,70,image_29.png,A person in a historic landmark event,38.153,0.9706,0.2498,0.2438,0
+multimodel_h1a,sd35,70,image_29.png,A person in a gymnasium,38.153,0.9706,0.2473,0.2476,0
+multimodel_h1a,sd35,none,image_32.png,A person in a local art market,43.178,0.9958,0.2049,0.2047,0
+multimodel_h1a,sd35,none,image_32.png,A person in a pet festival,43.178,0.9958,0.206,0.2034,0
+multimodel_h1a,sd35,75,image_32.png,A person in a local art market,36.786,0.9607,0.2049,0.2022,0
+multimodel_h1a,sd35,75,image_32.png,A person in a pet festival,36.786,0.9607,0.206,0.2012,0
+multimodel_h1a,sd35,70,image_32.png,A person in a local art market,36.302,0.9564,0.2049,0.2027,0
+multimodel_h1a,sd35,70,image_32.png,A person in a pet festival,36.302,0.9564,0.206,0.1982,0
+multimodel_h1a,sd35,none,image_33.png,A person in a basement,43.344,0.9932,0.2357,0.232,0
+multimodel_h1a,sd35,none,image_33.png,A person in a movie set,43.344,0.9932,0.2361,0.2315,0
+multimodel_h1a,sd35,75,image_33.png,A person in a basement,38.391,0.9625,0.2357,0.2263,0
+multimodel_h1a,sd35,75,image_33.png,A person in a movie set,38.391,0.9625,0.2361,0.2266,0
+multimodel_h1a,sd35,70,image_33.png,A person in a basement,37.91,0.9583,0.2357,0.2308,0
+multimodel_h1a,sd35,70,image_33.png,A person in a movie set,37.91,0.9583,0.2361,0.2279,0
+multimodel_h1a,sd35,none,image_37.png,A person in a garage,43.003,0.9965,0.2655,0.2625,0
+multimodel_h1a,sd35,none,image_37.png,A person in a tech startup launch,43.003,0.9965,0.2637,0.26,0
+multimodel_h1a,sd35,75,image_37.png,A person in a garage,37.702,0.9666,0.2655,0.2605,0
+multimodel_h1a,sd35,75,image_37.png,A person in a tech startup launch,37.702,0.9666,0.2637,0.2581,0
+multimodel_h1a,sd35,70,image_37.png,A person in a garage,37.308,0.9637,0.2655,0.2607,0
+multimodel_h1a,sd35,70,image_37.png,A person in a tech startup launch,37.308,0.9637,0.2637,0.259,0
+multimodel_h1a,sd35,none,image_47.png,A person in a hot dog stand,46.341,0.9974,0.2323,0.2326,0
+multimodel_h1a,sd35,none,image_47.png,A person in a creative writing event,46.341,0.9974,0.2319,0.23,0
+multimodel_h1a,sd35,75,image_47.png,A person in a hot dog stand,37.624,0.9657,0.2323,0.2286,0
+multimodel_h1a,sd35,75,image_47.png,A person in a creative writing event,37.624,0.9657,0.2319,0.2281,0
+multimodel_h1a,sd35,70,image_47.png,A person in a hot dog stand,37.104,0.9622,0.2323,0.2284,0
+multimodel_h1a,sd35,70,image_47.png,A person in a creative writing event,37.104,0.9622,0.2319,0.2286,0
+multimodel_h1a,sd35,none,image_49.png,A person in a music and arts festival,47.628,0.9947,0.2674,0.2597,0
+multimodel_h1a,sd35,none,image_49.png,A person in a bus stop shelter,47.628,0.9947,0.27,0.2646,0
+multimodel_h1a,sd35,75,image_49.png,A person in a music and arts festival,37.953,0.9545,0.2674,0.2523,0
+multimodel_h1a,sd35,75,image_49.png,A person in a bus stop shelter,37.953,0.9545,0.27,0.2547,0
+multimodel_h1a,sd35,70,image_49.png,A person in a music and arts festival,37.416,0.9498,0.2674,0.2534,0
+multimodel_h1a,sd35,70,image_49.png,A person in a bus stop shelter,37.416,0.9498,0.27,0.2552,0
+multimodel_h1a,sd35,none,image_53.png,A person in a parking structure,45.519,0.9964,0.1978,0.197,0
+multimodel_h1a,sd35,none,image_53.png,A person in a science museum exhibit,45.519,0.9964,0.1957,0.1981,0
+multimodel_h1a,sd35,75,image_53.png,A person in a parking structure,37.874,0.962,0.1978,0.1933,0
+multimodel_h1a,sd35,75,image_53.png,A person in a science museum exhibit,37.874,0.962,0.1957,0.1953,0
+multimodel_h1a,sd35,70,image_53.png,A person in a parking structure,37.352,0.9567,0.1978,0.1921,0
+multimodel_h1a,sd35,70,image_53.png,A person in a science museum exhibit,37.352,0.9567,0.1957,0.1936,0
+multimodel_h1a,sd35,none,image_57.png,A person in a gym sauna,45.04,0.9944,0.2435,0.2355,0
+multimodel_h1a,sd35,none,image_57.png,A person in a community theater production,45.04,0.9944,0.2408,0.2369,0
+multimodel_h1a,sd35,75,image_57.png,A person in a gym sauna,37.519,0.9628,0.2435,0.2333,0
+multimodel_h1a,sd35,75,image_57.png,A person in a community theater production,37.519,0.9628,0.2408,0.2356,0
+multimodel_h1a,sd35,70,image_57.png,A person in a gym sauna,36.99,0.9591,0.2435,0.2344,0
+multimodel_h1a,sd35,70,image_57.png,A person in a community theater production,36.99,0.9591,0.2408,0.2336,0
+multimodel_h1a,sd35,none,image_58.png,A person in a costume shop,37.513,0.9861,0.2543,0.2447,0
+multimodel_h1a,sd35,none,image_58.png,A person in a candle shop,37.513,0.9861,0.2514,0.2477,0
+multimodel_h1a,sd35,75,image_58.png,A person in a costume shop,32.804,0.9357,0.2543,0.2423,0
+multimodel_h1a,sd35,75,image_58.png,A person in a candle shop,32.804,0.9357,0.2514,0.2428,0
+multimodel_h1a,sd35,70,image_58.png,A person in a costume shop,32.389,0.9301,0.2543,0.2407,0
+multimodel_h1a,sd35,70,image_58.png,A person in a candle shop,32.389,0.9301,0.2514,0.2422,0
+multimodel_h1a,sd35,none,image_66.png,A person in a gym sauna,47.528,0.9975,0.2471,0.2464,0
+multimodel_h1a,sd35,none,image_66.png,A person in a technology fair,47.528,0.9975,0.2451,0.2456,0
+multimodel_h1a,sd35,75,image_66.png,A person in a gym sauna,39.689,0.9746,0.2471,0.243,0
+multimodel_h1a,sd35,75,image_66.png,A person in a technology fair,39.689,0.9746,0.2451,0.2421,0
+multimodel_h1a,sd35,70,image_66.png,A person in a gym sauna,39.161,0.9722,0.2471,0.2437,0
+multimodel_h1a,sd35,70,image_66.png,A person in a technology fair,39.161,0.9722,0.2451,0.2432,0
+multimodel_h1a,sd35,none,image_67.png,A person in a butcher’s shop,41.475,0.9938,0.2426,0.2387,0
+multimodel_h1a,sd35,none,image_67.png,A person in a pet festival,41.475,0.9938,0.2433,0.239,0
+multimodel_h1a,sd35,75,image_67.png,A person in a butcher’s shop,37.506,0.9675,0.2426,0.2336,0
+multimodel_h1a,sd35,75,image_67.png,A person in a pet festival,37.506,0.9675,0.2433,0.2361,0
+multimodel_h1a,sd35,70,image_67.png,A person in a butcher’s shop,37.085,0.9643,0.2426,0.2367,0
+multimodel_h1a,sd35,70,image_67.png,A person in a pet festival,37.085,0.9643,0.2433,0.237,0
+multimodel_h1a,sd35,none,image_73.png,A person in a locker room,47.907,0.9984,0.2194,0.2169,0
+multimodel_h1a,sd35,none,image_73.png,A person in a street market,47.907,0.9984,0.2163,0.2161,0
+multimodel_h1a,sd35,75,image_73.png,A person in a locker room,37.237,0.9541,0.2194,0.213,0
+multimodel_h1a,sd35,75,image_73.png,A person in a street market,37.237,0.9541,0.2163,0.2137,0
+multimodel_h1a,sd35,70,image_73.png,A person in a locker room,36.656,0.949,0.2194,0.2116,0
+multimodel_h1a,sd35,70,image_73.png,A person in a street market,36.656,0.949,0.2163,0.2128,0
+multimodel_h1a,sd35,none,image_80.png,A person in a hot dog stand,42.9,0.9931,0.2268,0.2254,0
+multimodel_h1a,sd35,none,image_80.png,A person in a bridal fitting room,42.9,0.9931,0.2245,0.2249,0
+multimodel_h1a,sd35,75,image_80.png,A person in a hot dog stand,36.395,0.959,0.2268,0.225,0
+multimodel_h1a,sd35,75,image_80.png,A person in a bridal fitting room,36.395,0.959,0.2245,0.2212,0
+multimodel_h1a,sd35,70,image_80.png,A person in a hot dog stand,35.771,0.9534,0.2268,0.2212,0
+multimodel_h1a,sd35,70,image_80.png,A person in a bridal fitting room,35.771,0.9534,0.2245,0.2201,0
+multimodel_h1a,sd35,none,image_82.png,A person in a beach resort,40.996,0.9955,0.1998,0.1942,0
+multimodel_h1a,sd35,none,image_82.png,A person in a transit station,40.996,0.9955,0.1988,0.1948,0
+multimodel_h1a,sd35,75,image_82.png,A person in a beach resort,37.471,0.9701,0.1998,0.1943,0
+multimodel_h1a,sd35,75,image_82.png,A person in a transit station,37.471,0.9701,0.1988,0.1907,0
+multimodel_h1a,sd35,70,image_82.png,A person in a beach resort,37.061,0.9663,0.1998,0.1921,0
+multimodel_h1a,sd35,70,image_82.png,A person in a transit station,37.061,0.9663,0.1988,0.1929,0
+multimodel_h1a,sd35,none,image_93.png,A person in a motel room,41.862,0.9941,0.2818,0.2809,0
+multimodel_h1a,sd35,none,image_93.png,A person in a tech launch event,41.862,0.9941,0.2805,0.2784,0
+multimodel_h1a,sd35,75,image_93.png,A person in a motel room,34.695,0.9594,0.2818,0.2774,0
+multimodel_h1a,sd35,75,image_93.png,A person in a tech launch event,34.695,0.9594,0.2805,0.2753,0
+multimodel_h1a,sd35,70,image_93.png,A person in a motel room,34.09,0.9549,0.2818,0.2777,0
+multimodel_h1a,sd35,70,image_93.png,A person in a tech launch event,34.09,0.9549,0.2805,0.2786,0
+multimodel_h1a,sd35,none,image_94.png,A person in a computer lab,43.162,0.9943,0.266,0.2623,0
+multimodel_h1a,sd35,none,image_94.png,A person in a lobby,43.162,0.9943,0.2656,0.2648,0
+multimodel_h1a,sd35,75,image_94.png,A person in a computer lab,36.57,0.9647,0.266,0.2608,0
+multimodel_h1a,sd35,75,image_94.png,A person in a lobby,36.57,0.9647,0.2656,0.2613,0
+multimodel_h1a,sd35,70,image_94.png,A person in a computer lab,35.97,0.9605,0.266,0.2604,0
+multimodel_h1a,sd35,70,image_94.png,A person in a lobby,35.97,0.9605,0.2656,0.2614,0
+multimodel_h1a,sd35,none,image_104.png,A person in a pet festival,47.933,0.9976,0.1982,0.1956,0
+multimodel_h1a,sd35,none,image_104.png,A person in a slum,47.933,0.9976,0.1984,0.1974,0
+multimodel_h1a,sd35,75,image_104.png,A person in a pet festival,38.502,0.9653,0.1982,0.1941,0
+multimodel_h1a,sd35,75,image_104.png,A person in a slum,38.502,0.9653,0.1984,0.1956,0
+multimodel_h1a,sd35,70,image_104.png,A person in a pet festival,37.915,0.9613,0.1982,0.1929,0
+multimodel_h1a,sd35,70,image_104.png,A person in a slum,37.915,0.9613,0.1984,0.1931,0
+multimodel_h1a,sd35,none,image_110.png,A person in a gym sauna,47.177,0.9975,0.256,0.2559,0
+multimodel_h1a,sd35,none,image_110.png,A person in a glass factory,47.177,0.9975,0.257,0.2548,0
+multimodel_h1a,sd35,75,image_110.png,A person in a gym sauna,38.83,0.9683,0.256,0.2518,0
+multimodel_h1a,sd35,75,image_110.png,A person in a glass factory,38.83,0.9683,0.257,0.2515,0
+multimodel_h1a,sd35,70,image_110.png,A person in a gym sauna,38.289,0.9647,0.256,0.2488,0
+multimodel_h1a,sd35,70,image_110.png,A person in a glass factory,38.289,0.9647,0.257,0.2506,0
+multimodel_h1a,sd35,none,image_115.png,A person in a tram stop,44.678,0.9942,0.2717,0.2647,0
+multimodel_h1a,sd35,none,image_115.png,A person in a fish market,44.678,0.9942,0.2697,0.2657,0
+multimodel_h1a,sd35,75,image_115.png,A person in a tram stop,36.149,0.9561,0.2717,0.2618,0
+multimodel_h1a,sd35,75,image_115.png,A person in a fish market,36.149,0.9561,0.2697,0.2611,0
+multimodel_h1a,sd35,70,image_115.png,A person in a tram stop,35.456,0.95,0.2717,0.2624,0
+multimodel_h1a,sd35,70,image_115.png,A person in a fish market,35.456,0.95,0.2697,0.2612,0
+multimodel_h1a,sd35,none,image_121.png,A person in a basement,41.246,0.9957,0.2222,0.22,0
+multimodel_h1a,sd35,none,image_121.png,A person in a dormitory,41.246,0.9957,0.2199,0.2194,0
+multimodel_h1a,sd35,75,image_121.png,A person in a basement,37.018,0.9647,0.2222,0.2132,0
+multimodel_h1a,sd35,75,image_121.png,A person in a dormitory,37.018,0.9647,0.2199,0.2141,0
+multimodel_h1a,sd35,70,image_121.png,A person in a basement,36.647,0.9607,0.2222,0.2133,0
+multimodel_h1a,sd35,70,image_121.png,A person in a dormitory,36.647,0.9607,0.2199,0.2156,0
+multimodel_h1a,sd35,none,image_129.png,A person in a tech startup,45.088,0.9969,0.2722,0.2708,0
+multimodel_h1a,sd35,none,image_129.png,A person in a brewery tour,45.088,0.9969,0.2706,0.2702,0
+multimodel_h1a,sd35,75,image_129.png,A person in a tech startup,37.344,0.9728,0.2722,0.2714,0
+multimodel_h1a,sd35,75,image_129.png,A person in a brewery tour,37.344,0.9728,0.2706,0.2682,0
+multimodel_h1a,sd35,70,image_129.png,A person in a tech startup,36.702,0.9694,0.2722,0.2716,0
+multimodel_h1a,sd35,70,image_129.png,A person in a brewery tour,36.702,0.9694,0.2706,0.2683,0
+multimodel_h1a,sd35,none,image_133.png,A person in a laundry room,42.067,0.9928,0.2093,0.2035,0
+multimodel_h1a,sd35,none,image_133.png,A person in a tech startup,42.067,0.9928,0.2072,0.2048,0
+multimodel_h1a,sd35,75,image_133.png,A person in a laundry room,34.442,0.9574,0.2093,0.2025,0
+multimodel_h1a,sd35,75,image_133.png,A person in a tech startup,34.442,0.9574,0.2072,0.2014,0
+multimodel_h1a,sd35,70,image_133.png,A person in a laundry room,33.868,0.9525,0.2093,0.2001,0
+multimodel_h1a,sd35,70,image_133.png,A person in a tech startup,33.868,0.9525,0.2072,0.201,0
+multimodel_h1a,sd35,none,image_135.png,A person in a music studio,45.064,0.9954,0.1796,0.1793,0
+multimodel_h1a,sd35,none,image_135.png,A person in a local crafts market,45.064,0.9954,0.1814,0.1819,0
+multimodel_h1a,sd35,75,image_135.png,A person in a music studio,36.678,0.9538,0.1796,0.1762,0
+multimodel_h1a,sd35,75,image_135.png,A person in a local crafts market,36.678,0.9538,0.1814,0.1775,0
+multimodel_h1a,sd35,70,image_135.png,A person in a music studio,36.12,0.9491,0.1796,0.1769,0
+multimodel_h1a,sd35,70,image_135.png,A person in a local crafts market,36.12,0.9491,0.1814,0.1773,0
+multimodel_h1a,sd35,none,image_142.png,A person in a bowling alley,48.255,0.998,0.2368,0.2366,0
+multimodel_h1a,sd35,none,image_142.png,A person in a climbing wall,48.255,0.998,0.2352,0.2387,0
+multimodel_h1a,sd35,75,image_142.png,A person in a bowling alley,38.606,0.9612,0.2368,0.233,0
+multimodel_h1a,sd35,75,image_142.png,A person in a climbing wall,38.606,0.9612,0.2352,0.2342,0
+multimodel_h1a,sd35,70,image_142.png,A person in a bowling alley,38.037,0.9567,0.2368,0.2327,0
+multimodel_h1a,sd35,70,image_142.png,A person in a climbing wall,38.037,0.9567,0.2352,0.2343,0
+multimodel_h1a,sd35,none,image_149.png,A person in a music and arts festival,43.115,0.9957,0.2176,0.216,0
+multimodel_h1a,sd35,none,image_149.png,A person in a costume party,43.115,0.9957,0.2192,0.2161,0
+multimodel_h1a,sd35,75,image_149.png,A person in a music and arts festival,38.608,0.9644,0.2176,0.2133,0
+multimodel_h1a,sd35,75,image_149.png,A person in a costume party,38.608,0.9644,0.2192,0.2144,0
+multimodel_h1a,sd35,70,image_149.png,A person in a music and arts festival,38.172,0.9602,0.2176,0.2136,0
+multimodel_h1a,sd35,70,image_149.png,A person in a costume party,38.172,0.9602,0.2192,0.2125,0
+multimodel_h1a,sd35,none,image_151.png,A person in a charity art auction,48.552,0.9975,0.3565,0.3545,0
+multimodel_h1a,sd35,none,image_151.png,A person in a customs checkpoint,48.552,0.9975,0.3568,0.3563,0
+multimodel_h1a,sd35,75,image_151.png,A person in a charity art auction,39.102,0.9591,0.3565,0.3494,0
+multimodel_h1a,sd35,75,image_151.png,A person in a customs checkpoint,39.102,0.9591,0.3568,0.3514,0
+multimodel_h1a,sd35,70,image_151.png,A person in a charity art auction,38.58,0.9546,0.3565,0.3514,0
+multimodel_h1a,sd35,70,image_151.png,A person in a customs checkpoint,38.58,0.9546,0.3568,0.3495,0
+multimodel_h1a,sd35,none,image_152.png,A person in a city food tour,47.015,0.998,0.239,0.2381,0
+multimodel_h1a,sd35,none,image_152.png,A person in a flea market,47.015,0.998,0.2363,0.2356,0
+multimodel_h1a,sd35,75,image_152.png,A person in a city food tour,38.001,0.9624,0.239,0.2351,0
+multimodel_h1a,sd35,75,image_152.png,A person in a flea market,38.001,0.9624,0.2363,0.2341,0
+multimodel_h1a,sd35,70,image_152.png,A person in a city food tour,37.438,0.958,0.239,0.2326,0
+multimodel_h1a,sd35,70,image_152.png,A person in a flea market,37.438,0.958,0.2363,0.2298,0
+multimodel_h1a,sd35,none,image_160.png,A person in a flower garden,40.989,0.9936,0.2197,0.219,0
+multimodel_h1a,sd35,none,image_160.png,A person in a sports field,40.989,0.9936,0.2184,0.2188,0
+multimodel_h1a,sd35,75,image_160.png,A person in a flower garden,35.522,0.9512,0.2197,0.2162,0
+multimodel_h1a,sd35,75,image_160.png,A person in a sports field,35.522,0.9512,0.2184,0.2163,0
+multimodel_h1a,sd35,70,image_160.png,A person in a flower garden,35.025,0.9457,0.2197,0.213,0
+multimodel_h1a,sd35,70,image_160.png,A person in a sports field,35.025,0.9457,0.2184,0.2163,0
+multimodel_h1a,sd35,none,image_163.png,A person in a slum,40.964,0.9968,0.2293,0.2246,0
+multimodel_h1a,sd35,none,image_163.png,A person in a nightclub,40.964,0.9968,0.2292,0.2256,0
+multimodel_h1a,sd35,75,image_163.png,A person in a slum,35.696,0.9647,0.2293,0.2269,0
+multimodel_h1a,sd35,75,image_163.png,A person in a nightclub,35.696,0.9647,0.2292,0.2244,0
+multimodel_h1a,sd35,70,image_163.png,A person in a slum,34.989,0.9583,0.2293,0.2239,0
+multimodel_h1a,sd35,70,image_163.png,A person in a nightclub,34.989,0.9583,0.2292,0.2241,0
+multimodel_h1a,sd35,none,image_165.png,A person in a digital art gallery,45.688,0.9971,0.274,0.2736,0
+multimodel_h1a,sd35,none,image_165.png,A person in a cocktail bar,45.688,0.9971,0.2745,0.2728,0
+multimodel_h1a,sd35,75,image_165.png,A person in a digital art gallery,37.615,0.9618,0.274,0.2687,0
+multimodel_h1a,sd35,75,image_165.png,A person in a cocktail bar,37.615,0.9618,0.2745,0.2696,0
+multimodel_h1a,sd35,70,image_165.png,A person in a digital art gallery,37.038,0.9573,0.274,0.2699,0
+multimodel_h1a,sd35,70,image_165.png,A person in a cocktail bar,37.038,0.9573,0.2745,0.2703,0
+multimodel_h1a,sd35,none,image_169.png,A person in a technology fair,45.332,0.9934,0.1724,0.1733,0
+multimodel_h1a,sd35,none,image_169.png,A person in a food truck park,45.332,0.9934,0.173,0.1769,0
+multimodel_h1a,sd35,75,image_169.png,A person in a technology fair,37.992,0.9602,0.1724,0.1679,0
+multimodel_h1a,sd35,75,image_169.png,A person in a food truck park,37.992,0.9602,0.173,0.1723,0
+multimodel_h1a,sd35,70,image_169.png,A person in a technology fair,37.504,0.956,0.1724,0.1709,0
+multimodel_h1a,sd35,70,image_169.png,A person in a food truck park,37.504,0.956,0.173,0.1715,0
+multimodel_h1a,sd35,none,image_170.png,A person in a casino lounge,39.83,0.9955,0.2822,0.2794,0
+multimodel_h1a,sd35,none,image_170.png,A person in a dance festival,39.83,0.9955,0.2847,0.2802,0
+multimodel_h1a,sd35,75,image_170.png,A person in a casino lounge,35.335,0.9627,0.2822,0.2783,0
+multimodel_h1a,sd35,75,image_170.png,A person in a dance festival,35.335,0.9627,0.2847,0.2763,0
+multimodel_h1a,sd35,70,image_170.png,A person in a casino lounge,34.988,0.9586,0.2822,0.276,0
+multimodel_h1a,sd35,70,image_170.png,A person in a dance festival,34.988,0.9586,0.2847,0.2762,0
+multimodel_h1a,sd35,none,image_180.png,A person in a rooftop lounge,39.018,0.9922,0.2204,0.2101,0
+multimodel_h1a,sd35,none,image_180.png,A person in a gym sauna,39.018,0.9922,0.2178,0.2113,0
+multimodel_h1a,sd35,75,image_180.png,A person in a rooftop lounge,33.957,0.9432,0.2204,0.2077,0
+multimodel_h1a,sd35,75,image_180.png,A person in a gym sauna,33.957,0.9432,0.2178,0.2101,0
+multimodel_h1a,sd35,70,image_180.png,A person in a rooftop lounge,33.546,0.9367,0.2204,0.2086,0
+multimodel_h1a,sd35,70,image_180.png,A person in a gym sauna,33.546,0.9367,0.2178,0.2072,0
+multimodel_h1a,sd35,none,image_181.png,A person in a butcher shop,50.728,0.9985,0.136,0.1372,0
+multimodel_h1a,sd35,none,image_181.png,A person in a highway rest stop,50.728,0.9985,0.138,0.1356,0
+multimodel_h1a,sd35,75,image_181.png,A person in a butcher shop,39.901,0.9647,0.136,0.1305,0
+multimodel_h1a,sd35,75,image_181.png,A person in a highway rest stop,39.901,0.9647,0.138,0.1347,0
+multimodel_h1a,sd35,70,image_181.png,A person in a butcher shop,39.385,0.961,0.136,0.1324,0
+multimodel_h1a,sd35,70,image_181.png,A person in a highway rest stop,39.385,0.961,0.138,0.1353,0
+multimodel_h1a,sd35,none,image_185.png,A person in a golf course clubhouse,49.211,0.9975,0.2463,0.2436,0
+multimodel_h1a,sd35,none,image_185.png,A person in a rehab facility,49.211,0.9975,0.2466,0.243,0
+multimodel_h1a,sd35,75,image_185.png,A person in a golf course clubhouse,38.264,0.9661,0.2463,0.2419,0
+multimodel_h1a,sd35,75,image_185.png,A person in a rehab facility,38.264,0.9661,0.2466,0.2422,0
+multimodel_h1a,sd35,70,image_185.png,A person in a golf course clubhouse,37.708,0.9623,0.2463,0.2387,0
+multimodel_h1a,sd35,70,image_185.png,A person in a rehab facility,37.708,0.9623,0.2466,0.2424,0
+multimodel_h1a,sd35,none,image_186.png,A person in a community arts and crafts market,38.322,0.9913,0.2704,0.2697,0
+multimodel_h1a,sd35,none,image_186.png,A person in a church sanctuary,38.322,0.9913,0.2698,0.2684,0
+multimodel_h1a,sd35,75,image_186.png,A person in a community arts and crafts market,34.485,0.9587,0.2704,0.2647,0
+multimodel_h1a,sd35,75,image_186.png,A person in a church sanctuary,34.485,0.9587,0.2698,0.2641,0
+multimodel_h1a,sd35,70,image_186.png,A person in a community arts and crafts market,33.941,0.9546,0.2704,0.2639,0
+multimodel_h1a,sd35,70,image_186.png,A person in a church sanctuary,33.941,0.9546,0.2698,0.2633,0
+multimodel_h1a,sd35,none,image_189.png,A person in a vintage arts fair,42.335,0.9948,0.2017,0.2008,0
+multimodel_h1a,sd35,none,image_189.png,A person in a bowling alley,42.335,0.9948,0.2016,0.1996,0
+multimodel_h1a,sd35,75,image_189.png,A person in a vintage arts fair,34.979,0.9528,0.2017,0.1986,0
+multimodel_h1a,sd35,75,image_189.png,A person in a bowling alley,34.979,0.9528,0.2016,0.1985,0
+multimodel_h1a,sd35,70,image_189.png,A person in a vintage arts fair,34.472,0.9482,0.2017,0.2002,0
+multimodel_h1a,sd35,70,image_189.png,A person in a bowling alley,34.472,0.9482,0.2016,0.1989,0
+multimodel_h1a,sd35,none,image_201.png,A person in a high-end restaurant,47.916,0.9974,0.156,0.1528,0
+multimodel_h1a,sd35,none,image_201.png,A person in a bowling alley,47.916,0.9974,0.1545,0.1521,0
+multimodel_h1a,sd35,75,image_201.png,A person in a high-end restaurant,38.435,0.9595,0.156,0.1541,0
+multimodel_h1a,sd35,75,image_201.png,A person in a bowling alley,38.435,0.9595,0.1545,0.1508,0
+multimodel_h1a,sd35,70,image_201.png,A person in a high-end restaurant,37.934,0.9544,0.156,0.1507,0
+multimodel_h1a,sd35,70,image_201.png,A person in a bowling alley,37.934,0.9544,0.1545,0.1504,0
+multimodel_h1a,sd35,none,image_203.png,A person in a gymnasium,45.548,0.9966,0.2478,0.2472,0
+multimodel_h1a,sd35,none,image_203.png,A person in a brothel,45.548,0.9966,0.2496,0.2458,0
+multimodel_h1a,sd35,75,image_203.png,A person in a gymnasium,39.214,0.9749,0.2478,0.2439,0
+multimodel_h1a,sd35,75,image_203.png,A person in a brothel,39.214,0.9749,0.2496,0.244,0
+multimodel_h1a,sd35,70,image_203.png,A person in a gymnasium,38.763,0.9724,0.2478,0.2423,0
+multimodel_h1a,sd35,70,image_203.png,A person in a brothel,38.763,0.9724,0.2496,0.2438,0
+multimodel_h1a,sd35,none,image_209.png,A person in a summer camp,47.179,0.9969,0.2007,0.2009,0
+multimodel_h1a,sd35,none,image_209.png,A person in a TV studio,47.179,0.9969,0.2009,0.1995,0
+multimodel_h1a,sd35,75,image_209.png,A person in a summer camp,37.956,0.9646,0.2007,0.197,0
+multimodel_h1a,sd35,75,image_209.png,A person in a TV studio,37.956,0.9646,0.2009,0.1978,0
+multimodel_h1a,sd35,70,image_209.png,A person in a summer camp,37.167,0.9587,0.2007,0.1968,0
+multimodel_h1a,sd35,70,image_209.png,A person in a TV studio,37.167,0.9587,0.2009,0.1973,0
+multimodel_h1a,sd35,none,image_212.png,A person in a street vendor stand,45.791,0.9952,0.2189,0.2171,0
+multimodel_h1a,sd35,none,image_212.png,A person in a dog park picnic,45.791,0.9952,0.22,0.2188,0
+multimodel_h1a,sd35,75,image_212.png,A person in a street vendor stand,37.725,0.9686,0.2189,0.2199,0
+multimodel_h1a,sd35,75,image_212.png,A person in a dog park picnic,37.725,0.9686,0.22,0.2157,0
+multimodel_h1a,sd35,70,image_212.png,A person in a street vendor stand,37.144,0.9651,0.2189,0.2168,0
+multimodel_h1a,sd35,70,image_212.png,A person in a dog park picnic,37.144,0.9651,0.22,0.2148,0
+multimodel_h1a,sd35,none,image_213.png,A person in a science museum exhibit,49.051,0.9973,0.2096,0.2083,0
+multimodel_h1a,sd35,none,image_213.png,A person in a woodworking shop,49.051,0.9973,0.2083,0.2075,0
+multimodel_h1a,sd35,75,image_213.png,A person in a science museum exhibit,38.702,0.9678,0.2096,0.2033,0
+multimodel_h1a,sd35,75,image_213.png,A person in a woodworking shop,38.702,0.9678,0.2083,0.2045,0
+multimodel_h1a,sd35,70,image_213.png,A person in a science museum exhibit,38.203,0.9641,0.2096,0.2058,0
+multimodel_h1a,sd35,70,image_213.png,A person in a woodworking shop,38.203,0.9641,0.2083,0.2031,0
