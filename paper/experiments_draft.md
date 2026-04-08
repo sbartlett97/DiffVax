@@ -13,7 +13,9 @@
 
 **Metric.** We measure *Edit Disruption Rate* (EDR):
 $$\text{EDR} = \frac{1}{N}\sum_{i=1}^{N} \mathbf{1}\left[\text{SSIM}(\hat{x}_i^{\text{imm}}, x_i) < \text{SSIM}(\hat{x}_i^{\text{clean}}, x_i) - 0.05\right]$$
-where $\hat{x}_i^{\text{imm}}$ is the model's output when editing the immunized image, $\hat{x}_i^{\text{clean}}$ is the output on the clean original, and $x_i$ is the original image. Higher EDR = stronger immunization. The threshold of 0.05 ensures we count only cases where immunization meaningfully degrades editing quality, not incidental SSIM fluctuations.
+where $\hat{x}_i^{\text{imm}}$ is the model's output when editing the immunized image, $\hat{x}_i^{\text{clean}}$ is the output on the clean original, and $x_i$ is the original image. Higher EDR = stronger immunization. The threshold of 0.05 ensures we count only cases where immunization meaningfully degrades editing quality.
+
+**Evaluation reproducibility.** Diffusion models are stochastic: two independent forward passes on the same input produce different outputs (SSIM std $\approx 0.06$ for SD 1.5). Without fixing the random seed, this stochasticity alone contributes $\sim$0.18 EDR baseline even for unperturbed images. For all H1, H6, and H7 evaluations, we use per-$(i, \text{prompt})$ deterministic seeds, giving the same diffusion noise trajectory to both the clean and immunized edits. This reduces the stochastic baseline to $\approx 0$ and makes EDR a pure measure of immunization effect. The H2 results use independent seeds (matching the published DiffVax evaluation protocol [OZDENTARIKCAN2025]) and are internally consistent; see Appendix C for a discussion of the two protocols.
 
 **Imperceptibility.** We report PSNR and SSIM of the immunized image vs original. We require PSNR ≥ 28 dB and SSIM ≥ 0.94 for the perturbation to be considered imperceptible.
 
