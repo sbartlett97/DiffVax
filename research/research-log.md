@@ -1,5 +1,33 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-08 — Pre-writing + Competitive Analysis + Eval Code Audit
+
+**Competitive analysis** (all three 2025 SOTA papers audited):
+- Anti-Inpainting (2505.13023, arXiv): no JPEG, no multi-model, no high-res, no metrics
+- Attention Attack (2509.10359, ACM MM 2025): same gaps
+- PromptFlare (2508.16217, ACM MM 2025): claims SOTA, no model specifics, no numbers
+- **Result**: DiffVax++ is the only work to address all three deployment gaps simultaneously
+- Saved to: `research/literature/competitor_analysis_2025.md`
+
+**eval_transfer.py audit + fixes**:
+- model.train-False bug -> model-dot-eval() (bypasses child module mode)
+- Per-model inference steps: FLUX.1-schnell=4, sd15/sd35=20 (schnell is 4-step distilled)
+
+**eval_purification_robustness.py fixes**:
+- Same model-dot-eval() fix
+- PURIFICATION_STEPS 20 -> 4, EDIT_STEPS 20 -> 4 (same schnell reasoning)
+- Using 20 steps with schnell degrades quality -> would bias H6 toward appearing more robust
+
+**Paper pre-writing**:
+- Draft abstract with [X] placeholders in `paper/draft_abstract_outline.md`
+- Full paper outline: section structure, table templates, key claims table
+- Pre-registered H1 and H6 analysis templates in each experiment dir
+  with predictions locked before results arrive
+
+**State**: Infrastructure fully audited and ready. Waiting for H1a GPU checkpoint.
+
+---
+
 ## 2026-04-07 — SD3Attack + H7 STE Validation
 
 **SD3Attack CPU offload bug fixed** (`src/diffvax/attack_sd3.py`):
