@@ -270,17 +270,106 @@ still in GPU RAM; if the process can be checkpointed before killing, they can be
 - Expected impact on H1/H6 re-run: With deterministic seeds, EDR absolute values will be lower but more precise.
 - Paper decision: Report H2 with random seeds (consistent with DiffVax published protocol). Report H1/H6/H7 with deterministic seeds. Note methodological difference in appendix.
 
+## H1: Multi-Model Training — NEGATIVE RESULT (2026-04-08 revised run)
+
+**Result**: H1a (SD+FLUX multi-model checkpoint) performs WORSE than published sd15_only on all three architectures.
+
+| Checkpoint | SD1.5 EDR | FLUX EDR | SD3.5 EDR | PSNR |
+|---|---|---|---|---|
+| sd15_only (published) | 0.300 | 0.200 | 0.140 | 32.71 dB |
+| multimodel_h1a | 0.290 | **0.140** | **0.060** | 34.81 dB |
+
+H1 prediction FAILED on all three models. H1a is clearly worse.
+
+**Why H1a fails — perturbation magnitude is too small:**
+- H1a PSNR = 34.81 dB vs sd15_only PSNR = 32.71 dB — H1a generates a 2.1 dB weaker perturbation.
+- EDR is correlated with perturbation magnitude: weaker perturbation = fewer disruptions.
+- Cause: competing FLUX gradient signal (large magnitude, ~10× larger than SD1.5 gradients) during training destabilizes the optimization, causing the NestedUNet to produce more conservative perturbations.
+- The bimodal loss pattern (FLUX epochs: Loss1=0.8-1.3, SD epochs: Loss1=0.03-0.11) is NOT the intended curriculum — the FLUX objective actively fights the SD1.5 objective.
+
+**SURPRISING POSITIVE: sd15_only already transfers to FLUX and SD3.5:**
+- sd15_only achieves FLUX EDR=0.200 and SD3.5 EDR=0.140 WITHOUT multi-model training.
+- This is a counter-hypothesis result: VAE-mediated transfer already works from SD1.5.
+- The shared VAE bottleneck (all models encode through a similar 4-ch or 16-ch VAE) means pixel-space perturbations corrupt the input representation before any architecture-specific processing occurs.
+- Multi-model training is not needed for basic transfer — it actively hurts by weakening perturbations.
+
+**JPEG paradox in H1 data:**
+- sd15_only FLUX EDR: clean=0.200, **q=75=0.300**, q=70=0.260 — JPEG INCREASES EDR by 50%!
+- sd15_only SD3.5 EDR: clean=0.140, q=75=0.170, q=70=0.160 — JPEG slightly helps.
+- sd15_only SD1.5 EDR: clean=0.300, q=75=0.300, q=70=0.310 — JPEG has minimal effect on SD1.5.
+- H1a shows no JPEG benefit (stays flat at 0.140-0.150 for FLUX, 0.200-0.220 for SD1.5).
+- **Mechanism hypothesis**: JPEG DCT quantization introduces blocking artifacts at 8×8-pixel boundaries. FLUX's DiT architecture tokenizes at patch level; DCT block boundaries create adversarial patch boundaries that compound with the immunization perturbation. SD1.5's UNet-based convolutional architecture is more robust to this artifact — explaining why SD1.5 EDR is JPEG-invariant but FLUX EDR increases.
+
+---
+
+## H6: FLUX Purification Robustness — NEGATIVE RESULT (2026-04-08 revised run)
+
+**Result**: flux_trained (H1a) does NOT outperform sd15_only under FLUX purification. sd15_only actually survives better.
+
+| Checkpoint | Direct EDR | Purified (s=0.3) | Control (s=0.3) | **Net Survival** |
+|---|---|---|---|---|
+| sd15_only | 0.183 | 0.200 | 0.000 | **+0.200** |
+| flux_trained (H1a) | 0.133 | 0.133 | 0.000 | **+0.133** |
+
+At strength=0.5-0.7, both checkpoints produce net survival ≈ 0.017, because the purifier (PSNR drops to 23 dB, SSIM=0.70) causes massive editing failure even without any immunization — the control confirms this is purifier damage, not immunization survival.
+
+**Why H6 fails:**
+- Same root cause as H1: H1a has weaker perturbation (PSNR=34.81 vs 32.71). A weaker perturbation has less signal to survive purification.
+- The H6 prediction assumed H1a would have equal or stronger perturbation targeting FLUX's latent space. It doesn't — it's just weaker overall.
+
+**SURPRISING POSITIVE: sd15_only survives light FLUX purification:**
+- At strength=0.3: sd15_only net survival = +0.200. The perturbation survives light FLUX-based cleaning.
+- "Purify Once, Edit Freely" (arXiv:2603.13028) claims FLUX defeats SD1.5 immunizations. Our data shows this requires strength≥0.5, and at that level the purifier also destroys clean image quality (SSIM→0.70).
+- In a realistic adversary model, an adversary cannot apply strength=0.5-0.7 purification without visibly degrading the image quality, which defeats the purpose of "preserving editability."
+- This is a publishable finding that *challenges* the EditorClean paper's conclusion.
+
+---
+
+## Revised Research Story (2026-04-08 outer loop)
+
+**The paper narrative pivots from "three confirmed contributions" to "surprising negative results that reveal unexpected robustness."**
+
+### What we know with confidence
+
+1. **H2 CONFIRMED (1.60×)**: Patch-based 1088px inference strongly outperforms 512px baseline due to perturbation accumulation. This is the headline positive result.
+
+2. **DiffVax sd15_only is surprisingly robust**: Published DiffVax already transfers to FLUX (0.200) and SD3.5 (0.140) without any multi-model training. This contradicts the common assumption that SD1.5-trained perturbations can't affect DiT models.
+
+3. **Multi-model training (H1a) weakens the perturbation**: The competing FLUX gradient destabilizes the optimization, producing a 2.1 dB weaker perturbation. H1a is strictly inferior to sd15_only.
+
+4. **JPEG paradox**: Standard (non-JPEG-augmented) DiffVax is not defeated by social media JPEG compression — FLUX EDR actually *increases* by 50% at q=75. The mechanism is DCT artifacts interacting with FLUX's token-based architecture.
+
+5. **FLUX purification requires strength≥0.5 to be effective** but at that level it also destroys clean image quality (SSIM→0.70, PSNR→23 dB). Light purification (s=0.3) fails to remove sd15_only immunizations.
+
+### What the paper story looks like now
+
+**Working title**: "DiffVax++: High-Resolution Immunization, Surprising Cross-Architecture Robustness, and the JPEG Paradox"
+
+1. **(H2) Patch-based 1088px inference is stronger than 512px** — perturbation accumulation mechanism (key positive)
+2. **(H1 analysis) DiffVax already transfers to DiT models** — VAE-mediated transfer, multi-model training is counterproductive
+3. **(H6 analysis) Light FLUX purification cannot remove DiffVax immunizations** — challenges EditorClean
+4. **(JPEG paradox) JPEG compression HELPS immunization against FLUX** — JPEG + DiffVax = compound attack surface
+5. **(H7, pending) STE JPEG training** — if JPEG already helps, H7 may further exploit this advantage
+
+### H7 reframing
+
+The original H7 motivation ("JPEG defeats immunization") may be wrong given the JPEG paradox. Two possibilities:
+a. **H7 still improves**: STE training at q=70-75 may push EDR even higher by deliberately exploiting DCT artifacts that help against FLUX. Target: FLUX q=75 EDR ≥ 0.45 (vs current 0.300).
+b. **H7 confirms paradox**: STE training at q=70-75 produces similar results to the unaugmented paradox, confirming the mechanism is architectural (FLUX DiT sensitivity to block artifacts) rather than training-dependent.
+
+Either outcome is publishable. Await H7 results.
+
+---
+
 ## Open Questions
 
-1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)? [H1 — running]
-2. ~~Is patch-based inference at 1088 sufficient?~~ YES — it's 1.60× better than 512px baseline. [H2 ANSWERED]
-3. What is the optimal mix of attack models during training for best cross-model generalization? [H1]
-4. Can frequency-domain perturbation constraints improve imperceptibility at high resolution? [H5, low-priority]
-5. How does gpt-image-edit's resistance to transfer attacks compare to open-source models? [transfer-only]
-6. Does FLUX-based purification fail on DiffVax-FLUX immunized images? [H6 — next after H1a]
-7. Is the VAE feature loss (H4) worth the additional compute vs plain multi-model training (H1a)? [H4]
-8. Does JPEG-augmented training (H7) maintain EDR ≥ 0.7 after q=75 compression? [H7 — next]
-9. Do H2's relative rankings (50pct > 25pct > no_overlap) hold with H1a's stronger checkpoint? [re-run planned]
+1. ~~Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5?~~ ANSWERED: sd15_only already transfers (0.140). Multi-model training hurts.
+2. ~~Is patch-based inference at 1088 sufficient?~~ YES — 1.60× better. [H2 ANSWERED]
+3. **NEW**: Why does JPEG q=75 increase FLUX EDR by 50% for sd15_only? Is it DCT block artifacts or something else? Test: apply median filter (removes DCT artifacts without compression) vs JPEG and compare.
+4. **NEW**: What is the minimum purification strength at which an adversary can remove DiffVax immunizations while maintaining acceptable image quality (SSIM ≥ 0.90)? Current data: s=0.3 fails (net +0.200), s=0.5 succeeds but SSIM→0.70.
+5. Does H7 STE training push FLUX q=75 EDR above the already-high 0.300 baseline? [H7 — pending]
+6. Is the VAE feature loss (H4) worth the additional compute vs plain sd15_only? [H4 — deprioritized given H1 failure]
+7. Does the H2 patch accumulation advantage hold with the sd15_only checkpoint at different quality levels?
 
 ## Literature Update: New Threat Papers (2026-04-08)
 

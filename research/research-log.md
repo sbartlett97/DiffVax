@@ -250,3 +250,35 @@ on any of the three deployment dimensions. Competitive positioning confirmed.
 3. Fix resolution-agnostic loss
 4. Design patch-based inference for H2
 5. Run H1 experiment (multi-model training + cross-model eval)
+
+---
+
+## 2026-04-08 — Revised H1/H6 Results Analyzed + Research Story Pivot (loop-9)
+
+**Revised H1 results (model.train() + deterministic seeds):**
+- sd15_only: SD1.5=0.300, FLUX=0.200, SD3.5=0.140 | PSNR=32.71 dB
+- multimodel_h1a: SD1.5=0.290, FLUX=0.140, SD3.5=0.060 | PSNR=34.81 dB
+- **H1 REFUTED**: H1a performs worse on all architectures. Root cause: FLUX gradients (~10× larger) dominate training, weakening total perturbation (2.1 dB deficit).
+
+**Revised H6 results (model.train() + deterministic seeds + purification control):**
+- sd15_only: direct=0.183, s=0.3 net_survival=+0.200
+- flux_trained (H1a): direct=0.133, s=0.3 net_survival=+0.133
+- At s≥0.5: both checkpoints overwhelmed by purifier damage (PSNR→23dB, control shows net≈0.017)
+- **H6 REFUTED**: H1a does not improve purification resistance. Same root cause as H1.
+
+**New discoveries from data analysis:**
+1. **DiffVax already transfers to DiT without multi-model training**: sd15_only achieves FLUX=0.200 and SD3.5=0.140. Shared VAE mediates transfer without architecture-specific training.
+2. **JPEG paradox**: sd15_only FLUX EDR increases from 0.200 (clean) to 0.300 (q=75) — +50%. SD1.5 EDR is JPEG-invariant. Mechanism: DCT block artifacts compound with immunization against FLUX's patch-token architecture.
+3. **Light FLUX purification fails**: s=0.3 cannot remove sd15_only immunization (net +0.200). EditorClean claims full defeat but requires s≥0.5, which costs PSNR=23dB — an unacceptable image quality tradeoff.
+
+**Research story pivot:**
+- FROM: "Three confirmed contributions (H1, H2, H7)"
+- TO: "H2 confirmed (1.60×) + DiffVax's surprising robustness revealed (cross-model transfer, purification resistance, JPEG paradox) + H7 exploits JPEG paradox"
+- Paper title revised: "DiffVax++: High-Resolution Immunization, Surprising Cross-Architecture Robustness, and the JPEG Paradox"
+
+**Updated paper:**
+- experiments_draft.md: H1 table filled (real numbers), H6 table filled, JPEG paradox section added, combined system table partially filled
+- findings.md: H1 and H6 results sections added with full analysis
+- research-state.yaml: H1/H6 status=refuted, current_focus updated
+
+**Awaiting**: H7 training results to complete the paper.

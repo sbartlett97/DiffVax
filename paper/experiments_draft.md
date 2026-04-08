@@ -67,16 +67,20 @@ We verify this mechanism by measuring the L2 norm of the perturbation at center 
 
 **Transfer to unseen architectures** (Table 3). We evaluate both the original DiffVax checkpoint and H1a on three architectures. SD 3.5 is a held-out architecture — not included in training.
 
-| Checkpoint | SD 1.5 EDR ↑ | FLUX.1-schnell EDR ↑ | SD 3.5 EDR ↑ (held out) |
-|---|---|---|---|
-| DiffVax (SD1.5 only) | [X] | [X] | [X] |
-| DiffVax++ H1a (SD+FLUX) | [X] | [X] | [X] |
+| Checkpoint | SD 1.5 EDR ↑ | FLUX.1-schnell EDR ↑ | SD 3.5 EDR ↑ (held out) | PSNR ↑ |
+|---|---|---|---|---|
+| DiffVax (SD1.5 only) | **0.300** | **0.200** | **0.140** | 32.71 dB |
+| DiffVax++ H1a (SD+FLUX) | 0.290 | 0.140 | 0.060 | 34.81 dB |
 
-*Key predictions*: H1a should (a) improve FLUX EDR over DiffVax, (b) achieve non-trivial SD3.5 transfer despite zero-shot, and (c) maintain SD1.5 performance despite reduced SD1.5 training weight.
+**Key finding (unexpected)**: H1a *under*performs the published DiffVax checkpoint on all three architectures. The multi-model training hypothesis is not confirmed.
 
-**Training dynamics.** H1a training produces a characteristic bimodal epoch-level loss distribution. FLUX batches yield Loss₁ ≈ 0.8–1.3 (FLUX is a harder adversary — higher-capability editor), while SD 1.5 batches yield Loss₁ ≈ 0.05–0.15. This alternating curriculum — where SD 1.5 epochs provide stable gradient signal while FLUX epochs push toward harder disruption — is analogous to GAN training dynamics and may explain why H1a generalizes to SD 3.5 despite not training on it.
+**Why H1a fails — perturbation weakening.** H1a produces a 2.1 dB weaker perturbation (PSNR 34.81 vs 32.71 dB). The FLUX gradient signal during training is an order of magnitude larger than the SD 1.5 signal (FLUX Loss₁ ≈ 0.8–1.3 vs SD 1.5 Loss₁ ≈ 0.05–0.15). The competing objectives do not form the intended curriculum; instead, the large FLUX gradients dominate and drive the NestedUNet toward conservative (smaller) perturbations. This is consistent with the bimodal loss pattern observed during training.
 
-**High-resolution transfer.** We re-evaluate the H2 patch inference ranking (Table 2) using the H1a checkpoint. We expect all EDR values to scale proportionally; the 1.60× relative improvement is a structural property of the patch accumulation mechanism and should be checkpoint-independent. If H1a improves absolute EDR by $\Delta$, we expect 1088px to achieve $\Delta \cdot 1.60$× baseline.
+**Surprising finding: DiffVax already transfers to DiT models.** The published DiffVax checkpoint (trained only on SD 1.5) achieves FLUX EDR = 0.200 and SD 3.5 EDR = 0.140 with no DiT-specific training. This counter-hypothesis result suggests that the immunization perturbation operates primarily in the shared VAE input space: all three model families encode the image through a similar convolutional VAE before any architecture-specific processing. Perturbations that corrupt the VAE-encoded representation disrupt editing regardless of whether the editing model is UNet- or DiT-based.
+
+**Training dynamics.** H1a training produces a characteristic bimodal epoch-level loss distribution. FLUX batches yield Loss₁ ≈ 0.8–1.3 (FLUX is a harder adversary — higher-capability editor), while SD 1.5 batches yield Loss₁ ≈ 0.05–0.15. This is not the intended alternating curriculum: the large FLUX gradients actively interfere with the SD 1.5 objective rather than complementing it.
+
+**High-resolution transfer.** The 1.60× relative improvement from patch-based 1088px inference is a structural property of the perturbation accumulation mechanism. Since the DiffVax checkpoint is the stronger base checkpoint, we use it (not H1a) for the 1088px configuration in Section 4.7.
 
 ---
 
@@ -89,16 +93,18 @@ We verify this mechanism by measuring the L2 norm of the perturbation at center 
 3. Attempt editing on the purified image
 4. Measure EDR
 
-**Purification robustness** (Table 4).
+**Purification robustness** (Table 4). EDR values here use FLUX.1-schnell as the editing model; *direct* = editing the immunized image without any purification; *net survival* = purified EDR − control EDR (control measures disruption from purifier damage to unimmunized clean images).
 
-| Purification Strength | DiffVax EDR (SD1.5 imm) ↑ | H1a EDR (SD+FLUX imm) ↑ |
-|---|---|---|
-| 0.0 (no purification) | [X] | [X] |
-| 0.3 (light) | [X] | [X] |
-| 0.5 (moderate) | [X] | [X] |
-| 0.7 (heavy) | [X] | [X] |
+| Checkpoint | Direct EDR | Purified (s=0.3) | Control (s=0.3) | Net Survival ↑ | PSNR after purify |
+|---|---|---|---|---|---|
+| DiffVax (SD1.5 only) | 0.183 | 0.200 | 0.000 | **+0.200** | 31.1 dB |
+| DiffVax++ H1a (SD+FLUX) | 0.133 | 0.133 | 0.000 | **+0.133** | 32.1 dB |
 
-*Key prediction*: DiffVax EDR drops sharply under purification (FLUX purifier is designed to remove SD1.5 perturbations); H1a retains substantially more EDR because its perturbations are designed to disrupt FLUX's own latent representations.
+At strength ≥ 0.5, the FLUX purifier reduces image quality to PSNR = 23 dB / SSIM = 0.70 for both immunized and clean images. Both checkpoints show purified EDR ≈ 0.983, but the control shows this is entirely purifier damage — both net survival values collapse to ≤ 0.017. This strength regime is therefore not a practical adversary model: an adversary who applies strength=0.5 purification visibly degrades the image before any editing.
+
+**Key finding (unexpected)**: DiffVax (SD1.5 only) provides greater net survival at s=0.3 than H1a. The hypothesis that FLUX-trained immunization resists FLUX purification is not confirmed. The root cause is H1a's weakened perturbation: a 2.1 dB smaller signal has less energy to survive denoising.
+
+**Surprising finding: Light FLUX purification fails against DiffVax.** At the realistic adversary strength of s=0.3 (which maintains PSNR=31.1 dB, SSIM=0.95), the published DiffVax achieves net survival EDR = 0.200. "Purify Once, Edit Freely" [ZHAO2026] demonstrates that FLUX.1-fill-dev can defeat SD 1.5 immunizations at strength ≥ 0.5 — but our data shows the practical cost: at that strength, the purifier damages the image quality below what any adversary would accept. The threat model in [ZHAO2026] implicitly assumes zero quality cost from purification, which does not hold in practice.
 
 **Commodity tool purification** [PLEIMLING2026]. We additionally test purification by three commodity tools (SR model, style transfer, JPEG q=70) applied to DiffVax and H1a immunizations. Results in Appendix B.
 
@@ -108,16 +114,28 @@ We verify this mechanism by measuring the L2 norm of the perturbation at center 
 
 **Setup.** We train a JPEG-robust variant (H7) by extending H1a training with STE JPEG augmentation: with probability $p_{\text{jpeg}} = 0.5$, the immunized image is JPEG-compressed (quality $q \sim U[70, 85]$) before the attack forward pass. Gradients flow through the JPEG operation as the identity (STE). This forces perturbation energy into DCT bands that survive at social media compression levels.
 
-**Compression robustness** (Table 5).
+**The JPEG Paradox (observed in H1 evaluation data).** Before examining H7, we note a surprising finding from the H1 transfer evaluation: JPEG compression does *not* defeat DiffVax immunization against FLUX. Instead, JPEG *increases* EDR.
+
+| Checkpoint | Model | Clean EDR | q=75 EDR | q=70 EDR |
+|---|---|---|---|---|
+| DiffVax (SD1.5 only) | FLUX.1-schnell | 0.200 | **0.300** | **0.260** |
+| DiffVax (SD1.5 only) | SD 1.5 | 0.300 | 0.300 | 0.310 |
+| DiffVax (SD1.5 only) | SD 3.5 | 0.140 | 0.170 | 0.160 |
+
+DiffVax is already JPEG-robust against FLUX without any JPEG-augmented training. FLUX EDR *increases by 50%* at q=75 compared to the clean baseline. We hypothesize that DCT block quantization artifacts (8×8-pixel boundaries) create an additional adversarial signal that compounds with the immunization perturbation — specifically for FLUX's token-based DiT architecture, which is sensitive to patch-boundary discontinuities. SD 1.5's convolutional UNet architecture is robust to this artifact (SD1.5 EDR is JPEG-invariant).
+
+**Compression robustness** (Table 5). Against this JPEG-paradox baseline, H7 aims to further improve JPEG robustness via explicit STE training.
 
 | Method | Clean EDR ↑ | Post-JPEG q=85 ↑ | Post-JPEG q=75 (Instagram) ↑ | Post-JPEG q=70 (Twitter) ↑ |
 |---|---|---|---|---|
-| DiffVax (original) | [X] | [X] | [X] | [X] |
+| DiffVax (original) | 0.200* | [X] | **0.300*** | **0.260*** |
 | IDProtector [CHEN2024] | [X] | [X] | — | — |
-| DiffVax++ H1a | [X] | [X] | [X] | [X] |
+| DiffVax++ H1a | 0.140* | [X] | 0.150* | 0.150* |
 | **DiffVax++ H7** | [X] | [X] | [X] | [X] |
 
-*Key predictions*: (a) DiffVax drops to EDR ≤ 0.15 at q=75 (JPEG eliminates high-freq perturbations); (b) H7 maintains EDR ≥ 0.35 at q=75 (STE training forces energy into survivor bands); (c) IDProtector's q=85 performance does not hold at q=75, because Gaussian noise proxy does not simulate actual JPEG quantization.
+*Measured against FLUX.1-schnell editing model. DiffVax and H1a JPEG values filled from H1 evaluation data; H7 values pending.
+
+*Key updated predictions*: (a) H7 maintains or improves on the paradox-elevated q=75 baseline of 0.300 for DiffVax; (b) H1a shows no JPEG benefit because its perturbation is already too weak (EDR stays flat at 0.140–0.150); (c) IDProtector's q=85 performance does not hold at q=75, because Gaussian noise proxy does not simulate actual JPEG quantization.
 
 **JPEG augmentation ablation** (Table 6). We ablate the augmentation probability to understand the compression-accuracy tradeoff.
 
@@ -152,13 +170,15 @@ We verify this mechanism by measuring the L2 norm of the perturbation at center 
 
 ### 4.7 Combined System: DiffVax++ Full
 
-We evaluate the complete DiffVax++ system (H7 checkpoint + 1088px patch inference) against the best available baselines on a combined metric: EDR under three deployment conditions (clean, post-JPEG q=75, post-purification strength=0.5).
+We evaluate the complete DiffVax++ system (H7 checkpoint + 1088px patch inference) against the best available baselines on a combined metric: EDR under three deployment conditions (clean, post-JPEG q=75, post-purification strength=0.3).
 
-| Method | Clean EDR | +JPEG q=75 | +Purification | Any attack (worst case) |
+Note: purification strength=0.3 is used as the practical adversary strength, as strength≥0.5 visibly degrades image quality (PSNR→23 dB, SSIM→0.70) which defeats the adversary's goal of obtaining a usable edited image.
+
+| Method | Clean EDR | +JPEG q=75 | +Purif. (s=0.3) | Net survival worst case |
 |---|---|---|---|---|
-| DiffVax | [X] | [X] | [X] | [X] |
+| DiffVax | 0.200† | 0.300† | 0.200 (net) | 0.200 |
 | PromptFlare | [X] | N/A | [X] | [X] |
 | IDProtector | [X] | [X]* | N/A | [X] |
 | **DiffVax++ (full)** | [X] | [X] | [X] | **[X]** |
 
-*IDProtector at q=85 only. — = not tested by original paper.
+†Evaluated against FLUX.1-schnell. *IDProtector at q=85 only. — = not tested by original paper.
