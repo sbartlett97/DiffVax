@@ -1,10 +1,10 @@
 project: DiffVax Extension
 question: "How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512x512) to SOTA DiT/hybrid models (FLUX, SD 3.5, gpt-image-edit) and larger resolutions (1088x1088) for a product protecting social media uploads?"
 
-phase: inner_loop
-inner_loop_count: 0
-outer_loop_count: 1
-last_updated: "2026-04-07"
+phase: waiting_for_gpu
+inner_loop_count: 1
+outer_loop_count: 2
+last_updated: "2026-04-08"
 
 hypotheses:
   H1:
@@ -108,7 +108,13 @@ hypotheses:
     prediction: "FLUX-based EditorClean purifier fails on DiffVax-FLUX immunized images (SSIM delta < 0.05)"
     metric: edit_disruption_rate after purification attempt
 
-current_focus: "CRITICAL BUG FIXED: iter_num=10000 epochs × 1600 items = 16M steps (11 years with FLUX). Added max_steps=8000 to all configs. GPU instance needs git pull + restart. H1a: ~44h with max_steps=8000."
+current_focus: >
+  Waiting for H1a GPU training (~44h remaining after git pull + restart on GPU instance).
+  Pre-writing complete: draft abstract + paper outline in paper/draft_abstract_outline.md.
+  Competitive analysis done (2026-04-08): PromptFlare/Attention Attack/Anti-Inpainting all
+  miss JPEG robustness, multi-model, and high-res. eval_transfer.py fixed (model_type
+  per-model inference steps, model.train False bug). Infrastructure is solid.
+  Next: H1a results → H6 eval → H7 training → paper.
 
 literature_key_papers:
   - "arXiv:2603.13028 — Purify Once Edit Freely: FLUX defeats SD1.5 immunization (CRITICAL)"
@@ -133,6 +139,9 @@ resolved_constraints:
   - "FIXED 2026-04-07: Attention hook manager implemented (losses.py)"
   - "FIXED 2026-04-07: generate_masks.py --size parameter added for 1088px data generation"
   - "VERIFIED 2026-04-07: attack_flux.py API confirmed correct against diffusers docs (img_ids, txt_ids, timestep/1000, guidance tensor, scaling/shift_factor from config)"
+  - "FIXED 2026-04-08: attack_sd3.py CPU offload removed, gradient checkpointing added"
+  - "VALIDATED 2026-04-08: H7 STE JPEG gradient flow correct (identity backward, q=70/75 forward match)"
+  - "FIXED 2026-04-08: eval_transfer.py model.eval() bug + per-model inference steps (FLUX.1-schnell uses 4 steps)"
 
 decisions:
   - "2026-04-06: Bootstrap complete. All wrappers implemented."

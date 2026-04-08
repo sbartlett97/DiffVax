@@ -49,8 +49,16 @@ from eval_metrics import psnr as _psnr, ssim as _ssim
 
 
 RESOLUTION = 512
-NUM_INFERENCE_STEPS = 20
 PROMPTS_PER_IMAGE = 3
+
+# Inference steps per model — use the model's native step count so the adversary
+# gets the best possible edit quality (makes disruption harder to claim).
+MODEL_INFERENCE_STEPS = {
+    "sd15": 20,
+    "flux_schnell": 4,   # distilled; >4 steps degrades quality
+    "flux_dev": 20,
+    "sd35": 20,
+}
 
 
 def tensor_to_pil(t: torch.Tensor) -> Image.Image:
@@ -88,8 +96,15 @@ def load_attack_model(model_type: str):
         raise ValueError(f"Unknown model type: {model_type!r}")
 
 
-def run_edit(attack_model, image_t: torch.Tensor, mask_t: torch.Tensor, prompt: str):
+def run_edit(
+    attack_model,
+    image_t: torch.Tensor,
+    mask_t: torch.Tensor,
+    prompt: str,
+    model_type: str = "sd15",
+):
     """Run editing attack and return output tensor (cpu, float)."""
+    n_steps = MODEL_INFERENCE_STEPS.get(model_type, 20)
     with torch.no_grad():
         edited = attack_model.attack(
             prompt=[prompt],
@@ -97,7 +112,7 @@ def run_edit(attack_model, image_t: torch.Tensor, mask_t: torch.Tensor, prompt: 
             mask=mask_t.half().cuda(),
             height=RESOLUTION,
             width=RESOLUTION,
-            num_inference_steps=NUM_INFERENCE_STEPS,
+            num_inference_steps=n_steps,
             batch_size=1,
         )
     return edited.float().cpu()
@@ -170,7 +185,7 @@ def main():
             print(f"  Checkpoint: {ckpt_name}")
             model = NestedUNet(num_classes=3).cuda()
             model.load_state_dict(torch.load(ckpt_path, weights_only=True))
-            model.training = False
+            model.eval()  # sets dropout/batchnorm to eval mode (not Python eval())
 
             pbar = tqdm(val_list, desc=f"{ckpt_name} -> {eval_model_type}")
             for item in pbar:
@@ -192,7 +207,7 @@ def main():
                 # Precompute clean edits (shared across jpeg_modes and checkpoints)
                 clean_edits = {}
                 for prompt in prompts:
-                    clean_edits[prompt] = run_edit(attack_model, image_t, mask_t, prompt)
+                    clean_edits[prompt] = run_edit(attack_model, image_t, mask_t, prompt, eval_model_type)
                 torch.cuda.empty_cache()
 
                 for jpeg_quality in jpeg_modes:
@@ -204,7 +219,7 @@ def main():
 
                     for prompt in prompts:
                         edited_clean = clean_edits[prompt]
-                        edited_imm = run_edit(attack_model, immunized_t.half(), mask_t, prompt)
+                        edited_imm = run_edit(attack_model, immunized_t.half(), mask_t, prompt, eval_model_type)
                         torch.cuda.empty_cache()
 
                         ssim_clean_edit = _ssim(
