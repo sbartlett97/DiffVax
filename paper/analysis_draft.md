@@ -22,21 +22,33 @@ The adversary's edit model subsequently downsamples the 1088px image to its nati
 
 ---
 
-### 5.2 Why Multi-Model Training Generalizes to Held-Out Architectures
+### 5.2 Why DiffVax Transfers to DiT Architectures Without Multi-Model Training
 
-**The VAE bottleneck hypothesis.** All three tested architectures (SD 1.5, FLUX.1-schnell, SD 3.5) share a common computational structure: the input image is encoded by a VAE before any architecture-specific processing. The VAE's role is to compress the image into a lower-dimensional latent representation $z = \text{VAE.encode}(x)$. If the immunization perturbation systematically corrupts the latent code $z$ — pushing it into regions of the latent space that no diffusion model can interpret coherently — it should disrupt editing regardless of the downstream architecture.
+**The VAE bottleneck as the universal attack surface.** All three tested architectures (SD 1.5, FLUX.1-schnell, SD 3.5) share a common computational structure: the input image passes through a convolutional VAE before any architecture-specific processing. The VAE compresses the image into a lower-dimensional latent representation $z = \text{VAE.encode}(x+\delta)$. A perturbation that systematically pushes $z$ into incoherent regions of the latent manifold — regions that the diffusion model's denoising prior cannot resolve into a coherent edit — will disrupt editing regardless of the downstream architecture.
 
-H1a's training objective does not explicitly target the VAE. However, backpropagating through FLUX's 4-step denoising pass necessarily flows gradients through FLUX's 16-channel VAE encoder, which shares architectural principles with SD 3.5's VAE. The implicit regularization from multi-model training thus forces the perturbation to corrupt shared representational structure, not model-specific features.
+The published DiffVax trains against SD1.5's 4-step denoising loss, which backpropagates through SD1.5's 4-channel VAE. The resulting perturbation $\delta^*$ is optimized to corrupt the VAE latent $z = \text{VAE}(x + \delta^*)$. Because all three model families use a convolutional VAE with similar spatial compression (8×), $\delta^*$ similarly corrupts $z$ for FLUX's 16-channel VAE and SD3.5's VAE, producing transfer without explicit multi-model training.
 
-**The bimodal curriculum effect.** The observed bimodal loss distribution (FLUX batches: Loss₁ ≈ 0.8–1.3; SD1.5 batches: Loss₁ ≈ 0.05–0.15) has an important optimization consequence. FLUX's stronger editing capability means FLUX-targeting gradients have higher norm — they push the immunizer strongly toward disrupting high-capability editing. SD1.5 epochs, by contrast, have lower-norm gradients that act as a stabilizing force, keeping the perturbation in a regime that also disrupts simpler editing models.
+**Why the perturbation magnitude matters.** We test this hypothesis against multi-model training (H1a) and find the opposite of what the VAE transfer mechanism predicts: H1a performs *worse* (EDR 0.140 vs 0.200 on FLUX, 0.060 vs 0.140 on SD3.5). The key is perturbation magnitude: H1a PSNR = 34.81 dB vs sd15_only PSNR = 32.71 dB — H1a's perturbation is 2.1 dB weaker. A weaker perturbation corrupts the VAE latent by a smaller margin, producing fewer editing failures.
 
-This dynamic is analogous to GAN training: the "generator" (immunizer) must satisfy two discriminators (attack models) with different capacities. The high-capacity discriminator (FLUX) drives strong perturbations; the low-capacity discriminator (SD1.5) prevents mode collapse toward perturbations specialized for FLUX. We hypothesize this is why H1a transfers to SD3.5: the mixed-capacity training regime produces perturbations that lie in the intersection of "disrupts high-capacity models" and "disrupts low-capacity models" — a region that generalizes across architectures.
+**Why multi-model training weakens the perturbation.** The FLUX gradient signal during training has a significantly higher norm than SD1.5 (FLUX Loss₁ ≈ 0.8–1.3 vs SD1.5 Loss₁ ≈ 0.05–0.15 — roughly 10× higher). Rather than forming a curriculum, the dominant FLUX gradient term drives the NestedUNet toward parameter regions that minimize FLUX loss at the cost of overall perturbation magnitude. The result is a perturbation that is more "targeted" toward FLUX's architecture but too small to reliably disrupt any model. The bimodal loss distribution is not evidence of a healthy curriculum — it is evidence of competing objectives.
 
-**Comparison to SD1.5-only training.** The original DiffVax checkpoint is optimized exclusively against SD1.5, a relatively weak editor. Its perturbations likely exploit SD1.5-specific architectural features (e.g., 4-channel VAE tokenization, specific cross-attention patterns). FLUX's 16-channel VAE and joint image-text attention (DiT architecture) are architecturally distinct enough that SD1.5-targeting perturbations provide little signal — consistent with Zhao et al.'s finding that FLUX.1-fill-dev can purify SD1.5 immunizations with +3–6 dB recovery.
+**Implication.** The VAE bottleneck mediates cross-architecture transfer automatically from SD1.5-only training. Multi-model training is counterproductive at this perturbation scale: the optimization challenge of satisfying two divergent gradient landscapes outweighs any benefit from explicit DiT targeting. This may change with larger models, more training steps, or explicit magnitude regularization — but under the current training recipe, sd15_only is the stronger base checkpoint.
 
 ---
 
-### 5.3 Why STE JPEG Training Forces Energy Into Survivor Bands
+### 5.3 The JPEG Paradox: Architecture-Dependent Compression Sensitivity
+
+The standard expectation in the adversarial robustness literature is that JPEG compression degrades adversarial perturbations by quantizing high-frequency DCT coefficients [GOODFELLOW2016, DCT-SHIELD-2025]. We observe the opposite for DiffVax against FLUX: JPEG q=75 *increases* FLUX EDR from 0.200 to 0.300 (+50%), while SD1.5 EDR remains constant at 0.300 (JPEG-invariant). This effect is statistically robust (paired $t = -4.33$, $n=100$, $p \ll 0.001$).
+
+**The compound perturbation mechanism.** JPEG compression of the immunized image has two effects: (1) it partially destroys the immunization perturbation (reducing PSNR from 32.71 to 31.37 dB — a 1.35 dB loss), and (2) it introduces DCT block-boundary artifacts at every 8×8 pixel boundary. Effect (1) should reduce EDR. Effect (2) introduces a structured spatial discontinuity pattern that is architecture-dependent.
+
+FLUX.1-schnell tokenizes the image into $2 \times 2$ latent patches (spatial size $\approx 16 \times 16$ pixels in image space). At 8-pixel DCT block boundaries, the JPEG artifact creates a strong gradient at patch edges — a structured adversarial signal against FLUX's patch-attention mechanism. This signal is *independent* of the immunization perturbation and is present even on clean images. On immunized images, the two adversarial signals (immunization + DCT artifact) are additive in the FLUX latent space, producing stronger disruption than either alone.
+
+SD1.5's convolutional UNet processes the image with spatially continuous learned filters at multiple scales. Block-boundary artifacts are smoothed by the convolutional processing; the DCT signal does not create the patch-aligned disruption that FLUX's transformer sees. This explains the architecture-specific nature of the paradox.
+
+**Implication for the JPEG threat model.** Prior work assumes JPEG is an adversary tool against immunization. For FLUX (the most capable open-source editor), JPEG is a compound-attack mechanism that *helps* immunization. Social media platforms that apply JPEG at q=70–75 are inadvertently increasing protection for users who have uploaded DiffVax-immunized images.
+
+### 5.4 Why STE JPEG Training Further Exploits the Compound Effect
 
 **DCT frequency analysis.** JPEG compression works by (1) transforming 8×8 pixel blocks into DCT frequency coefficients, (2) quantizing each coefficient by a quality-dependent factor (coarser at lower quality), and (3) discarding zero/near-zero quantized coefficients. At q=75, the quantization table eliminates approximately 60% of DCT coefficients in each block; at q=70, approximately 70% are eliminated [DCT-SHIELD-2025].
 
@@ -48,11 +60,13 @@ On each JPEG-augmented training step, the attack model sees only the JPEG-compre
 
 After sufficient STE training steps, the immunizer converges to perturbations whose energy is predominantly in JPEG-survivor bands: mid-frequency DCT coefficients (spatial frequencies of 1–16 cycles/8-pixel block) that are preserved at q=70–85. These bands are harder to eliminate without also degrading visible image content, which is why H7 perturbations survive commodity purification tools as well.
 
-**IDProtector comparison.** IDProtector [CHEN2024] explicitly states: "applying differentiable JPEG compression through Straight-Through Estimator [...] introduces substantial learning burden." They use a Gaussian noise proxy (σ=0.05) evaluated only at q=85. At q=85, many high-frequency perturbation components survive; the Gaussian proxy is a reasonable approximation. But at q=70–75, the quantization table is much more aggressive and only bands within the survivor envelope survive. A Gaussian proxy does not model the banded structure of JPEG survivor frequencies. H7 directly learns the survivor structure.
+**The STE mechanism for FLUX targeting.** For the H7 checkpoint, the forward pass applies JPEG at $q \sim U[70, 85]$, so the attack model always sees a JPEG-compressed image. The loss measures: $\mathcal{L}_1 = \|f_\text{FLUX}(\text{JPEG}(x + \delta), \text{mask})\|_1$ — explicitly the FLUX response to a JPEG-processed immunization. The STE gradient $\nabla_\delta \mathcal{L}_1$ rewards perturbation components that, after JPEG compression, produce strong DCT artifacts at patch-relevant frequencies. H7 thus explicitly trains to maximize the compound DCT–DiT effect.
+
+**IDProtector comparison.** IDProtector [CHEN2024] explicitly states: "applying differentiable JPEG compression through Straight-Through Estimator [...] introduces substantial learning burden." They use a Gaussian noise proxy (σ=0.05) evaluated only at q=85. At q=85, many high-frequency perturbation components survive; the Gaussian proxy is a reasonable approximation. But at q=70–75, the quantization table is much more aggressive and only bands within the survivor envelope survive. A Gaussian proxy does not model the banded structure of JPEG survivor frequencies. H7 directly learns the survivor structure, including the DCT–DiT compound effect not captured by any prior work.
 
 ---
 
-### 5.4 Failure Modes and Limitations
+### 5.5 Failure Modes and Limitations
 
 **GPT-image-edit (black-box API).** We cannot backpropagate through gpt-image-edit. We test DiffVax++ H7 on a qualitative sample of 20 images and find [X/20] disrupted. This is a transfer-only scenario and results will be variable. A production system protecting against gpt-image-edit would need black-box transfer methods (e.g., ensemble of open-source surrogate models).
 
