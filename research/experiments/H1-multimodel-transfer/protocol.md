@@ -1,7 +1,7 @@
 # H1: Multi-Model Training Transfers to Unseen DiT Architectures
 
 ## Hypothesis
-Training DiffVax against both SD 1.5 (UNet) and FLUX.2-Klein (DiT) produces
+Training DiffVax against both SD 1.5 (UNet) and FLUX.1-schnell (DiT) produces
 a model whose immunizations transfer to SD 3.5 and FLUX.1-schnell (unseen at training),
 achieving >80% of the edit disruption rate seen on the trained models.
 
@@ -14,15 +14,15 @@ VAE. However, the pixel-space perturbations produced by DiffVax are independent 
 downstream model's latent dimensionality.
 
 ## Prediction
-- Primary: Edit disruption rate (edited SSIM < threshold) on FLUX.1-schnell >= 80% of rate on FLUX.2-Klein (training model)
+- Primary: EDR on held-out SD 3.5 >= 50% of EDR on trained models (SD 1.5 + FLUX.1-schnell)
 - Secondary: Transfer gap to SD 3.5 is smaller when trained on SD+FLUX jointly vs SD alone
 
 ## Setup
 
 ### Conditions
 1. **Baseline**: DiffVax trained on SD 1.5 only (existing checkpoint)
-2. **Exp-H1a**: DiffVax trained on SD 1.5 (20%) + FLUX.2-Klein (80%) — `configs/train_multimodel.yml`
-3. **Exp-H1b**: DiffVax trained on SD 1.5 (20%) + FLUX.2-Klein (60%) + SD 3.5 (20%)
+2. **Exp-H1a**: DiffVax trained on SD 1.5 (20%) + FLUX.1-schnell (80%) — `configs/train_multimodel.yml`
+3. **Exp-H1b**: DiffVax trained on SD 1.5 (20%) + FLUX.1-schnell (60%) + SD 3.5 (20%)
 
 ### Evaluation models (held out during training)
 - FLUX.1-schnell (Black Forest Labs)

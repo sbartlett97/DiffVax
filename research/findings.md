@@ -210,3 +210,27 @@ The story is compelling because each contribution was **surprising**: H2 beats b
 7. Is the VAE feature loss (H4) worth the additional compute vs plain multi-model training (H1a)? [H4]
 8. Does JPEG-augmented training (H7) maintain EDR ≥ 0.7 after q=75 compression? [H7 — next]
 9. Do H2's relative rankings (50pct > 25pct > no_overlap) hold with H1a's stronger checkpoint? [re-run planned]
+
+## Literature Update: New Threat Papers (2026-04-08)
+
+Third literature pass surfaced two new papers that sharpen the threat model:
+
+**1. "Off-The-Shelf Image-to-Image Models Are All You Need" (arXiv:2602.22197, Feb 2026)**
+Commodity image-to-image tools (no knowledge of the specific defense) can strip Lp-bounded perturbations across 6 defense schemes. This extends the purification threat beyond EditorClean: *any* image transformation the adversary applies could defeat standard DiffVax.
+
+**Implication for H7**: JPEG robustness isn't just about social media uploads — it's about surviving the broader class of commodity transforms. A perturbation that survives q=70-75 JPEG also survives many SR and style-transfer tools that internally compress. H7's motivation is now stronger than originally stated.
+
+**2. "AEGIS" (arXiv:2604.01635, Apr 2026)**
+Concurrent work confirming that trajectory-aware latent-space perturbation injection is more robust than single-step injection. DiffVax's multi-step differentiable pass (4 denoising steps) already does this. No JPEG robustness addressed — DiffVax++ fills this gap.
+
+**Paper positioning update**: The Introduction threat model should now cite *two* categories of purification attack:
+1. Specialized purifiers (EditorClean, arXiv:2603.13028) — model-specific
+2. Commodity tools (Pleimling et al., arXiv:2602.22197) — model-agnostic
+
+Both motivate multi-model training (H1) and JPEG robustness (H7).
+
+## H1a Training Status Update (2026-04-08)
+- **Runtime**: ~20h of ~44h estimated total
+- **Status**: Running on GPU instance with all fixes applied (gradient checkpointing, 2D img_ids, max_steps=8000)
+- **Expected completion**: ~24h from now (early 2026-04-09)
+- **Next**: On checkpoint arrival → run H1 eval + H6 eval simultaneously → start H7 training

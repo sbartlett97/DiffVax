@@ -138,3 +138,20 @@
 - If we train DiffVax against FLUX, FLUX-based purification should fail.
 - This is a strong product justification: our multi-model immunization resists the state-of-the-art purification attack.
 - **Prediction**: FLUX-based purifier (EditorClean from 2603.13028) fails to recover editability after DiffVax-FLUX immunization.
+
+---
+
+## New Papers (2026-04-08)
+
+### 18. "Off-The-Shelf Image-to-Image Models Are All You Need To Defeat Image Protection Schemes"
+- **arXiv**: 2602.22197 (February 2026)
+- **Key finding**: Commodity image-to-image tools can strip Lp-bounded perturbations across 6 defense schemes with no knowledge of the specific defense. No specialized purifier needed.
+- **Threat**: More severe than EditorClean — the adversary doesn't need FLUX; any image transformation tool will do
+- **Implication**: Motivates H7 (JPEG robustness) and H1 (multi-model training). A perturbation that survives q=70 JPEG also survives many commodity SR/style-transfer tools.
+- **For paper**: Cite in Introduction threat model; second category of purification attack
+
+### 19. "AEGIS: Diffusion-Guided Adversarial Perturbation Injection" (arXiv:2604.01635, Apr 2026)
+- **Key finding**: Trajectory-aware latent-space injection (perturbation effective across multiple denoising steps) is more robust
+- **Concurrent work**: Confirms our multi-step differentiable pass is sound
+- **No JPEG robustness**: Gap DiffVax++ fills
+- **For paper**: "Concurrent work AEGIS (Li et al., 2026) confirms latent-space trajectory injection; we extend to multi-model and compression-resistant settings"
