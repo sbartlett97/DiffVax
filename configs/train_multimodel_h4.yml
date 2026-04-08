@@ -3,8 +3,10 @@
 # Uses stabilityai/sd-vae-ft-mse as shared VAE.
 
 # Training
+# Observed timing: 1.52s/step, 1600 items/epoch → 10 epochs ≈ 6.8h
+# 16000 steps covers observed convergence (Loss1 stable by epoch 10)
 iter_num: 10000
-max_steps: 8000
+max_steps: 16000
 learning_rate: 0.000005
 batch_size: 1
 alpha: 4
@@ -30,6 +32,3 @@ flux_probability: 0.75
 # Dataset paths (relative to data_dir)
 images_subdir: "train/images"
 masks_subdir: "train/masks"
-image_prompt_json: "image_prompt_pairs_with_validation.json"
-
-load_existing: false

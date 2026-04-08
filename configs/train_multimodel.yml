@@ -4,9 +4,11 @@
 
 # Training
 # iter_num: kept high — actual run length controlled by max_steps
-# max_steps: 8000 gradient updates × ~20s/step ≈ 44h on A100 95GB
+# Observed timing: 1.52s/step, 1600 items/epoch → 1 epoch ≈ 40min
+# 16000 steps = 10 epochs ≈ 6.8h — covers observed convergence (Loss1 stable by epoch 10)
+# Previous run: max_steps=8000 (5 epochs, 3.4h) stopped before convergence
 iter_num: 10000
-max_steps: 8000
+max_steps: 16000
 learning_rate: 0.000005
 batch_size: 1
 alpha: 4

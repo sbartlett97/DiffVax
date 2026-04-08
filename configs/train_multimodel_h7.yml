@@ -8,8 +8,10 @@
 # Reference: DCT-Shield (ICCV 2025, arXiv:2504.17894)
 
 # Training
+# Observed timing: 1.52s/step, 1600 items/epoch → 10 epochs ≈ 6.8h
+# 16000 steps covers observed convergence (Loss1 stable by epoch 10)
 iter_num: 10000
-max_steps: 8000
+max_steps: 16000
 learning_rate: 0.000005
 batch_size: 1
 alpha: 4
@@ -26,7 +28,7 @@ resolution: 512
 attack_model_link: "runwayml/stable-diffusion-inpainting"
 sd_probability: 0.25
 
-# Attack model: FLUX.2 Klein 4B (DiT)
+# Attack model: FLUX.1-schnell (distilled DiT, 16-ch VAE, 4 denoising steps)
 flux_model_link: "black-forest-labs/FLUX.1-schnell"
 flux_probability: 0.75
 
@@ -38,6 +40,3 @@ jpeg_quality_range: [70, 85] # simulate Instagram (75) and Twitter (~70)
 # Dataset paths (relative to data_dir)
 images_subdir: "train/images"
 masks_subdir: "train/masks"
-image_prompt_json: "image_prompt_pairs_with_validation.json"
-
-load_existing: false
