@@ -151,10 +151,26 @@ class DiffVaxImmunization:
         # Prevents runaway training when dataset is large (800 imgs × 2 prompts = 1600
         # items/epoch; iter_num=10000 epochs × 1600 = 16M steps without this cap).
         max_steps = self.config.get("max_steps", None)
+        # Save a checkpoint every this many epochs. Protects against unexpected
+        # process termination (kill signal, OOM, cloud instance preemption).
+        checkpoint_every = self.config.get("checkpoint_every", 5)
+        # Stop-file mechanism: if this path exists, save checkpoint and exit cleanly.
+        # Usage: touch /tmp/diffvax_stop  (on the training machine)
+        stop_file = self.config.get("stop_file", "/tmp/diffvax_stop")
 
         for epoch_i in range(iter_num):
             if max_steps is not None and total_iter >= max_steps:
                 break
+
+            # Graceful stop: check for stop-file signal before each epoch
+            if os.path.exists(stop_file):
+                print(f"\nStop file {stop_file!r} detected — saving checkpoint and exiting.")
+                ckpt_path = path_of_models + f"_stopped_epoch{epoch_i}.pth"
+                torch.save(self.model.state_dict(), ckpt_path)
+                print(f"Checkpoint saved: {ckpt_path}")
+                os.remove(stop_file)
+                return img_adv if 'img_adv' in dir() else None, ckpt_path
+
             pbar = tqdm(enumerate(dataloader), total=len(dataloader),
                         desc=f"Epoch {epoch_i+1}/{iter_num}")
             epoch_losses = []
@@ -260,6 +276,13 @@ class DiffVaxImmunization:
                 losses = []
                 losses1 = []
                 losses2 = []
+
+            # Periodic checkpoint save
+            if checkpoint_every > 0 and (epoch_i + 1) % checkpoint_every == 0:
+                ckpt_path = path_of_models + f"_epoch{epoch_i+1}.pth"
+                torch.save(self.model.state_dict(), ckpt_path)
+                avg_l = np.mean(epoch_losses) if epoch_losses else float('nan')
+                print(f"\n[Checkpoint] Epoch {epoch_i+1} saved: {ckpt_path}  (avg_loss={avg_l:.4f})")
 
         torch.save(self.model.state_dict(), path_of_models + "_final.pth")
 
