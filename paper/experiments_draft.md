@@ -26,6 +26,8 @@ where $\hat{x}_i^{\text{imm}}$ is the model's output when editing the immunized 
 
 All methods are evaluated on the same (image, prompt, seed) triples. For fair comparison, we run each baseline at its published recommended configuration.
 
+**Metric availability note.** DiffVax is the only competing method that reports a standardized numerical disruption metric on a public benchmark. PromptFlare, Attention Attack, Anti-Inpainting, and AEGIS all report qualitative claims ("significantly degrades editing performance") or use custom metrics (caption similarity, semantic IoU) that cannot be directly compared across papers. IDProtector does not report EDR. We compute EDR for all methods using our evaluation protocol; competitors that do not release code are evaluated at their published checkpoint where possible, or marked N/A. This standardization is itself a contribution: the field currently lacks a shared evaluation benchmark, making SOTA comparisons unreliable.
+
 **Hardware.** All DiffVax++ training runs on 1× NVIDIA A100 (95 GB SXM). H1a: ~6.8h (16,000 steps, 1.52s/step). H7: ~7.2h (similar step count with additional JPEG augmentation overhead).
 
 ---

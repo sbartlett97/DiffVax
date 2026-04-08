@@ -88,12 +88,14 @@ designed for the Instagram/Twitter deployment scenario.
 Table 1 summarizes the coverage of existing methods across the three deployment
 dimensions addressed by DiffVax++.
 
-| Method | Multi-arch | High-res | JPEG robust | Venue |
-|---|---|---|---|---|
-| DiffVax [OZDENTARIKCAN2025] | ✗ | ✗ | ✗ | ICLR 2025 |
-| Anti-Inpainting [GUO2025] | ✗ (claimed, unspecified) | ✗ | ✗ | arXiv 2025 |
-| Attention Attack [TRIPPODO2025] | ✗ | ✗ | ✗ | ACM MM 2025 |
-| PromptFlare [NA2025] | ✗ | ✗ | ✗ | ACM MM 2025 |
-| IDProtector [CHEN2024] | ✗ | ✗ | q=85 only | Dec 2024 |
-| AEGIS [LI2026] | ✗ | ✗ | ✗ | Apr 2026 |
-| **DiffVax++ (ours)** | **✓ SD+FLUX+SD3** | **✓ 1088px** | **✓ q=70–75** | — |
+| Method | Multi-arch | High-res | JPEG robust | Numeric EDR? | Venue |
+|---|---|---|---|---|---|
+| DiffVax [OZDENTARIKCAN2025] | ✗ | ✗ | ✗ | ✓ (EDR=0.25) | ICLR 2025 |
+| Anti-Inpainting [GUO2025] | ✗ (claimed, unspecified) | ✗ | ✗ | ✗ (qualitative) | arXiv 2025 |
+| Attention Attack [TRIPPODO2025] | ✗ | ✗ | ✗ | ✗ (custom metrics) | ACM MM 2025 |
+| PromptFlare [NA2025] | ✗ | ✗ | ✗ | ✗ (SOTA claimed, no #s) | ACM MM 2025 |
+| IDProtector [CHEN2024] | ✗ | ✗ | q=85 only | ✗ (SSIM only) | Dec 2024 |
+| AEGIS [LI2026] | ✗ | ✗ | ✗ | ✗ (qualitative) | Apr 2026 |
+| **DiffVax++ (ours)** | **✓ SD+FLUX+SD3** | **✓ 1088px** | **✓ q=70–75** | **✓ (EDR=0.40, 1.60×)** | — |
+
+*No paper in 2024–2026 other than DiffVax reports a standardized numerical disruption metric on a shared public benchmark. The "SOTA" claim by PromptFlare [NA2025] is qualitative and not reproducible from their paper.*

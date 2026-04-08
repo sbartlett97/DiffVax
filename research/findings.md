@@ -227,6 +227,25 @@ still in GPU RAM; if the process can be checkpointed before killing, they can be
 3. Generate paper figures (3 bar charts, accumulation heatmap, loss curve, purification table)
 4. Final pass: tighten prose, verify citations, format for ICLR 2027
 
+## Baseline Metric Audit (2026-04-08 loop-6)
+
+**Finding**: No competing paper in 2024–2026 reports EDR or any equivalent standardized numerical disruption metric on a public benchmark.
+
+- **DiffVax** (ICLR 2025): Reports SSIM of editing output. We compute EDR=0.250 from their released checkpoint.
+- **PhotoGuard**: Reports SSIM/PSNR of disrupted output only.
+- **PromptFlare** (ACM MM 2025): Claims "SOTA across various metrics" — no numbers in paper.
+- **Attention Attack** (ACM MM 2025): Uses custom caption similarity + semantic IoU.
+- **Anti-Inpainting**: Qualitative only.
+- **IDProtector**: Reports SSIM-based "success rate" at q=85 only.
+- **AEGIS**: Qualitative.
+
+**Paper implication**: The comparison table cannot use their EDR numbers (they don't have them). Instead:
+1. Report DiffVax (ICLR 2025) baseline as the only reproducible numeric comparison
+2. Add a table column "Reports EDR?" showing we're the only method with standardized metrics
+3. Frame this as a secondary contribution: DiffVax++ introduces EDR as a deployment-oriented metric that exposes the gap between qualitative SOTA claims and actual Instagram/Twitter robustness
+
+**Also note**: DiffVax (original) evaluated JPEG as an adversarial attack (adversary applies JPEG to remove perturbation). At compression ratio 0.75, DiffVax SSIM improves slightly (+0.012 from 0.510→0.522). This means JPEG q≈75 already helps adversaries slightly against the original DiffVax, even without our explicit training. H7's contribution is to flip this relationship.
+
 ## Open Questions
 
 1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)? [H1 — running]

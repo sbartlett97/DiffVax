@@ -1,5 +1,25 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-08 — Baseline Audit + Paper Polish + Figures
+
+**Baseline metrics audit** (web search across all 6 competitor papers):
+- No paper in 2024-2026 reports EDR on a public benchmark
+- PromptFlare makes SOTA claims with zero numeric evidence
+- This validates using EDR as a standardized metric AND is a secondary contribution
+- Paper updated: comparison table gains "Reports EDR?" column; experiments section notes metric gap
+
+**fill_paper_results.py** (scripts/): automated placeholder-filling script.
+When H1/H6/H7 CSVs arrive, run:
+  `python scripts/fill_paper_results.py --h1-csv ... --h6-csv ...`
+Outputs formatted tables and key claim values ready to paste into paper drafts.
+
+**Figures** (research/to_human/figures/):
+- teaser_figure.png: 3-panel paper figure (Panel A H2 confirmed, B/C pending GPU)
+- training_dynamics.png: H1a bimodal loss curve from observed 26-epoch run
+- h2_patch_inference.png: regenerated with correct 28dB PSNR threshold (was 30dB)
+
+---
+
 ## 2026-04-08 — Pipeline Audit: Two More Critical Bugs Fixed
 
 **Bug 1: train.py not forwarding jpeg_augment_prob to DiffVaxImmunization (CRITICAL for H7)**
