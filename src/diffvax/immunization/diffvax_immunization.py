@@ -81,6 +81,9 @@ class DiffVaxImmunization:
         self._jpeg_prob = config.get("jpeg_augment_prob", 0.0)
         self._jpeg_quality_range = tuple(config.get("jpeg_quality_range", [70, 85]))
 
+        # Store full config for access in training loop (e.g. max_steps).
+        self.config = config
+
     def _get_shared_vae(self):
         """Lazily load shared VAE for cross-model feature loss (H4)."""
         if self._shared_vae is None:
