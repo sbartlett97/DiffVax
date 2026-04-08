@@ -165,25 +165,32 @@ def main():
             immunized_t = apply_immunization(model, image_t, mask_t)
             psnr_imm_vs_orig = compute_psnr(immunized_t, image_t.float())
 
+            # Per-(image, prompt) deterministic seed: same noise for clean vs immunized edits
+            base_seed = abs(hash(image_name)) % (2**31)
+
             # Precompute clean edits once per image (shared across purify_strengths)
             clean_edits = {}
-            for prompt in prompts:
+            for i_p, prompt in enumerate(prompts):
+                gen = torch.Generator(device="cuda").manual_seed(base_seed + i_p)
                 with torch.no_grad():
                     clean_edits[prompt] = flux.attack(
                         prompt=[prompt], masked_image=image_t, mask=mask_t,
                         height=RESOLUTION, width=RESOLUTION,
                         num_inference_steps=EDIT_STEPS, batch_size=1,
+                        generator=gen,
                     ).float()
             torch.cuda.empty_cache()
 
-            # Edit immunized directly (no purification)
+            # Edit immunized directly (no purification) — same seeds as clean
             direct_edits = {}
-            for prompt in prompts:
+            for i_p, prompt in enumerate(prompts):
+                gen = torch.Generator(device="cuda").manual_seed(base_seed + i_p)
                 with torch.no_grad():
                     direct_edits[prompt] = flux.attack(
                         prompt=[prompt], masked_image=immunized_t.half(), mask=mask_t,
                         height=RESOLUTION, width=RESOLUTION,
                         num_inference_steps=EDIT_STEPS, batch_size=1,
+                        generator=gen,
                     ).float()
             torch.cuda.empty_cache()
 
@@ -199,23 +206,28 @@ def main():
                 # disruption even on non-immunized images.
                 purified_clean_t = purify_with_flux(flux, image_t.float(), strength=purify_strength)
 
-                for prompt in prompts:
+                for i_p, prompt in enumerate(prompts):
                     edited_clean = clean_edits[prompt]
                     edited_immunized = direct_edits[prompt]
-
+                    # Same seed for purified edits so all four conditions differ only
+                    # in the input image, not the diffusion noise
+                    gen = torch.Generator(device="cuda").manual_seed(base_seed + i_p)
                     with torch.no_grad():
                         edited_purified = flux.attack(
                             prompt=[prompt], masked_image=purified_t.half(), mask=mask_t,
                             height=RESOLUTION, width=RESOLUTION,
                             num_inference_steps=EDIT_STEPS, batch_size=1,
+                            generator=gen,
                         ).float()
                     torch.cuda.empty_cache()
 
+                    gen = torch.Generator(device="cuda").manual_seed(base_seed + i_p)
                     with torch.no_grad():
                         edited_purified_clean = flux.attack(
                             prompt=[prompt], masked_image=purified_clean_t.half(), mask=mask_t,
                             height=RESOLUTION, width=RESOLUTION,
                             num_inference_steps=EDIT_STEPS, batch_size=1,
+                            generator=gen,
                         ).float()
                     torch.cuda.empty_cache()
 

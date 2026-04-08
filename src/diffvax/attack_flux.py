@@ -159,6 +159,7 @@ class FluxAttack:
         num_inference_steps: int = 4,
         strength: float = 0.85,
         batch_size: int = 1,
+        generator: Optional[torch.Generator] = None,
     ) -> torch.Tensor:
         """Differentiable forward pass through FLUX inpainting.
 
@@ -211,7 +212,8 @@ class FluxAttack:
         num_steps_with_strength = max(1, int(num_inference_steps * strength))
         timesteps = pipe.scheduler.timesteps[-num_steps_with_strength:]
 
-        noise = torch.randn_like(image_latents)
+        noise = torch.randn(image_latents.shape, generator=generator,
+                           device=image_latents.device, dtype=image_latents.dtype)
         t_start = timesteps[0]
         sigma = t_start.float() / pipe.scheduler.config.num_train_timesteps
         latents = (1.0 - sigma) * image_latents + sigma * noise

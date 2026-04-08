@@ -102,9 +102,19 @@ def run_edit(
     mask_t: torch.Tensor,
     prompt: str,
     model_type: str = "sd15",
+    seed: Optional[int] = None,
 ):
-    """Run editing attack and return output tensor (cpu, float)."""
+    """Run editing attack and return output tensor (cpu, float).
+
+    seed: if provided, creates a CUDA generator to fix diffusion noise. Passing the
+    SAME seed for clean and immunized edits of the same (image, prompt) pair eliminates
+    stochastic variation between the two runs, making EDR a pure measure of immunization
+    effect rather than seed-variation noise (which contributes ~0.18 baseline EDR).
+    """
     n_steps = MODEL_INFERENCE_STEPS.get(model_type, 20)
+    generator = None
+    if seed is not None:
+        generator = torch.Generator(device="cuda").manual_seed(seed)
     with torch.no_grad():
         edited = attack_model.attack(
             prompt=[prompt],
@@ -114,6 +124,7 @@ def run_edit(
             width=RESOLUTION,
             num_inference_steps=n_steps,
             batch_size=1,
+            generator=generator,
         )
     return edited.float().cpu()
 
@@ -208,10 +219,19 @@ def main():
                 image_t = image_t.half().cuda()
                 mask_t = mask_t.half().cuda()
 
+                # Per-(image, prompt) deterministic seed: eliminates stochastic EDR baseline
+                # (~0.18 false EDR from diffusion noise variation between two independent runs).
+                # Clean and immunized edits for the same (image, prompt) use the SAME seed,
+                # so the only difference in output is the perturbation, not random noise.
+                base_seed = abs(hash(image_name)) % (2**31)
+
                 # Precompute clean edits (shared across jpeg_modes and checkpoints)
                 clean_edits = {}
-                for prompt in prompts:
-                    clean_edits[prompt] = run_edit(attack_model, image_t, mask_t, prompt, eval_model_type)
+                for i_p, prompt in enumerate(prompts):
+                    edit_seed = base_seed + i_p
+                    clean_edits[prompt] = run_edit(
+                        attack_model, image_t, mask_t, prompt, eval_model_type, seed=edit_seed
+                    )
                 torch.cuda.empty_cache()
 
                 for jpeg_quality in jpeg_modes:
@@ -221,9 +241,12 @@ def main():
                     psnr_val = _psnr(immunized_t.float().cpu(), image_t.float().cpu())
                     ssim_imm_orig = _ssim(immunized_t.float().cpu(), image_t.float().cpu())
 
-                    for prompt in prompts:
+                    for i_p, prompt in enumerate(prompts):
+                        edit_seed = base_seed + i_p
                         edited_clean = clean_edits[prompt]
-                        edited_imm = run_edit(attack_model, immunized_t.half(), mask_t, prompt, eval_model_type)
+                        edited_imm = run_edit(
+                            attack_model, immunized_t.half(), mask_t, prompt, eval_model_type, seed=edit_seed
+                        )
                         torch.cuda.empty_cache()
 
                         ssim_clean_edit = _ssim(

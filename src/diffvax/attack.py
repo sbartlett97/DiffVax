@@ -52,6 +52,7 @@ class Attack:
         guidance_scale: float = 7.5,
         eta: float = 0.0,
         batch_size: int = 1,
+        generator: Optional[torch.Generator] = None,
     ):
         """Differentiable forward pass of the inpainting stable diffusion model."""
         diffusion_model = self.model
@@ -72,6 +73,7 @@ class Attack:
             latents_shape,
             device=diffusion_model.device,
             dtype=text_embeddings.dtype,
+            generator=generator,
         )
 
         mask = torch.nn.functional.interpolate(mask, size=(height // 8, width // 8))
