@@ -1,5 +1,22 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-08 — Config Fix: max_steps Corrected + Paper Sections Drafted
+
+**max_steps recalculation** (all multi-model configs updated):
+- Previous: max_steps=8000, estimated at 20s/step (44h). WRONG.
+- Actual observed: 1.52s/step, 1600 items/epoch → 1 epoch ≈ 40min
+- 8000 steps = 5 epochs = 3.4h → stops BEFORE convergence (epoch 10-13 needed)
+- Fix: max_steps=8000 → **16000** (10 epochs, 6.8h). Covers observed convergence.
+- Files updated: train_multimodel.yml, train_multimodel_h7.yml, train_multimodel_h4.yml
+- H1a GPU run: needs kill → git pull → restart with corrected config
+
+**Paper sections drafted**:
+- experiments_draft.md: Full structure with table templates + [X] placeholders for GPU results
+- analysis_draft.md: Mechanism explanations (accumulation, bimodal loss, STE) + failure modes
+- conclusion_draft.md: Complete draft (no GPU numbers needed)
+
+---
+
 ## 2026-04-08 — Pre-writing + Competitive Analysis + Eval Code Audit
 
 **Competitive analysis** (all three 2025 SOTA papers audited):

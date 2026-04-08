@@ -199,6 +199,34 @@ The story is compelling because each contribution was **surprising**: H2 beats b
 2. **H7 effect size**: DiffVax has natural JPEG robustness (SSIM degrades only 0.012 at compression). H7 improvement might be small if the baseline is already reasonably robust. Mitigation: test at q=70 (Twitter) which is more aggressive.
 3. **FLUX training stability**: FLUX.1-schnell is 12B params; even with gradient checkpointing, each training step is slow (~13s → now maybe ~25-30s with checkpointing). 1600 iterations × 30s = ~13 hours.
 
+## max_steps Config Correction (2026-04-08 loop-4)
+
+**Correction**: previous findings stated "save checkpoint at epoch 5 (~8,000 steps)". This was wrong.
+
+Actual observed timing: 1.52s/step, 1600 items/epoch → 1 epoch ≈ 40min.
+- `max_steps=8000` = 5 epochs = 3.4h → stops **before** convergence (epoch 10-13 needed)
+- **Corrected**: `max_steps=16000` = 10 epochs = 6.8h → covers observed Loss1 stabilization
+- Updated configs: train_multimodel.yml, train_multimodel_h7.yml, train_multimodel_h4.yml
+
+H1a GPU: needs kill → git pull → restart. The converged weights from the ~26-epoch run are
+still in GPU RAM; if the process can be checkpointed before killing, they can be saved.
+
+## Paper Draft Status (2026-04-08 loop-4)
+
+**All core paper sections now drafted**:
+- `paper/introduction_draft.md` — complete with [X] for H1/H6/H7 EDR numbers
+- `paper/related_work_draft.md` — complete, 5 subsections + comparison table
+- `paper/method_draft.md` — complete, formal equations for all 3 contributions
+- `paper/experiments_draft.md` — full experimental tables with [X] placeholders + H2 confirmed numbers
+- `paper/analysis_draft.md` — mechanism explanations for all 3 contributions + failure modes
+- `paper/conclusion_draft.md` — complete (no GPU numbers needed)
+
+**What remains before paper submission**:
+1. Fill [X] placeholders from H1a checkpoint evaluation (H1 transfer, H6 purification)
+2. Fill [X] placeholders from H7 training evaluation (JPEG robustness numbers)
+3. Generate paper figures (3 bar charts, accumulation heatmap, loss curve, purification table)
+4. Final pass: tighten prose, verify citations, format for ICLR 2027
+
 ## Open Questions
 
 1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)? [H1 — running]

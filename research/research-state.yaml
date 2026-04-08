@@ -4,7 +4,7 @@ question: "How to extend DiffVax image immunization from SD 1.5 (UNet-based, 512
 phase: waiting_for_gpu
 inner_loop_count: 1
 outer_loop_count: 2
-last_updated: "2026-04-08"
+last_updated: "2026-04-08T-loop4"
 
 hypotheses:
   H1:
@@ -109,12 +109,13 @@ hypotheses:
     metric: edit_disruption_rate after purification attempt
 
 current_focus: >
-  Waiting for H1a GPU training (~44h remaining after git pull + restart on GPU instance).
-  Pre-writing complete: draft abstract + paper outline in paper/draft_abstract_outline.md.
-  Competitive analysis done (2026-04-08): PromptFlare/Attention Attack/Anti-Inpainting all
-  miss JPEG robustness, multi-model, and high-res. eval_transfer.py fixed (model_type
-  per-model inference steps, model.train False bug). Infrastructure is solid.
-  Next: H1a results → H6 eval → H7 training → paper.
+  H1a needs restart on GPU. Config fixed: max_steps=16000 (10 epochs, 6.8h at 1.52s/step).
+  Previous run converged (loss1 < 0.12 from epoch 13) but no checkpoint due to self.config
+  bug (now fixed). Also fixed: checkpoint_every=5 saves every 5 epochs.
+  Action required: kill GPU process → git pull → python train.py --config configs/train_multimodel.yml
+  Paper draft status: ALL SECTIONS DRAFTED (intro, related_work, method, experiments,
+  analysis, conclusion). Only [X] placeholders for H1/H6/H7 GPU numbers remain.
+  Next milestones: H1a checkpoint → run_post_h1a.sh → fill paper placeholders → submit.
 
 literature_key_papers:
   - "arXiv:2603.13028 — Purify Once Edit Freely: FLUX defeats SD1.5 immunization (CRITICAL)"
