@@ -246,6 +246,30 @@ still in GPU RAM; if the process can be checkpointed before killing, they can be
 
 **Also note**: DiffVax (original) evaluated JPEG as an adversarial attack (adversary applies JPEG to remove perturbation). At compression ratio 0.75, DiffVax SSIM improves slightly (+0.012 from 0.510→0.522). This means JPEG q≈75 already helps adversaries slightly against the original DiffVax, even without our explicit training. H7's contribution is to flip this relationship.
 
+## Critical Analysis Notes (2026-04-08 loop-7)
+
+### Bug 1: model mode collapses perturbation 78x
+- DiffVax NestedUNet has BN layers with near-zero running_var from batch_size=1 training.
+- In inference eval mode: BN divides by sqrt(0.005) = 0.07, killing activations. Published checkpoint: PSNR=89.9 dB (wrong mode) vs 34.6 dB (correct train mode).
+- Fix: all scripts now use `model.train()`. The original immunize_img() core never set the wrong mode.
+- All H1 and H6 results from first GPU run are INVALID. Re-run required.
+
+### Bug 2: H2 run_patch_eval.py used old model.training = False pattern
+- `model.training = False` (top-level only) accidentally kept BN child layers in train mode → H2 results are valid.
+- Fixed to explicit `model.train()` for clarity. H2 does NOT need re-running.
+
+### Methodological issue: Stochastic EDR baseline
+- Each evaluation call to SD1.5/FLUX uses different random seeds for clean vs immunized edits.
+- With near-zero perturbation, diffusion stochasticity alone produces EDR ~0.18 (std=0.06).
+- Mean immunization effect for baseline_512: mean(ssim_imm_edit - ssim_clean_edit) = -0.020.
+  This is real (negative = immunization working) but small relative to 0.05 threshold.
+- Impact on H2 EDR numbers: EDR=0.25 for baseline_512 = 0.07 true immunization effect + 0.18 stochastic baseline.
+  EDR=0.40 for 50pct_overlap = 0.22 true effect + 0.18 baseline.
+- Fix applied: H1/H6/H7 re-runs now use per-(image,prompt) deterministic seeds. Clean and immunized edits get the same diffusion noise. This eliminates stochastic baseline.
+- H2 not re-run: H2 was evaluated with random seeds (matching published DiffVax protocol). Relative ranking is internally consistent. The 1.60x ratio holds.
+- Expected impact on H1/H6 re-run: With deterministic seeds, EDR absolute values will be lower but more precise.
+- Paper decision: Report H2 with random seeds (consistent with DiffVax published protocol). Report H1/H6/H7 with deterministic seeds. Note methodological difference in appendix.
+
 ## Open Questions
 
 1. Does immunization trained on SD 1.5 + FLUX transfer to SD 3.5 (untested)? [H1 — running]

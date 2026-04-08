@@ -95,7 +95,11 @@ def main():
     # Load immunization model
     model = NestedUNet(num_classes=3).cuda()
     model.load_state_dict(torch.load(args.checkpoint, weights_only=True))
-    model.training = False
+    # Use train() mode: DiffVax BN running stats were accumulated with batch_size=1
+    # (near-zero running_var). In eval mode, BN collapses activations 78×.
+    # model.training=False (old bug) accidentally kept child BN layers in train mode;
+    # model.train() makes this explicit and correct.
+    model.train()
 
     # Load SD 1.5 attack model with memory optimisations
     attack_model = Attack(args.attack_model)
