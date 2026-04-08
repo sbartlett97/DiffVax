@@ -1,0 +1,48 @@
+# DiffVax H1c: FLUX + SD3.5 curriculum (DiT-only, shared VAE family)
+#
+# User hypothesis: FLUX and SD3.5 share a 16-channel VAE latent space.
+# Training on two architectures from the same VAE family may produce more
+# coherent gradient signals than FLUX+SD15 (different VAE dimensions).
+#
+# Expected behavior:
+# - More balanced gradients if FLUX and SD3.5 produce similar Loss1 magnitudes
+# - Higher EDR against FLUX and SD3.5 than sd15_only (explicit training target)
+# - Lower EDR against SD15 (not trained against) — acceptable if SD15 is legacy
+#
+# Risks:
+# - SD3.5 may also produce high Loss1 → still dominated; need to measure
+# - SD3.5 training steps are slower (~40s/step vs 20s for FLUX) due to 16B params
+#   → consider max_steps: 8000 for a first test run
+# - SD3.5 requires bfloat16 on most GPU configs (see attack_sd3.py)
+#
+# Timing estimate: SD3.5 ~30-40s/step → 8000 steps ≈ 66-88h. Use max_steps: 4000
+# for a quick viability check (confirm SD3.5 Loss1 magnitude and gradient norms).
+
+iter_num: 10000
+max_steps: 4000           # quick viability check — extend to 16000 if promising
+checkpoint_every: 5
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_multimodel_h1c"
+
+resolution: 512
+
+# FLUX.1-schnell: DiT, 16-channel VAE
+flux_model_link: "black-forest-labs/FLUX.1-schnell"
+flux_probability: 0.50
+flux_loss_scale: 1.0      # reference; adjust after measuring SD3.5 Loss1
+
+# SD 3.5 Large: MM-DiT, 16-channel VAE
+sd3_model_link: "stabilityai/stable-diffusion-3.5-large-inpainting"
+sd3_probability: 0.50
+sd3_loss_scale: 1.0       # placeholder — measure from early training steps
+
+# No SD15 in this config: explicitly testing the DiT-only hypothesis
+# attack_model_link: not set
+
+images_subdir: "train/images"
+masks_subdir: "train/masks"

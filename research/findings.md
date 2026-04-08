@@ -325,6 +325,29 @@ At strength=0.5-0.7, both checkpoints produce net survival ≈ 0.017, because th
 
 ---
 
+## H1b/H1c: Potential Recoveries for Multi-Model Training (2026-04-08)
+
+The H1a failure is specifically a gradient magnitude imbalance problem. Two targeted fixes:
+
+### H1b: Gradient-normalized SD+FLUX (same pairing, fixed optimization)
+- **Root cause fix**: Add `loss_scale` per model to `MultiAttack`. Set `sd_loss_scale=0.08` and `flux_loss_scale=1.0` — this normalizes each model's Loss1 to unit magnitude before contributing to the backward pass.
+- **Implementation**: `MultiAttack.current_loss_scale` property → `diffvax_immunization.py` divides `loss1` by this value each step.
+- **Config**: `configs/train_multimodel_h1b.yml`
+- **Prediction**: H1b FLUX EDR ≥ 0.200 (recovers sd15_only level) while maintaining SD15 EDR ≥ 0.280.
+- **Risk**: Loss scale values (0.08/1.0) are approximate from observed training. May need tuning.
+
+### H1c: FLUX + SD3.5 only (DiT-only curriculum, shared VAE family)
+- **User insight (2026-04-08)**: FLUX and SD3.5 both use 16-channel VAEs. Their gradient signals may be more coherent than FLUX+SD15 (4-channel vs 16-channel VAE), potentially producing a naturally balanced curriculum without manual loss scaling.
+- **Config**: `configs/train_multimodel_h1c.yml` (50% FLUX / 50% SD3.5, max_steps=4000 quick check)
+- **Prediction**: H1c achieves FLUX EDR ≥ 0.250 and SD3.5 EDR ≥ 0.180 (both above sd15_only), possibly trading away SD15 EDR.
+- **Critical measurement needed**: What is SD3.5's training Loss1 magnitude? If similar to FLUX (≈1.0), curriculum is naturally balanced. If different, need loss_scale adjustment.
+- **Product framing**: SD15 is legacy; if SD15 EDR drops but FLUX/SD3.5 improve, this is the right product checkpoint.
+
+### Priority order
+1. H7 results (JPEG-robust training) — blocking for paper completion
+2. H1b (gradient normalization) — minimal change, high probability of success
+3. H1c (DiT curriculum) — more exploratory, requires SD3.5 training cost measurement
+
 ## Revised Research Story (2026-04-08 outer loop)
 
 **The paper narrative pivots from "three confirmed contributions" to "surprising negative results that reveal unexpected robustness."**

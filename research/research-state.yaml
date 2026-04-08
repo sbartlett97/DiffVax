@@ -95,6 +95,35 @@ hypotheses:
     config: configs/train_multimodel_h7.yml
     reference: "DCT-Shield (ICCV 2025, arXiv:2504.17894)"
 
+  H1b:
+    title: "Gradient-normalized SD+FLUX training recovers multi-model benefit"
+    status: protocol_committed
+    priority: 3
+    rationale: >
+      H1a failed because FLUX gradients (Loss1≈1.0) dominate SD15 gradients (Loss1≈0.08)
+      by ~12x, weakening the total perturbation. Per-model loss normalization (divide each
+      model's Loss1 by its expected magnitude) equalizes gradient contributions without
+      changing the routing probabilities. Implemented via MultiAttack.current_loss_scale
+      property and config: sd_loss_scale=0.08, flux_loss_scale=1.0.
+    prediction: "H1b achieves FLUX EDR ≥ sd15_only (0.200) while maintaining SD15 EDR ≥ 0.280"
+    config: configs/train_multimodel_h1b.yml
+    metric: [flux_edr, sd15_edr, sd35_edr]
+
+  H1c:
+    title: "FLUX+SD3.5 (DiT-only, shared VAE family) curriculum outperforms sd15_only on DiT models"
+    status: new
+    priority: 4
+    rationale: >
+      User insight: FLUX and SD3.5 share 16-channel VAE architecture. Training on two
+      architectures from the same VAE family produces more coherent gradient signals than
+      FLUX+SD15 (different VAE dimensions: 4ch vs 16ch). If FLUX and SD3.5 produce
+      similar Loss1 magnitudes, the curriculum is naturally balanced. Trade-off: SD15
+      EDR may drop (not trained), but SD15 is becoming legacy.
+    prediction: "H1c achieves FLUX EDR ≥ 0.250 and SD35 EDR ≥ 0.180 (vs sd15_only 0.200/0.140)"
+    config: configs/train_multimodel_h1c.yml
+    note: "Requires measuring SD3.5 Loss1 magnitude in first 100 steps; adjust sd3_loss_scale if needed"
+    metric: [flux_edr, sd15_edr, sd35_edr]
+
   H6:
     title: "Multi-model immunization resists FLUX-based purification attacks"
     status: refuted

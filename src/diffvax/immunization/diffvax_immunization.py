@@ -228,7 +228,15 @@ class DiffVaxImmunization:
 
                 loss1 = (((img_out - target_image) * (mask_batch / norm_scale)).norm(p=1) / (mask_batch / norm_scale).sum())
                 loss2 = (alpha * (img_adv - img_batch) * ((1 - mask_batch) / norm_scale)).norm(p=1) / ((1 - mask_batch) / norm_scale).sum()
-                loss = loss1 + loss2
+
+                # Gradient normalization: if attack_model is a MultiAttack with
+                # per-model loss_scale configured, normalize loss1 so all models
+                # contribute equal gradient magnitudes regardless of output quality.
+                # For H1a (no loss_scale): current_loss_scale=1.0 → no effect.
+                # For H1b (loss_scale configured): FLUX loss_scale≈1.0, SD15≈0.08
+                # → both contribute ~equal gradient norms to the optimizer.
+                loss_scale = getattr(self.attack_model, "current_loss_scale", 1.0)
+                loss = loss1 / loss_scale + loss2
 
                 # H4: Optional VAE feature-space loss (arXiv:2603.13028 insight).
                 # Maximises distance in shared VAE latent space so perturbations

@@ -50,18 +50,21 @@ def _build_attack_model(config):
             "type": "sd15",
             "link": config["attack_model_link"],
             "prob": config.get("sd_probability", 0.5),
+            "loss_scale": config.get("sd_loss_scale", 1.0),
         })
     if has_flux:
         specs.append({
             "type": "flux",
             "link": config["flux_model_link"],
             "prob": config.get("flux_probability", 0.5),
+            "loss_scale": config.get("flux_loss_scale", 1.0),
         })
     if has_sd3:
         specs.append({
             "type": "sd3",
             "link": config["sd3_model_link"],
             "prob": config.get("sd3_probability", 0.1),
+            "loss_scale": config.get("sd3_loss_scale", 1.0),
         })
     return MultiAttack(specs)
 

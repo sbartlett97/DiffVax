@@ -1,0 +1,41 @@
+# DiffVax H1b: gradient-normalized SD+FLUX multi-model training
+#
+# Same as H1a (train_multimodel.yml) but with per-model loss_scale to equalize
+# gradient magnitudes across SD 1.5 and FLUX.
+#
+# H1a failure analysis: FLUX Loss1 ≈ 1.0, SD15 Loss1 ≈ 0.08 → FLUX gradients
+# dominate 12x, weakening the perturbation (PSNR 34.81 vs sd15_only 32.71).
+# Fix: loss_scale normalizes each model's Loss1 to unit magnitude.
+#
+# loss_scale values from observed H1a training losses:
+#   FLUX:  expected Loss1 ≈ 1.0  → loss_scale: 1.0  (reference)
+#   SD15:  expected Loss1 ≈ 0.08 → loss_scale: 0.08 (scale UP to match FLUX)
+#
+# After normalization, both models contribute equal gradient norms.
+#
+# Timing: same as H1a: 16000 steps ≈ 6.8h at 1.52s/step
+
+iter_num: 10000
+max_steps: 16000
+checkpoint_every: 5
+learning_rate: 0.000005
+batch_size: 1
+alpha: 4
+
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_multimodel_h1b"
+
+resolution: 512
+
+# Multi-model routing with gradient normalization
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.25
+sd_loss_scale: 0.08      # normalize SD15 loss up to FLUX magnitude
+
+flux_model_link: "black-forest-labs/FLUX.1-schnell"
+flux_probability: 0.75
+flux_loss_scale: 1.0     # FLUX is the reference magnitude
+
+images_subdir: "train/images"
+masks_subdir: "train/masks"

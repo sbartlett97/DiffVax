@@ -31,6 +31,12 @@ class MultiAttack:
             - type: "sd15" | "flux" | "sd3"
             - link: HuggingFace repo ID
             - prob: sampling probability (will be normalised)
+            - loss_scale: optional float — divide Loss1 by this factor after each
+              forward call to normalize gradient magnitudes across models. Set to
+              the model's expected Loss1 magnitude so that all models contribute
+              equal gradient norms. Example: FLUX expected Loss1 ≈ 1.0, SD15 ≈ 0.08,
+              so set loss_scale=1.0 for FLUX and loss_scale=0.08 for SD15.
+              Default: 1.0 (no normalization — original H1a behaviour).
         seed: RNG seed for reproducibility (None = non-deterministic).
     """
 
@@ -42,6 +48,17 @@ class MultiAttack:
         self._specs = [dict(m, prob=m["prob"] / total_prob) for m in models]
         self._loaded: dict = {}  # type -> attack instance (lazy load)
         self._rng = random.Random(seed)
+        self._current_loss_scale: float = 1.0  # updated after each sample
+
+    @property
+    def current_loss_scale(self) -> float:
+        """Loss scale for the model used in the most recent forward call.
+
+        Divide Loss1 by this value in the training loop to normalize gradient
+        magnitudes across model types:
+            loss1 = loss1 / self.attack_model.current_loss_scale
+        """
+        return self._current_loss_scale
 
     # ------------------------------------------------------------------
     # Lazy loading
@@ -74,13 +91,18 @@ class MultiAttack:
     # ------------------------------------------------------------------
 
     def _sample_model(self):
-        """Sample a model spec according to specified probabilities."""
+        """Sample a model spec according to specified probabilities.
+
+        Updates self._current_loss_scale with the sampled model's loss_scale.
+        """
         r = self._rng.random()
         cumulative = 0.0
         for spec in self._specs:
             cumulative += spec["prob"]
             if r < cumulative:
+                self._current_loss_scale = float(spec.get("loss_scale", 1.0))
                 return spec
+        self._current_loss_scale = float(self._specs[-1].get("loss_scale", 1.0))
         return self._specs[-1]
 
     # ------------------------------------------------------------------
