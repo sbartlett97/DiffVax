@@ -1,0 +1,361 @@
+checkpoint,image,prompt,purify_strength,psnr_immunized,psnr_purified,ssim_purified_vs_orig,ssim_clean_edit,ssim_direct_edit,ssim_purified_edit,direct_disrupted,purified_disrupted
+sd15_only,image_1.png,A person in a weekend market,0.3,89.232,39.887,0.9852,0.5327,0.5519,0.5501,0,0
+sd15_only,image_1.png,A person in a police evidence room,0.3,89.232,39.887,0.9852,0.5513,0.5299,0.5296,0,0
+sd15_only,image_1.png,A person in a weekend market,0.5,89.232,23.872,0.6333,0.5327,0.5519,0.4494,0,1
+sd15_only,image_1.png,A person in a police evidence room,0.5,89.232,23.872,0.6333,0.5513,0.5299,0.4572,0,1
+sd15_only,image_1.png,A person in a weekend market,0.7,89.232,23.802,0.6279,0.5327,0.5519,0.4649,0,1
+sd15_only,image_1.png,A person in a police evidence room,0.7,89.232,23.802,0.6279,0.5513,0.5299,0.446,0,1
+sd15_only,image_3.png,A person in a weekend market,0.3,86.853,37.029,0.9701,0.5003,0.4932,0.4867,0,0
+sd15_only,image_3.png,A person in a TV newsroom,0.3,86.853,37.029,0.9701,0.4977,0.4873,0.5188,0,0
+sd15_only,image_3.png,A person in a weekend market,0.5,86.853,22.438,0.6207,0.5003,0.4932,0.3977,0,1
+sd15_only,image_3.png,A person in a TV newsroom,0.5,86.853,22.438,0.6207,0.4977,0.4873,0.4235,0,1
+sd15_only,image_3.png,A person in a weekend market,0.7,86.853,22.678,0.6286,0.5003,0.4932,0.3813,0,1
+sd15_only,image_3.png,A person in a TV newsroom,0.7,86.853,22.678,0.6286,0.4977,0.4873,0.4154,0,1
+sd15_only,image_5.png,A person in a church sanctuary,0.3,86.978,35.67,0.9728,0.7539,0.7486,0.7326,0,0
+sd15_only,image_5.png,A person in a charity art auction,0.3,86.978,35.67,0.9728,0.7706,0.7598,0.7542,0,0
+sd15_only,image_5.png,A person in a church sanctuary,0.5,86.978,23.698,0.7038,0.7539,0.7486,0.6257,0,1
+sd15_only,image_5.png,A person in a charity art auction,0.5,86.978,23.698,0.7038,0.7706,0.7598,0.5998,0,1
+sd15_only,image_5.png,A person in a church sanctuary,0.7,86.978,23.941,0.7185,0.7539,0.7486,0.6155,0,1
+sd15_only,image_5.png,A person in a charity art auction,0.7,86.978,23.941,0.7185,0.7706,0.7598,0.6287,0,1
+sd15_only,image_9.png,A person in a sports field,0.3,57.011,37.384,0.9834,0.607,0.6414,0.5939,0,0
+sd15_only,image_9.png,A person in a waterside cafe,0.3,57.011,37.384,0.9834,0.5999,0.6085,0.5946,0,0
+sd15_only,image_9.png,A person in a sports field,0.5,57.011,24.492,0.7052,0.607,0.6414,0.5224,0,1
+sd15_only,image_9.png,A person in a waterside cafe,0.5,57.011,24.492,0.7052,0.5999,0.6085,0.5194,0,1
+sd15_only,image_9.png,A person in a sports field,0.7,57.011,24.424,0.6988,0.607,0.6414,0.5081,0,1
+sd15_only,image_9.png,A person in a waterside cafe,0.7,57.011,24.424,0.6988,0.5999,0.6085,0.462,0,1
+sd15_only,image_13.png,A person in a drive-in theater,0.3,89.086,37.755,0.9833,0.7436,0.7484,0.7428,0,0
+sd15_only,image_13.png,A person in a shelter,0.3,89.086,37.755,0.9833,0.7403,0.7423,0.7357,0,0
+sd15_only,image_13.png,A person in a drive-in theater,0.5,89.086,24.792,0.7736,0.7436,0.7484,0.6832,0,1
+sd15_only,image_13.png,A person in a shelter,0.5,89.086,24.792,0.7736,0.7403,0.7423,0.676,0,1
+sd15_only,image_13.png,A person in a drive-in theater,0.7,89.086,24.431,0.7671,0.7436,0.7484,0.6612,0,1
+sd15_only,image_13.png,A person in a shelter,0.7,89.086,24.431,0.7671,0.7403,0.7423,0.6616,0,1
+sd15_only,image_18.png,A person in a food truck park,0.3,87.81,39.901,0.9897,0.7564,0.7705,0.7688,0,0
+sd15_only,image_18.png,A person in a ice cream parlor,0.3,87.81,39.901,0.9897,0.7653,0.7759,0.7719,0,0
+sd15_only,image_18.png,A person in a food truck park,0.5,87.81,24.757,0.8227,0.7564,0.7705,0.6931,0,1
+sd15_only,image_18.png,A person in a ice cream parlor,0.5,87.81,24.757,0.8227,0.7653,0.7759,0.6978,0,1
+sd15_only,image_18.png,A person in a food truck park,0.7,87.81,24.683,0.822,0.7564,0.7705,0.7007,0,1
+sd15_only,image_18.png,A person in a ice cream parlor,0.7,87.81,24.683,0.822,0.7653,0.7759,0.6759,0,1
+sd15_only,image_22.png,A person in a betting shop,0.3,61.366,40.63,0.9894,0.6075,0.6207,0.6179,0,0
+sd15_only,image_22.png,A person in a charity art auction,0.3,61.366,40.63,0.9894,0.6344,0.6264,0.6185,0,0
+sd15_only,image_22.png,A person in a betting shop,0.5,61.366,24.305,0.7225,0.6075,0.6207,0.5275,0,1
+sd15_only,image_22.png,A person in a charity art auction,0.5,61.366,24.305,0.7225,0.6344,0.6264,0.536,0,1
+sd15_only,image_22.png,A person in a betting shop,0.7,61.366,24.154,0.7169,0.6075,0.6207,0.5248,0,1
+sd15_only,image_22.png,A person in a charity art auction,0.7,61.366,24.154,0.7169,0.6344,0.6264,0.5262,0,1
+sd15_only,image_23.png,A person in a shelter,0.3,84.291,40.628,0.9872,0.5291,0.5203,0.5365,0,0
+sd15_only,image_23.png,A person in a local art market,0.3,84.291,40.628,0.9872,0.5334,0.5242,0.5285,0,0
+sd15_only,image_23.png,A person in a shelter,0.5,84.291,23.276,0.6428,0.5291,0.5203,0.4452,0,1
+sd15_only,image_23.png,A person in a local art market,0.5,84.291,23.276,0.6428,0.5334,0.5242,0.4463,0,1
+sd15_only,image_23.png,A person in a shelter,0.7,84.291,23.602,0.6555,0.5291,0.5203,0.452,0,1
+sd15_only,image_23.png,A person in a local art market,0.7,84.291,23.602,0.6555,0.5334,0.5242,0.4358,0,1
+sd15_only,image_29.png,A person in a historic landmark event,0.3,87.776,40.232,0.9907,0.8143,0.8287,0.8194,0,0
+sd15_only,image_29.png,A person in a gymnasium,0.3,87.776,40.232,0.9907,0.8254,0.8253,0.8171,0,0
+sd15_only,image_29.png,A person in a historic landmark event,0.5,87.776,24.635,0.807,0.8143,0.8287,0.7438,0,1
+sd15_only,image_29.png,A person in a gymnasium,0.5,87.776,24.635,0.807,0.8254,0.8253,0.74,0,1
+sd15_only,image_29.png,A person in a historic landmark event,0.7,87.776,24.42,0.804,0.8143,0.8287,0.7263,0,1
+sd15_only,image_29.png,A person in a gymnasium,0.7,87.776,24.42,0.804,0.8254,0.8253,0.7217,0,1
+sd15_only,image_32.png,A person in a local art market,0.3,86.915,39.294,0.9874,0.5741,0.571,0.5648,0,0
+sd15_only,image_32.png,A person in a pet festival,0.3,86.915,39.294,0.9874,0.5811,0.5722,0.5661,0,0
+sd15_only,image_32.png,A person in a local art market,0.5,86.915,22.582,0.6659,0.5741,0.571,0.4687,0,1
+sd15_only,image_32.png,A person in a pet festival,0.5,86.915,22.582,0.6659,0.5811,0.5722,0.4553,0,1
+sd15_only,image_32.png,A person in a local art market,0.7,86.915,22.474,0.6664,0.5741,0.571,0.4603,0,1
+sd15_only,image_32.png,A person in a pet festival,0.7,86.915,22.474,0.6664,0.5811,0.5722,0.4451,0,1
+sd15_only,image_33.png,A person in a basement,0.3,80.061,39.293,0.9844,0.8275,0.8196,0.8043,0,0
+sd15_only,image_33.png,A person in a movie set,0.3,80.061,39.293,0.9844,0.8333,0.8313,0.8207,0,0
+sd15_only,image_33.png,A person in a basement,0.5,80.061,27.334,0.8074,0.8275,0.8196,0.7394,0,1
+sd15_only,image_33.png,A person in a movie set,0.5,80.061,27.334,0.8074,0.8333,0.8313,0.757,0,1
+sd15_only,image_33.png,A person in a basement,0.7,80.061,26.862,0.8022,0.8275,0.8196,0.7409,0,1
+sd15_only,image_33.png,A person in a movie set,0.7,80.061,26.862,0.8022,0.8333,0.8313,0.738,0,1
+sd15_only,image_37.png,A person in a garage,0.3,78.357,41.905,0.9918,0.7528,0.7525,0.7428,0,0
+sd15_only,image_37.png,A person in a tech startup launch,0.3,78.357,41.905,0.9918,0.752,0.7472,0.7473,0,0
+sd15_only,image_37.png,A person in a garage,0.5,78.357,24.835,0.7848,0.7528,0.7525,0.6574,0,1
+sd15_only,image_37.png,A person in a tech startup launch,0.5,78.357,24.835,0.7848,0.752,0.7472,0.6496,0,1
+sd15_only,image_37.png,A person in a garage,0.7,78.357,24.791,0.7809,0.7528,0.7525,0.6487,0,1
+sd15_only,image_37.png,A person in a tech startup launch,0.7,78.357,24.791,0.7809,0.752,0.7472,0.648,0,1
+sd15_only,image_47.png,A person in a hot dog stand,0.3,87.729,38.068,0.9866,0.6778,0.6905,0.674,0,0
+sd15_only,image_47.png,A person in a creative writing event,0.3,87.729,38.068,0.9866,0.69,0.6739,0.6805,0,0
+sd15_only,image_47.png,A person in a hot dog stand,0.5,87.729,22.409,0.7053,0.6778,0.6905,0.5724,0,1
+sd15_only,image_47.png,A person in a creative writing event,0.5,87.729,22.409,0.7053,0.69,0.6739,0.5642,0,1
+sd15_only,image_47.png,A person in a hot dog stand,0.7,87.729,22.453,0.6998,0.6778,0.6905,0.5702,0,1
+sd15_only,image_47.png,A person in a creative writing event,0.7,87.729,22.453,0.6998,0.69,0.6739,0.5693,0,1
+sd15_only,image_49.png,A person in a music and arts festival,0.3,86.681,41.174,0.9889,0.6164,0.6219,0.5985,0,0
+sd15_only,image_49.png,A person in a bus stop shelter,0.3,86.681,41.174,0.9889,0.6086,0.6215,0.6335,0,0
+sd15_only,image_49.png,A person in a music and arts festival,0.5,86.681,24.437,0.696,0.6164,0.6219,0.5144,0,1
+sd15_only,image_49.png,A person in a bus stop shelter,0.5,86.681,24.437,0.696,0.6086,0.6215,0.5263,0,1
+sd15_only,image_49.png,A person in a music and arts festival,0.7,86.681,24.346,0.7016,0.6164,0.6219,0.5235,0,1
+sd15_only,image_49.png,A person in a bus stop shelter,0.7,86.681,24.346,0.7016,0.6086,0.6215,0.4977,0,1
+sd15_only,image_53.png,A person in a parking structure,0.3,87.27,40.108,0.988,0.5937,0.5804,0.5641,0,0
+sd15_only,image_53.png,A person in a science museum exhibit,0.3,87.27,40.108,0.988,0.5714,0.5676,0.5887,0,0
+sd15_only,image_53.png,A person in a parking structure,0.5,87.27,23.346,0.6746,0.5937,0.5804,0.4628,0,1
+sd15_only,image_53.png,A person in a science museum exhibit,0.5,87.27,23.346,0.6746,0.5714,0.5676,0.465,0,1
+sd15_only,image_53.png,A person in a parking structure,0.7,87.27,23.337,0.668,0.5937,0.5804,0.4684,0,1
+sd15_only,image_53.png,A person in a science museum exhibit,0.7,87.27,23.337,0.668,0.5714,0.5676,0.4547,0,1
+sd15_only,image_57.png,A person in a gym sauna,0.3,88.102,37.834,0.9869,0.7709,0.7715,0.765,0,0
+sd15_only,image_57.png,A person in a community theater production,0.3,88.102,37.834,0.9869,0.7705,0.7815,0.769,0,0
+sd15_only,image_57.png,A person in a gym sauna,0.5,88.102,23.909,0.7472,0.7709,0.7715,0.653,0,1
+sd15_only,image_57.png,A person in a community theater production,0.5,88.102,23.909,0.7472,0.7705,0.7815,0.6291,0,1
+sd15_only,image_57.png,A person in a gym sauna,0.7,88.102,23.939,0.7524,0.7709,0.7715,0.6374,0,1
+sd15_only,image_57.png,A person in a community theater production,0.7,88.102,23.939,0.7524,0.7705,0.7815,0.6609,0,1
+sd15_only,image_58.png,A person in a costume shop,0.3,75.955,36.378,0.9712,0.6887,0.6863,0.6849,0,0
+sd15_only,image_58.png,A person in a candle shop,0.3,75.955,36.378,0.9712,0.6938,0.6916,0.6783,0,0
+sd15_only,image_58.png,A person in a costume shop,0.5,75.955,22.569,0.7172,0.6887,0.6863,0.5652,0,1
+sd15_only,image_58.png,A person in a candle shop,0.5,75.955,22.569,0.7172,0.6938,0.6916,0.5773,0,1
+sd15_only,image_58.png,A person in a costume shop,0.7,75.955,22.39,0.7153,0.6887,0.6863,0.581,0,1
+sd15_only,image_58.png,A person in a candle shop,0.7,75.955,22.39,0.7153,0.6938,0.6916,0.593,0,1
+sd15_only,image_66.png,A person in a gym sauna,0.3,89.388,39.042,0.993,0.8333,0.8315,0.8243,0,0
+sd15_only,image_66.png,A person in a technology fair,0.3,89.388,39.042,0.993,0.8399,0.8304,0.828,0,0
+sd15_only,image_66.png,A person in a gym sauna,0.5,89.388,24.89,0.8329,0.8333,0.8315,0.7681,0,1
+sd15_only,image_66.png,A person in a technology fair,0.5,89.388,24.89,0.8329,0.8399,0.8304,0.7448,0,1
+sd15_only,image_66.png,A person in a gym sauna,0.7,89.388,25.14,0.8287,0.8333,0.8315,0.7575,0,1
+sd15_only,image_66.png,A person in a technology fair,0.7,89.388,25.14,0.8287,0.8399,0.8304,0.7546,0,1
+sd15_only,image_67.png,A person in a butcher’s shop,0.3,88.827,40.794,0.9927,0.81,0.7883,0.7961,0,0
+sd15_only,image_67.png,A person in a pet festival,0.3,88.827,40.794,0.9927,0.8317,0.7971,0.8179,0,0
+sd15_only,image_67.png,A person in a butcher’s shop,0.5,88.827,24.979,0.7934,0.81,0.7883,0.709,0,1
+sd15_only,image_67.png,A person in a pet festival,0.5,88.827,24.979,0.7934,0.8317,0.7971,0.7135,0,1
+sd15_only,image_67.png,A person in a butcher’s shop,0.7,88.827,25.095,0.7938,0.81,0.7883,0.7073,0,1
+sd15_only,image_67.png,A person in a pet festival,0.7,88.827,25.095,0.7938,0.8317,0.7971,0.6871,0,1
+sd15_only,image_73.png,A person in a locker room,0.3,86.084,38.822,0.9841,0.6217,0.6243,0.6046,0,0
+sd15_only,image_73.png,A person in a street market,0.3,86.084,38.822,0.9841,0.611,0.6121,0.5959,0,0
+sd15_only,image_73.png,A person in a locker room,0.5,86.084,24.187,0.6988,0.6217,0.6243,0.5582,0,1
+sd15_only,image_73.png,A person in a street market,0.5,86.084,24.187,0.6988,0.611,0.6121,0.5335,0,1
+sd15_only,image_73.png,A person in a locker room,0.7,86.084,24.423,0.7048,0.6217,0.6243,0.5172,0,1
+sd15_only,image_73.png,A person in a street market,0.7,86.084,24.423,0.7048,0.611,0.6121,0.5251,0,1
+sd15_only,image_80.png,A person in a hot dog stand,0.3,83.598,36.994,0.9759,0.6206,0.6299,0.6466,0,0
+sd15_only,image_80.png,A person in a bridal fitting room,0.3,83.598,36.994,0.9759,0.6408,0.641,0.6374,0,0
+sd15_only,image_80.png,A person in a hot dog stand,0.5,83.598,22.224,0.6492,0.6206,0.6299,0.5044,0,1
+sd15_only,image_80.png,A person in a bridal fitting room,0.5,83.598,22.224,0.6492,0.6408,0.641,0.5072,0,1
+sd15_only,image_80.png,A person in a hot dog stand,0.7,83.598,22.49,0.6557,0.6206,0.6299,0.5071,0,1
+sd15_only,image_80.png,A person in a bridal fitting room,0.7,83.598,22.49,0.6557,0.6408,0.641,0.4961,0,1
+sd15_only,image_82.png,A person in a beach resort,0.3,89.514,41.589,0.9917,0.7045,0.695,0.6836,0,0
+sd15_only,image_82.png,A person in a transit station,0.3,89.514,41.589,0.9917,0.6885,0.6869,0.6753,0,0
+sd15_only,image_82.png,A person in a beach resort,0.5,89.514,25.41,0.784,0.7045,0.695,0.585,0,1
+sd15_only,image_82.png,A person in a transit station,0.5,89.514,25.41,0.784,0.6885,0.6869,0.6071,0,1
+sd15_only,image_82.png,A person in a beach resort,0.7,89.514,25.175,0.7786,0.7045,0.695,0.6045,0,1
+sd15_only,image_82.png,A person in a transit station,0.7,89.514,25.175,0.7786,0.6885,0.6869,0.59,0,1
+sd15_only,image_93.png,A person in a motel room,0.3,82.869,31.702,0.9689,0.7257,0.7197,0.7164,0,0
+sd15_only,image_93.png,A person in a tech launch event,0.3,82.869,31.702,0.9689,0.7364,0.742,0.738,0,0
+sd15_only,image_93.png,A person in a motel room,0.5,82.869,20.776,0.6921,0.7257,0.7197,0.5757,0,1
+sd15_only,image_93.png,A person in a tech launch event,0.5,82.869,20.776,0.6921,0.7364,0.742,0.5744,0,1
+sd15_only,image_93.png,A person in a motel room,0.7,82.869,20.497,0.6832,0.7257,0.7197,0.5795,0,1
+sd15_only,image_93.png,A person in a tech launch event,0.7,82.869,20.497,0.6832,0.7364,0.742,0.5779,0,1
+sd15_only,image_94.png,A person in a computer lab,0.3,76.658,36.739,0.9837,0.8522,0.8518,0.8461,0,0
+sd15_only,image_94.png,A person in a lobby,0.3,76.658,36.739,0.9837,0.8619,0.8513,0.8441,0,0
+sd15_only,image_94.png,A person in a computer lab,0.5,76.658,23.776,0.7942,0.8522,0.8518,0.7336,0,1
+sd15_only,image_94.png,A person in a lobby,0.5,76.658,23.776,0.7942,0.8619,0.8513,0.7491,0,1
+sd15_only,image_94.png,A person in a computer lab,0.7,76.658,23.714,0.7955,0.8522,0.8518,0.7527,0,1
+sd15_only,image_94.png,A person in a lobby,0.7,76.658,23.714,0.7955,0.8619,0.8513,0.7409,0,1
+sd15_only,image_104.png,A person in a pet festival,0.3,87.855,40.263,0.988,0.7415,0.7336,0.7364,0,0
+sd15_only,image_104.png,A person in a slum,0.3,87.855,40.263,0.988,0.7382,0.7471,0.7216,0,0
+sd15_only,image_104.png,A person in a pet festival,0.5,87.855,25.134,0.7711,0.7415,0.7336,0.6542,0,1
+sd15_only,image_104.png,A person in a slum,0.5,87.855,25.134,0.7711,0.7382,0.7471,0.668,0,1
+sd15_only,image_104.png,A person in a pet festival,0.7,87.855,24.976,0.7757,0.7415,0.7336,0.6695,0,1
+sd15_only,image_104.png,A person in a slum,0.7,87.855,24.976,0.7757,0.7382,0.7471,0.6418,0,1
+sd15_only,image_110.png,A person in a gym sauna,0.3,89.367,41.81,0.9912,0.7184,0.7384,0.7263,0,0
+sd15_only,image_110.png,A person in a glass factory,0.3,89.367,41.81,0.9912,0.7222,0.7296,0.7273,0,0
+sd15_only,image_110.png,A person in a gym sauna,0.5,89.367,24.196,0.7544,0.7184,0.7384,0.6405,0,1
+sd15_only,image_110.png,A person in a glass factory,0.5,89.367,24.196,0.7544,0.7222,0.7296,0.6177,0,1
+sd15_only,image_110.png,A person in a gym sauna,0.7,89.367,24.275,0.7495,0.7184,0.7384,0.6391,0,1
+sd15_only,image_110.png,A person in a glass factory,0.7,89.367,24.275,0.7495,0.7222,0.7296,0.6333,0,1
+sd15_only,image_115.png,A person in a tram stop,0.3,86.178,33.806,0.9652,0.6214,0.6384,0.6269,0,0
+sd15_only,image_115.png,A person in a fish market,0.3,86.178,33.806,0.9652,0.6331,0.6392,0.6181,0,0
+sd15_only,image_115.png,A person in a tram stop,0.5,86.178,21.297,0.6635,0.6214,0.6384,0.5098,0,1
+sd15_only,image_115.png,A person in a fish market,0.5,86.178,21.297,0.6635,0.6331,0.6392,0.5023,0,1
+sd15_only,image_115.png,A person in a tram stop,0.7,86.178,21.201,0.6605,0.6214,0.6384,0.5,0,1
+sd15_only,image_115.png,A person in a fish market,0.7,86.178,21.201,0.6605,0.6331,0.6392,0.5208,0,1
+sd15_only,image_121.png,A person in a basement,0.3,88.546,41.813,0.9896,0.7107,0.7213,0.696,0,0
+sd15_only,image_121.png,A person in a dormitory,0.3,88.546,41.813,0.9896,0.7005,0.7152,0.7141,0,0
+sd15_only,image_121.png,A person in a basement,0.5,88.546,24.497,0.741,0.7107,0.7213,0.6015,0,1
+sd15_only,image_121.png,A person in a dormitory,0.5,88.546,24.497,0.741,0.7005,0.7152,0.609,0,1
+sd15_only,image_121.png,A person in a basement,0.7,88.546,24.6,0.7422,0.7107,0.7213,0.5917,0,1
+sd15_only,image_121.png,A person in a dormitory,0.7,88.546,24.6,0.7422,0.7005,0.7152,0.6001,0,1
+sd15_only,image_129.png,A person in a tech startup,0.3,86.221,38.022,0.9886,0.6899,0.6927,0.69,0,0
+sd15_only,image_129.png,A person in a brewery tour,0.3,86.221,38.022,0.9886,0.7146,0.7037,0.702,0,0
+sd15_only,image_129.png,A person in a tech startup,0.5,86.221,24.257,0.7896,0.6899,0.6927,0.6483,0,0
+sd15_only,image_129.png,A person in a brewery tour,0.5,86.221,24.257,0.7896,0.7146,0.7037,0.644,0,1
+sd15_only,image_129.png,A person in a tech startup,0.7,86.221,24.153,0.7933,0.6899,0.6927,0.6699,0,0
+sd15_only,image_129.png,A person in a brewery tour,0.7,86.221,24.153,0.7933,0.7146,0.7037,0.6594,0,1
+sd15_only,image_133.png,A person in a laundry room,0.3,81.012,33.878,0.9662,0.416,0.379,0.3845,0,0
+sd15_only,image_133.png,A person in a tech startup,0.3,81.012,33.878,0.9662,0.4106,0.4334,0.426,0,0
+sd15_only,image_133.png,A person in a laundry room,0.5,81.012,20.04,0.4454,0.416,0.379,0.2807,0,1
+sd15_only,image_133.png,A person in a tech startup,0.5,81.012,20.04,0.4454,0.4106,0.4334,0.2935,0,1
+sd15_only,image_133.png,A person in a laundry room,0.7,81.012,20.006,0.4488,0.416,0.379,0.2458,0,1
+sd15_only,image_133.png,A person in a tech startup,0.7,81.012,20.006,0.4488,0.4106,0.4334,0.273,0,1
+flux_trained,image_1.png,A person in a weekend market,0.3,50.412,39.502,0.9845,0.5461,0.5535,0.5432,0,0
+flux_trained,image_1.png,A person in a police evidence room,0.3,50.412,39.502,0.9845,0.5369,0.5325,0.5413,0,0
+flux_trained,image_1.png,A person in a weekend market,0.5,50.412,23.891,0.6269,0.5461,0.5535,0.4628,0,1
+flux_trained,image_1.png,A person in a police evidence room,0.5,50.412,23.891,0.6269,0.5369,0.5325,0.466,0,1
+flux_trained,image_1.png,A person in a weekend market,0.7,50.412,23.957,0.6331,0.5461,0.5535,0.4503,0,1
+flux_trained,image_1.png,A person in a police evidence room,0.7,50.412,23.957,0.6331,0.5369,0.5325,0.4375,0,1
+flux_trained,image_3.png,A person in a weekend market,0.3,45.07,36.443,0.9679,0.4955,0.4891,0.4975,0,0
+flux_trained,image_3.png,A person in a TV newsroom,0.3,45.07,36.443,0.9679,0.4862,0.5131,0.4757,0,0
+flux_trained,image_3.png,A person in a weekend market,0.5,45.07,22.592,0.6235,0.4955,0.4891,0.4018,0,1
+flux_trained,image_3.png,A person in a TV newsroom,0.5,45.07,22.592,0.6235,0.4862,0.5131,0.3985,0,1
+flux_trained,image_3.png,A person in a weekend market,0.7,45.07,22.552,0.6249,0.4955,0.4891,0.4019,0,1
+flux_trained,image_3.png,A person in a TV newsroom,0.7,45.07,22.552,0.6249,0.4862,0.5131,0.4076,0,1
+flux_trained,image_5.png,A person in a church sanctuary,0.3,43.575,35.062,0.9688,0.7592,0.7566,0.7507,0,0
+flux_trained,image_5.png,A person in a charity art auction,0.3,43.575,35.062,0.9688,0.7601,0.7528,0.7548,0,0
+flux_trained,image_5.png,A person in a church sanctuary,0.5,43.575,23.208,0.6992,0.7592,0.7566,0.6169,0,1
+flux_trained,image_5.png,A person in a charity art auction,0.5,43.575,23.208,0.6992,0.7601,0.7528,0.6283,0,1
+flux_trained,image_5.png,A person in a church sanctuary,0.7,43.575,23.676,0.707,0.7592,0.7566,0.6267,0,1
+flux_trained,image_5.png,A person in a charity art auction,0.7,43.575,23.676,0.707,0.7601,0.7528,0.6241,0,1
+flux_trained,image_9.png,A person in a sports field,0.3,42.984,36.476,0.9788,0.6384,0.611,0.589,0,0
+flux_trained,image_9.png,A person in a waterside cafe,0.3,42.984,36.476,0.9788,0.6341,0.5681,0.5836,1,1
+flux_trained,image_9.png,A person in a sports field,0.5,42.984,24.359,0.6986,0.6384,0.611,0.5039,0,1
+flux_trained,image_9.png,A person in a waterside cafe,0.5,42.984,24.359,0.6986,0.6341,0.5681,0.5405,1,1
+flux_trained,image_9.png,A person in a sports field,0.7,42.984,24.443,0.7073,0.6384,0.611,0.5345,0,1
+flux_trained,image_9.png,A person in a waterside cafe,0.7,42.984,24.443,0.7073,0.6341,0.5681,0.5124,1,1
+flux_trained,image_13.png,A person in a drive-in theater,0.3,47.54,37.369,0.981,0.7406,0.7481,0.7423,0,0
+flux_trained,image_13.png,A person in a shelter,0.3,47.54,37.369,0.981,0.7381,0.7559,0.7493,0,0
+flux_trained,image_13.png,A person in a drive-in theater,0.5,47.54,24.444,0.7692,0.7406,0.7481,0.6865,0,1
+flux_trained,image_13.png,A person in a shelter,0.5,47.54,24.444,0.7692,0.7381,0.7559,0.6788,0,1
+flux_trained,image_13.png,A person in a drive-in theater,0.7,47.54,24.304,0.7651,0.7406,0.7481,0.6638,0,1
+flux_trained,image_13.png,A person in a shelter,0.7,47.54,24.304,0.7651,0.7381,0.7559,0.6687,0,1
+flux_trained,image_18.png,A person in a food truck park,0.3,42.291,38.021,0.9858,0.7683,0.7795,0.7418,0,0
+flux_trained,image_18.png,A person in a ice cream parlor,0.3,42.291,38.021,0.9858,0.7931,0.7689,0.756,0,0
+flux_trained,image_18.png,A person in a food truck park,0.5,42.291,24.327,0.811,0.7683,0.7795,0.6816,0,1
+flux_trained,image_18.png,A person in a ice cream parlor,0.5,42.291,24.327,0.811,0.7931,0.7689,0.6886,0,1
+flux_trained,image_18.png,A person in a food truck park,0.7,42.291,24.686,0.819,0.7683,0.7795,0.6936,0,1
+flux_trained,image_18.png,A person in a ice cream parlor,0.7,42.291,24.686,0.819,0.7931,0.7689,0.6907,0,1
+flux_trained,image_22.png,A person in a betting shop,0.3,43.42,38.613,0.9847,0.6134,0.6028,0.6148,0,0
+flux_trained,image_22.png,A person in a charity art auction,0.3,43.42,38.613,0.9847,0.5919,0.6097,0.6058,0,0
+flux_trained,image_22.png,A person in a betting shop,0.5,43.42,24.255,0.7214,0.6134,0.6028,0.5187,0,1
+flux_trained,image_22.png,A person in a charity art auction,0.5,43.42,24.255,0.7214,0.5919,0.6097,0.535,0,1
+flux_trained,image_22.png,A person in a betting shop,0.7,43.42,24.558,0.7264,0.6134,0.6028,0.5111,0,1
+flux_trained,image_22.png,A person in a charity art auction,0.7,43.42,24.558,0.7264,0.5919,0.6097,0.529,0,1
+flux_trained,image_23.png,A person in a shelter,0.3,38.516,36.36,0.9779,0.5511,0.5325,0.5348,0,0
+flux_trained,image_23.png,A person in a local art market,0.3,38.516,36.36,0.9779,0.5364,0.5285,0.5167,0,0
+flux_trained,image_23.png,A person in a shelter,0.5,38.516,23.234,0.6416,0.5511,0.5325,0.4463,0,1
+flux_trained,image_23.png,A person in a local art market,0.5,38.516,23.234,0.6416,0.5364,0.5285,0.4454,0,1
+flux_trained,image_23.png,A person in a shelter,0.7,38.516,23.255,0.6424,0.5511,0.5325,0.4446,0,1
+flux_trained,image_23.png,A person in a local art market,0.7,38.516,23.255,0.6424,0.5364,0.5285,0.4275,0,1
+flux_trained,image_29.png,A person in a historic landmark event,0.3,46.2,39.582,0.9889,0.8179,0.82,0.807,0,0
+flux_trained,image_29.png,A person in a gymnasium,0.3,46.2,39.582,0.9889,0.8213,0.8233,0.8206,0,0
+flux_trained,image_29.png,A person in a historic landmark event,0.5,46.2,24.272,0.8005,0.8179,0.82,0.7444,0,1
+flux_trained,image_29.png,A person in a gymnasium,0.5,46.2,24.272,0.8005,0.8213,0.8233,0.7401,0,1
+flux_trained,image_29.png,A person in a historic landmark event,0.7,46.2,24.378,0.8039,0.8179,0.82,0.7416,0,1
+flux_trained,image_29.png,A person in a gymnasium,0.7,46.2,24.378,0.8039,0.8213,0.8233,0.7339,0,1
+flux_trained,image_32.png,A person in a local art market,0.3,43.178,37.699,0.9838,0.568,0.5795,0.5617,0,0
+flux_trained,image_32.png,A person in a pet festival,0.3,43.178,37.699,0.9838,0.5847,0.5808,0.5594,0,0
+flux_trained,image_32.png,A person in a local art market,0.5,43.178,22.147,0.6545,0.568,0.5795,0.4504,0,1
+flux_trained,image_32.png,A person in a pet festival,0.5,43.178,22.147,0.6545,0.5847,0.5808,0.4416,0,1
+flux_trained,image_32.png,A person in a local art market,0.7,43.178,22.269,0.6586,0.568,0.5795,0.4812,0,1
+flux_trained,image_32.png,A person in a pet festival,0.7,43.178,22.269,0.6586,0.5847,0.5808,0.4644,0,1
+flux_trained,image_33.png,A person in a basement,0.3,43.344,38.504,0.9796,0.8173,0.8133,0.8154,0,0
+flux_trained,image_33.png,A person in a movie set,0.3,43.344,38.504,0.9796,0.8333,0.8207,0.8174,0,0
+flux_trained,image_33.png,A person in a basement,0.5,43.344,26.76,0.7975,0.8173,0.8133,0.7369,0,1
+flux_trained,image_33.png,A person in a movie set,0.5,43.344,26.76,0.7975,0.8333,0.8207,0.7434,0,1
+flux_trained,image_33.png,A person in a basement,0.7,43.344,27.009,0.8032,0.8173,0.8133,0.7404,0,1
+flux_trained,image_33.png,A person in a movie set,0.7,43.344,27.009,0.8032,0.8333,0.8207,0.761,0,1
+flux_trained,image_37.png,A person in a garage,0.3,43.003,39.377,0.9885,0.7529,0.7407,0.7332,0,0
+flux_trained,image_37.png,A person in a tech startup launch,0.3,43.003,39.377,0.9885,0.747,0.7515,0.736,0,0
+flux_trained,image_37.png,A person in a garage,0.5,43.003,24.561,0.7711,0.7529,0.7407,0.6501,0,1
+flux_trained,image_37.png,A person in a tech startup launch,0.5,43.003,24.561,0.7711,0.747,0.7515,0.6352,0,1
+flux_trained,image_37.png,A person in a garage,0.7,43.003,24.503,0.7713,0.7529,0.7407,0.6411,0,1
+flux_trained,image_37.png,A person in a tech startup launch,0.7,43.003,24.503,0.7713,0.747,0.7515,0.6513,0,1
+flux_trained,image_47.png,A person in a hot dog stand,0.3,46.341,37.666,0.9848,0.6797,0.6776,0.6723,0,0
+flux_trained,image_47.png,A person in a creative writing event,0.3,46.341,37.666,0.9848,0.7127,0.6931,0.6934,0,0
+flux_trained,image_47.png,A person in a hot dog stand,0.5,46.341,22.364,0.6954,0.6797,0.6776,0.5527,0,1
+flux_trained,image_47.png,A person in a creative writing event,0.5,46.341,22.364,0.6954,0.7127,0.6931,0.5412,0,1
+flux_trained,image_47.png,A person in a hot dog stand,0.7,46.341,22.318,0.6961,0.6797,0.6776,0.568,0,1
+flux_trained,image_47.png,A person in a creative writing event,0.7,46.341,22.318,0.6961,0.7127,0.6931,0.5468,0,1
+flux_trained,image_49.png,A person in a music and arts festival,0.3,47.628,40.625,0.9843,0.5882,0.6074,0.6317,0,0
+flux_trained,image_49.png,A person in a bus stop shelter,0.3,47.628,40.625,0.9843,0.5935,0.6146,0.5919,0,0
+flux_trained,image_49.png,A person in a music and arts festival,0.5,47.628,24.423,0.7011,0.5882,0.6074,0.4818,0,1
+flux_trained,image_49.png,A person in a bus stop shelter,0.5,47.628,24.423,0.7011,0.5935,0.6146,0.51,0,1
+flux_trained,image_49.png,A person in a music and arts festival,0.7,47.628,24.23,0.6994,0.5882,0.6074,0.501,0,1
+flux_trained,image_49.png,A person in a bus stop shelter,0.7,47.628,24.23,0.6994,0.5935,0.6146,0.4846,0,1
+flux_trained,image_53.png,A person in a parking structure,0.3,45.519,38.928,0.985,0.5779,0.5707,0.5738,0,0
+flux_trained,image_53.png,A person in a science museum exhibit,0.3,45.519,38.928,0.985,0.5832,0.577,0.5647,0,0
+flux_trained,image_53.png,A person in a parking structure,0.5,45.519,23.401,0.6694,0.5779,0.5707,0.4772,0,1
+flux_trained,image_53.png,A person in a science museum exhibit,0.5,45.519,23.401,0.6694,0.5832,0.577,0.4544,0,1
+flux_trained,image_53.png,A person in a parking structure,0.7,45.519,23.639,0.6779,0.5779,0.5707,0.4724,0,1
+flux_trained,image_53.png,A person in a science museum exhibit,0.7,45.519,23.639,0.6779,0.5832,0.577,0.4848,0,1
+flux_trained,image_57.png,A person in a gym sauna,0.3,45.04,37.279,0.9824,0.7654,0.7713,0.7597,0,0
+flux_trained,image_57.png,A person in a community theater production,0.3,45.04,37.279,0.9824,0.7778,0.7694,0.7748,0,0
+flux_trained,image_57.png,A person in a gym sauna,0.5,45.04,23.666,0.7435,0.7654,0.7713,0.6413,0,1
+flux_trained,image_57.png,A person in a community theater production,0.5,45.04,23.666,0.7435,0.7778,0.7694,0.6375,0,1
+flux_trained,image_57.png,A person in a gym sauna,0.7,45.04,23.439,0.7365,0.7654,0.7713,0.6397,0,1
+flux_trained,image_57.png,A person in a community theater production,0.7,45.04,23.439,0.7365,0.7778,0.7694,0.6262,0,1
+flux_trained,image_58.png,A person in a costume shop,0.3,37.513,33.974,0.9612,0.6917,0.6848,0.6756,0,0
+flux_trained,image_58.png,A person in a candle shop,0.3,37.513,33.974,0.9612,0.6897,0.68,0.6792,0,0
+flux_trained,image_58.png,A person in a costume shop,0.5,37.513,22.432,0.7184,0.6917,0.6848,0.5876,0,1
+flux_trained,image_58.png,A person in a candle shop,0.5,37.513,22.432,0.7184,0.6897,0.68,0.5986,0,1
+flux_trained,image_58.png,A person in a costume shop,0.7,37.513,22.534,0.7183,0.6917,0.6848,0.5757,0,1
+flux_trained,image_58.png,A person in a candle shop,0.7,37.513,22.534,0.7183,0.6897,0.68,0.575,0,1
+flux_trained,image_66.png,A person in a gym sauna,0.3,47.528,38.603,0.991,0.837,0.8354,0.8268,0,0
+flux_trained,image_66.png,A person in a technology fair,0.3,47.528,38.603,0.991,0.8365,0.8374,0.8196,0,0
+flux_trained,image_66.png,A person in a gym sauna,0.5,47.528,24.713,0.8202,0.837,0.8354,0.7504,0,1
+flux_trained,image_66.png,A person in a technology fair,0.5,47.528,24.713,0.8202,0.8365,0.8374,0.7518,0,1
+flux_trained,image_66.png,A person in a gym sauna,0.7,47.528,24.546,0.8272,0.837,0.8354,0.7582,0,1
+flux_trained,image_66.png,A person in a technology fair,0.7,47.528,24.546,0.8272,0.8365,0.8374,0.7619,0,1
+flux_trained,image_67.png,A person in a butcher’s shop,0.3,41.475,37.874,0.987,0.8227,0.781,0.8105,0,0
+flux_trained,image_67.png,A person in a pet festival,0.3,41.475,37.874,0.987,0.8041,0.8061,0.8002,0,0
+flux_trained,image_67.png,A person in a butcher’s shop,0.5,41.475,24.779,0.7916,0.8227,0.781,0.7198,0,1
+flux_trained,image_67.png,A person in a pet festival,0.5,41.475,24.779,0.7916,0.8041,0.8061,0.689,0,1
+flux_trained,image_67.png,A person in a butcher’s shop,0.7,41.475,24.632,0.7885,0.8227,0.781,0.6965,0,1
+flux_trained,image_67.png,A person in a pet festival,0.7,41.475,24.632,0.7885,0.8041,0.8061,0.6955,0,1
+flux_trained,image_73.png,A person in a locker room,0.3,47.907,38.452,0.9828,0.6132,0.6096,0.6098,0,0
+flux_trained,image_73.png,A person in a street market,0.3,47.907,38.452,0.9828,0.6094,0.6008,0.5949,0,0
+flux_trained,image_73.png,A person in a locker room,0.5,47.907,24.426,0.6963,0.6132,0.6096,0.527,0,1
+flux_trained,image_73.png,A person in a street market,0.5,47.907,24.426,0.6963,0.6094,0.6008,0.5335,0,1
+flux_trained,image_73.png,A person in a locker room,0.7,47.907,23.93,0.6845,0.6132,0.6096,0.5415,0,1
+flux_trained,image_73.png,A person in a street market,0.7,47.907,23.93,0.6845,0.6094,0.6008,0.5143,0,1
+flux_trained,image_80.png,A person in a hot dog stand,0.3,42.9,36.13,0.9711,0.6506,0.6308,0.6352,0,0
+flux_trained,image_80.png,A person in a bridal fitting room,0.3,42.9,36.13,0.9711,0.6228,0.6364,0.6199,0,0
+flux_trained,image_80.png,A person in a hot dog stand,0.5,42.9,22.294,0.6487,0.6506,0.6308,0.5059,0,1
+flux_trained,image_80.png,A person in a bridal fitting room,0.5,42.9,22.294,0.6487,0.6228,0.6364,0.4922,0,1
+flux_trained,image_80.png,A person in a hot dog stand,0.7,42.9,22.242,0.6499,0.6506,0.6308,0.5087,0,1
+flux_trained,image_80.png,A person in a bridal fitting room,0.7,42.9,22.242,0.6499,0.6228,0.6364,0.5097,0,1
+flux_trained,image_82.png,A person in a beach resort,0.3,40.996,37.596,0.9877,0.6976,0.6734,0.6811,0,0
+flux_trained,image_82.png,A person in a transit station,0.3,40.996,37.596,0.9877,0.6822,0.6727,0.6693,0,0
+flux_trained,image_82.png,A person in a beach resort,0.5,40.996,25.032,0.7731,0.6976,0.6734,0.6153,0,1
+flux_trained,image_82.png,A person in a transit station,0.5,40.996,25.032,0.7731,0.6822,0.6727,0.5837,0,1
+flux_trained,image_82.png,A person in a beach resort,0.7,40.996,24.757,0.7662,0.6976,0.6734,0.6,0,1
+flux_trained,image_82.png,A person in a transit station,0.7,40.996,24.757,0.7662,0.6822,0.6727,0.6103,0,1
+flux_trained,image_93.png,A person in a motel room,0.3,41.862,31.407,0.9654,0.73,0.7317,0.7268,0,0
+flux_trained,image_93.png,A person in a tech launch event,0.3,41.862,31.407,0.9654,0.734,0.7285,0.7289,0,0
+flux_trained,image_93.png,A person in a motel room,0.5,41.862,20.699,0.69,0.73,0.7317,0.5661,0,1
+flux_trained,image_93.png,A person in a tech launch event,0.5,41.862,20.699,0.69,0.734,0.7285,0.5869,0,1
+flux_trained,image_93.png,A person in a motel room,0.7,41.862,20.446,0.6791,0.73,0.7317,0.5662,0,1
+flux_trained,image_93.png,A person in a tech launch event,0.7,41.862,20.446,0.6791,0.734,0.7285,0.5753,0,1
+flux_trained,image_94.png,A person in a computer lab,0.3,43.162,36.083,0.9797,0.8584,0.8485,0.8528,0,0
+flux_trained,image_94.png,A person in a lobby,0.3,43.162,36.083,0.9797,0.8545,0.8632,0.8444,0,0
+flux_trained,image_94.png,A person in a computer lab,0.5,43.162,23.678,0.7899,0.8584,0.8485,0.7396,0,1
+flux_trained,image_94.png,A person in a lobby,0.5,43.162,23.678,0.7899,0.8545,0.8632,0.742,0,1
+flux_trained,image_94.png,A person in a computer lab,0.7,43.162,23.829,0.7961,0.8584,0.8485,0.7341,0,1
+flux_trained,image_94.png,A person in a lobby,0.7,43.162,23.829,0.7961,0.8545,0.8632,0.7497,0,1
+flux_trained,image_104.png,A person in a pet festival,0.3,47.933,39.698,0.9863,0.7567,0.7195,0.7316,0,0
+flux_trained,image_104.png,A person in a slum,0.3,47.933,39.698,0.9863,0.7432,0.7377,0.7277,0,0
+flux_trained,image_104.png,A person in a pet festival,0.5,47.933,24.784,0.769,0.7567,0.7195,0.6636,0,1
+flux_trained,image_104.png,A person in a slum,0.5,47.933,24.784,0.769,0.7432,0.7377,0.6491,0,1
+flux_trained,image_104.png,A person in a pet festival,0.7,47.933,24.878,0.7711,0.7567,0.7195,0.6571,0,1
+flux_trained,image_104.png,A person in a slum,0.7,47.933,24.878,0.7711,0.7432,0.7377,0.6566,0,1
+flux_trained,image_110.png,A person in a gym sauna,0.3,47.177,41.027,0.9892,0.7409,0.7376,0.7322,0,0
+flux_trained,image_110.png,A person in a glass factory,0.3,47.177,41.027,0.9892,0.739,0.7367,0.7147,0,0
+flux_trained,image_110.png,A person in a gym sauna,0.5,47.177,24.159,0.7469,0.7409,0.7376,0.6515,0,1
+flux_trained,image_110.png,A person in a glass factory,0.5,47.177,24.159,0.7469,0.739,0.7367,0.6119,0,1
+flux_trained,image_110.png,A person in a gym sauna,0.7,47.177,24.303,0.754,0.7409,0.7376,0.652,0,1
+flux_trained,image_110.png,A person in a glass factory,0.7,47.177,24.303,0.754,0.739,0.7367,0.6389,0,1
+flux_trained,image_115.png,A person in a tram stop,0.3,44.678,33.528,0.9607,0.6336,0.6085,0.6138,0,0
+flux_trained,image_115.png,A person in a fish market,0.3,44.678,33.528,0.9607,0.642,0.6204,0.6248,0,0
+flux_trained,image_115.png,A person in a tram stop,0.5,44.678,21.244,0.6602,0.6336,0.6085,0.5108,0,1
+flux_trained,image_115.png,A person in a fish market,0.5,44.678,21.244,0.6602,0.642,0.6204,0.5222,0,1
+flux_trained,image_115.png,A person in a tram stop,0.7,44.678,21.299,0.6593,0.6336,0.6085,0.4973,0,1
+flux_trained,image_115.png,A person in a fish market,0.7,44.678,21.299,0.6593,0.642,0.6204,0.5,0,1
+flux_trained,image_121.png,A person in a basement,0.3,41.246,38.058,0.9858,0.7152,0.7178,0.7208,0,0
+flux_trained,image_121.png,A person in a dormitory,0.3,41.246,38.058,0.9858,0.7028,0.7196,0.6842,0,0
+flux_trained,image_121.png,A person in a basement,0.5,41.246,24.286,0.7386,0.7152,0.7178,0.5911,0,1
+flux_trained,image_121.png,A person in a dormitory,0.5,41.246,24.286,0.7386,0.7028,0.7196,0.5944,0,1
+flux_trained,image_121.png,A person in a basement,0.7,41.246,24.546,0.7422,0.7152,0.7178,0.6042,0,1
+flux_trained,image_121.png,A person in a dormitory,0.7,41.246,24.546,0.7422,0.7028,0.7196,0.5958,0,1
+flux_trained,image_129.png,A person in a tech startup,0.3,45.088,37.399,0.9864,0.6819,0.7092,0.6922,0,0
+flux_trained,image_129.png,A person in a brewery tour,0.3,45.088,37.399,0.9864,0.7213,0.7227,0.7016,0,0
+flux_trained,image_129.png,A person in a tech startup,0.5,45.088,24.081,0.7954,0.6819,0.7092,0.6637,0,0
+flux_trained,image_129.png,A person in a brewery tour,0.5,45.088,24.081,0.7954,0.7213,0.7227,0.6453,0,1
+flux_trained,image_129.png,A person in a tech startup,0.7,45.088,24.186,0.7945,0.6819,0.7092,0.6603,0,0
+flux_trained,image_129.png,A person in a brewery tour,0.7,45.088,24.186,0.7945,0.7213,0.7227,0.6494,0,1
+flux_trained,image_133.png,A person in a laundry room,0.3,42.067,33.487,0.9621,0.4026,0.4325,0.3657,0,0
+flux_trained,image_133.png,A person in a tech startup,0.3,42.067,33.487,0.9621,0.3901,0.4237,0.4211,0,0
+flux_trained,image_133.png,A person in a laundry room,0.5,42.067,19.931,0.4306,0.4026,0.4325,0.2612,0,1
+flux_trained,image_133.png,A person in a tech startup,0.5,42.067,19.931,0.4306,0.3901,0.4237,0.2657,0,1
+flux_trained,image_133.png,A person in a laundry room,0.7,42.067,19.83,0.4421,0.4026,0.4325,0.2484,0,1
+flux_trained,image_133.png,A person in a tech startup,0.7,42.067,19.83,0.4421,0.3901,0.4237,0.2686,0,1
