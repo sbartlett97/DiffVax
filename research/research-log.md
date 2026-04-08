@@ -1,5 +1,46 @@
 # Research Log — DiffVax Extension
 
+## 2026-04-08 — H1/H6 Results In + Critical Eval Bug Found + Fixes Applied
+
+**H1a + H6 results arrived from GPU run.**
+
+**CRITICAL BUG: model.eval() collapses NestedUNet perturbation 78x**
+- Root cause: DiffVax NestedUNet trained with batch_size=1. BN running_var is near-zero (e.g., 0.005) because single-sample BN computes variance over spatial dimensions of one image, not a batch.
+- In eval mode: BN normalizes by sqrt(running_var + eps) ≈ 0.07 → very strong normalization → signal collapses
+- In train mode: BN normalizes by current-batch statistics (spatial variance) → matches training
+- Effect: published checkpoint gives PSNR=89.9 dB (essentially no perturbation) in eval mode vs PSNR=34.6 dB in train mode (close to published 32.71 dB)
+- Fix: eval_transfer.py and eval_purification_robustness.py changed model.eval() → model.train()
+- ALL H1 and H6 results from first GPU run are INVALID. Re-run required.
+
+**H1 first run results (INVALID - must re-run):**
+- sd15_only (eval mode): PSNR=83.5 dB → near-zero perturbation. EDR=0.16-0.18 (from JPEG compression noise, not immunization)
+- multimodel_h1a (eval mode): PSNR=44.2 dB → weak perturbation (4x weaker than expected). EDR=0.01-0.16
+
+**H6 first run results (INVALID - must re-run):**
+- Both checkpoints: direct_EDR≈0 (no perturbation due to eval mode)
+- Both checkpoints: purified_EDR=0.983 at strength=0.5-0.7 (purifier damage confound, not immunization)
+- H6 eval improved: added clean-image purification control (purification_control_disrupted column)
+  to detect false positives from purifier damage on non-immunized images
+
+**Patch coverage analysis (CPU-only, no GPU needed):**
+- patch_coverage_analysis.py run and verified:
+  - stride=256: center pixel covered by 4 patches ✓ (paper claim)
+  - stride=512, 384: center pixel covered by 1 patch each
+  - EDR vs center coverage correlation: r=0.9563 ✓ SUPPORTS perturbation accumulation hypothesis
+  - Figure saved: research/to_human/figures/patch_coverage_density.png
+- Note: stride=512/384 have same center coverage (1), so the EDR gap from 0.30→0.33 is not from center
+  coverage but from overall coverage increase (max=4 at corners). The 0.33→0.40 jump is the accumulation effect.
+
+**Action required (GPU):**
+```bash
+git pull
+bash scripts/run_post_h1a.sh \
+    --h1a-checkpoint <path_to_h1a_checkpoint> \
+    --sd15-checkpoint checkpoints/diffvax_trained.pth
+```
+
+---
+
 ## 2026-04-08 — Baseline Audit + Paper Polish + Figures
 
 **Baseline metrics audit** (web search across all 6 competitor papers):

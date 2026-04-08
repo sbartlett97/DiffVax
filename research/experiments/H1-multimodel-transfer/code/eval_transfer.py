@@ -185,7 +185,11 @@ def main():
             print(f"  Checkpoint: {ckpt_name}")
             model = NestedUNet(num_classes=3).cuda()
             model.load_state_dict(torch.load(ckpt_path, weights_only=True))
-            model.eval()  # sets dropout/batchnorm to eval mode (not Python eval())
+            # IMPORTANT: keep model in train() mode for BN consistency.
+            # DiffVax was trained with batch_size=1; BN running stats accumulated in
+            # train mode. In eval mode, those stats produce near-zero activations (78x
+            # weaker signal). Using train() + torch.no_grad() matches training inference.
+            model.train()
 
             pbar = tqdm(val_list, desc=f"{ckpt_name} -> {eval_model_type}")
             for item in pbar:

@@ -138,7 +138,10 @@ def main():
         print(f"\nLoading checkpoint: {ckpt_name}")
         model = NestedUNet(num_classes=3).cuda()
         model.load_state_dict(torch.load(ckpt_path, weights_only=True))
-        model.eval()  # sets dropout/batchnorm to inference mode
+        # IMPORTANT: keep in train() mode — BN running stats from batch_size=1
+        # training produce near-zero output in eval mode. train() + torch.no_grad()
+        # matches the mode used during training (matching immunize_img() in the core).
+        model.train()
 
         pbar = tqdm(val_list, desc=f"H6 eval — {ckpt_name}")
         for item in pbar:
@@ -190,6 +193,12 @@ def main():
                 psnr_purified_vs_orig = compute_psnr(purified_t, image_t.float())
                 ssim_purified_vs_orig = compute_ssim(purified_t, image_t.float())
 
+                # Control: purify the CLEAN image too. This measures purifier damage
+                # independent of immunization — needed to detect the confound where
+                # aggressive purification degrades image quality enough to appear as
+                # disruption even on non-immunized images.
+                purified_clean_t = purify_with_flux(flux, image_t.float(), strength=purify_strength)
+
                 for prompt in prompts:
                     edited_clean = clean_edits[prompt]
                     edited_immunized = direct_edits[prompt]
@@ -202,15 +211,26 @@ def main():
                         ).float()
                     torch.cuda.empty_cache()
 
+                    with torch.no_grad():
+                        edited_purified_clean = flux.attack(
+                            prompt=[prompt], masked_image=purified_clean_t.half(), mask=mask_t,
+                            height=RESOLUTION, width=RESOLUTION,
+                            num_inference_steps=EDIT_STEPS, batch_size=1,
+                        ).float()
+                    torch.cuda.empty_cache()
+
                     ssim_clean_edit = compute_ssim(edited_clean, image_t.float())
                     ssim_direct_edit = compute_ssim(edited_immunized, image_t.float())
                     ssim_purified_edit = compute_ssim(edited_purified, image_t.float())
+                    ssim_purified_clean_edit = compute_ssim(edited_purified_clean, image_t.float())
 
-                    # Disrupted = DiffVax drives output toward zeros, so a successful
-                    # immunization produces a more-blanked edit (LOWER SSIM vs original)
-                    # than the clean edit. Matches H2 eval convention.
+                    # Disrupted = DiffVax drives output toward zeros → successful
+                    # immunization produces lower SSIM vs original than clean edit.
                     direct_disrupted = int(ssim_direct_edit < ssim_clean_edit - 0.05)
                     purified_disrupted = int(ssim_purified_edit < ssim_clean_edit - 0.05)
+                    # Immunization survival: compare purified-immunized vs purified-clean.
+                    # This isolates immunization effect from purifier damage.
+                    purification_control_disrupted = int(ssim_purified_clean_edit < ssim_clean_edit - 0.05)
 
                     results.append({
                         "checkpoint": ckpt_name,
@@ -223,8 +243,10 @@ def main():
                         "ssim_clean_edit": round(ssim_clean_edit, 4),
                         "ssim_direct_edit": round(ssim_direct_edit, 4),
                         "ssim_purified_edit": round(ssim_purified_edit, 4),
+                        "ssim_purified_clean_edit": round(ssim_purified_clean_edit, 4),
                         "direct_disrupted": direct_disrupted,
                         "purified_disrupted": purified_disrupted,
+                        "purification_control_disrupted": purification_control_disrupted,
                     })
 
     # Write CSV
@@ -236,8 +258,8 @@ def main():
 
     # Summary
     print("\n=== H6 Summary ===")
-    print(f"{'Checkpoint':15s} | {'Strength':8s} | Direct EDR | After-Purify EDR | PSNR Purified")
-    print("-" * 70)
+    print(f"{'Checkpoint':15s} | {'Strength':8s} | Direct EDR | Purified EDR | Control EDR | Net Survival EDR")
+    print("-" * 85)
     by_key = defaultdict(list)
     for r in results:
         by_key[(r["checkpoint"], r["purify_strength"])].append(r)
@@ -251,11 +273,17 @@ def main():
         for strength in sorted(set(r["purify_strength"] for r in results)):
             rows = by_key[(ckpt, strength)]
             purified_edr = sum(r["purified_disrupted"] for r in rows) / len(rows)
+            control_edr = sum(r["purification_control_disrupted"] for r in rows) / len(rows)
+            # Net survival: immunized EDR minus purifier-damage EDR on clean images
+            # Positive = immunization provides additional disruption beyond purifier damage
+            net_survival = purified_edr - control_edr
             psnr_p = sum(r["psnr_purified"] for r in rows) / len(rows)
-            print(f"{ckpt:15s} | {strength:8.1f} | {direct_edr:.3f}      | {purified_edr:.3f}            | {psnr_p:.1f}")
+            print(f"{ckpt:15s} | {strength:8.1f} | {direct_edr:.3f}      | {purified_edr:.3f}        "
+                  f"| {control_edr:.3f}       | {net_survival:+.3f}")
 
-    print(f"\nH6 prediction: at each purify_strength, flux_trained purified_edr > sd15_only purified_edr")
-    print(f"(flux-trained immunization resists FLUX-based purification; sd15-only does not)")
+    print(f"\nH6 prediction: at each purify_strength, flux_trained net_survival_edr > sd15_only net_survival_edr")
+    print(f"Control EDR = disruption from purifier damage alone (same for both checkpoints).")
+    print(f"Net survival EDR = immunization effect above purifier baseline.")
     print(f"Full results: {csv_path}")
 
 
