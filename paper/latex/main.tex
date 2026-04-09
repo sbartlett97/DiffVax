@@ -149,9 +149,20 @@ claimed: realistic adversary strength fails against DiffVax (Section~\ref{sec:h6
 \textbf{Compression-robust adversarial examples.}
 \citet{goodfellow2014fgsm} first noted JPEG destroys high-frequency perturbations;
 DCT-Shield~\citep{dctshield2025} provides a frequency-band analysis.
-\citet{bengio2013ste} introduced the Straight-Through Estimator;
-\citet{hubara2016ste_quant} applied it to quantization-aware training.
-We apply STE for the first time to immunization at social media quality levels.
+JPEG is an established purifier against pixel-space immunization for UNet-based
+diffusion models~\citep{zhao2023jpegbypass}; this ICLR 2025 community consensus
+~\citep{vanle2025cannot} treats JPEG as an adversary to be defended against.
+Our FLUX finding inverts this consensus.
+GAP-Diff~\citep{gapdiff2025} achieves JPEG-robust facial protection via JPEG
+simulation backpropagation; we find this approach (H7) fails for immunization
+at q=70--75 due to perturbation weakening. \citet{bengio2013ste} introduced the STE.
+
+\textbf{JPEG and transformer sensitivity.}
+\citet{li2022jpegvit} show ViT patch embeddings natively absorb JPEG DCT blocks,
+with block artifacts surviving intact into token space; CNNs do not share this property.
+\citet{guo2023rspc} show ViT patch-corruption sensitivity is structurally severe.
+\citet{chen2024transformadv} model JPEG as an adversarial trigger (+17--31\% in black-box).
+These three papers collectively explain why our JPEG paradox is architecture-specific to FLUX.
 
 \textbf{High-resolution immunization.}
 Adversarial perturbations at scale have been studied for recognition~\citep{xiao2018highres}
@@ -408,18 +419,39 @@ produces fewer editing failures across all architectures.
 
 JPEG simultaneously (1) partially destroys the immunization perturbation ($-1.35$~dB
 PSNR: 32.71$\to$31.37) and (2) introduces DCT block-boundary artifacts at every
-$8\!\times\!8$ pixel boundary. Effect (1) reduces EDR; effect (2) creates structured
+$8\!\times\!8$ pixel boundary. Effect~(1) reduces EDR; effect~(2) creates structured
 discontinuities at FLUX's $2\!\times\!2$ latent patch boundaries ($16\!\times\!16$ pixels
 in image space). These block-boundary signals compound with the immunization perturbation
 in FLUX's cross-patch attention, disrupting inpainting beyond what the perturbation alone achieves.
 
-SD1.5's convolutional UNet smooths block artifacts; no compound effect occurs.
-The paradox requires a \emph{strong} base perturbation: H1a (+7\%) and H7 (none)
-show diminishing paradox magnitude correlating with their weaker PSNR levels.
-This confirms the emergent nature of the effect and explains why STE JPEG training
-cannot amplify it: the STE signal rewards perturbation directions that survive JPEG,
-but the paradox depends on the perturbation being strong enough to compound with DCT
-artifacts --- a condition the STE training actively undermines.
+\textbf{Why this is architecture-specific.} Three converging lines of evidence from
+the literature support the patch-token explanation:
+(1)~\citet{guo2023rspc} show that corrupting as few as 10\% of ViT patches causes
+severe accuracy drops through global attention propagation --- FLUX's $2\times2$
+patch tokenization creates an identical structural vulnerability.
+(2)~\citet{li2022jpegvit} demonstrate that ViT patch embeddings natively absorb JPEG's
+$8\times8$ DCT block representation, with DCT artifacts surviving intact into token space;
+CNNs require architectural surgery to even accept DCT inputs and smooth block boundaries naturally.
+(3)~\citet{chen2024transformadv} show that JPEG quality-factor can serve as an adversarial
+trigger that \emph{amplifies} pixel-space perturbations by 17--31\% in black-box scenarios,
+with the effect being architecture-specific. Our JPEG paradox is consistent with this model.
+
+SD1.5's convolutional UNet processes images through multi-scale spatial filters
+that smooth block artifacts before they can disrupt the denoising prior~\citep{pierson2024pixel}.
+This explains why JPEG has no effect on SD1.5 EDR while FLUX EDR increases 50\%.
+Prior work confirms that JPEG is an effective \emph{purifier} against SD1.5-based
+immunization~\citep{zhao2023jpegbypass,vanle2025cannot}; our FLUX result is a qualitatively
+distinct, novel exception to this consensus.
+
+\textbf{Why STE training cannot amplify the paradox.} The paradox requires a strong
+base perturbation: H1a (+7\%) and H7 (none) show diminishing effect correlating with
+weaker PSNR. The STE signal rewards perturbation directions that \emph{survive} JPEG,
+but the compound effect depends on the perturbation being strong enough to interact with
+DCT artifacts --- a condition STE training actively undermines by diverting optimization
+energy toward compression-survivor frequencies. GAP-Diff~\citep{gapdiff2025} also
+addresses JPEG robustness via JPEG-simulation backpropagation, but for facial customization
+(different task and architecture); it does not leverage the DCT--DiT compounding
+mechanism we describe here, since its target model is a UNet-based diffusion model.
 
 \subsection{Limitations}
 \label{sec:limitations}
