@@ -1,23 +1,26 @@
 %% ============================================================
 %% DiffVax++ References
-%% VERIFICATION STATUS: entries marked [VERIFIED] were fetched via DOI/arXiv API
-%% entries marked [PLACEHOLDER] require human verification before submission
+%% VERIFICATION STATUS: [VERIFIED] = checked via web search/arXiv
+%% [NEEDS-AUTHORS] = arXiv ID verified, author list needs manual check
+%% [PLACEHOLDER] = title/ID unverified, requires human check before submission
 %% ============================================================
 
-%% [VERIFIED] DiffVax ICLR 2025 - arXiv:2501.05207 (verify exact arXiv ID)
+%% [VERIFIED] DiffVax ICLR 2025 - arXiv:2411.17957
+%% Authors confirmed: Tarik Can Ozden, Ozgur Kara, Oguzhan Akcin, Kerem Zaman,
+%% Shashank Srivastava, Sandeep P. Chinchali, James M. Rehg
 @inproceedings{ozdentarikcan2025diffvax,
-  title     = {{DiffVax}: Single-Pass Image Immunization Against Diffusion Inpainting},
-  author    = {Özdentarikcan, Ahmet and Rehg, James M.},
+  title     = {Optimization-Free Image Immunization Against Diffusion-Based Editing},
+  author    = {Ozden, Tarik Can and Kara, Ozgur and Akcin, Oguzhan and Zaman, Kerem and Srivastava, Shashank and Chinchali, Sandeep P. and Rehg, James M.},
   booktitle = {Proceedings of the International Conference on Learning Representations},
   year      = {2025},
-  note      = {ICLR 2025. \textbf{[PLACEHOLDER: verify exact arXiv ID and author list]}}
+  note      = {arXiv:2411.17957}
 }
 
 %% [VERIFIED] UNet++ / NestedUNet - arXiv:1807.10165
 @article{zhou2018unetpp,
   title     = {{UNet++}: A Nested {U-Net} Architecture for Medical Image Segmentation},
   author    = {Zhou, Zongwei and Rahman Siddiquee, Md Mahfuzur and Tajbakhsh, Nima and Liang, Jianming},
-  journal   = {Deep Learning in Medical Image Analysis and Multimodal Learning for Clinical Decision Support},
+  journal   = {Deep Learning in Medical Image Analysis},
   year      = {2018},
   note      = {arXiv:1807.10165}
 }
@@ -34,32 +37,25 @@
 @inproceedings{shan2023glaze,
   title     = {Glaze: Protecting Artists from Style Mimicry by Text-to-Image Models},
   author    = {Shan, Shawn and Cryan, Jenna and Wenger, Emily and Zheng, Haitao and Hanocka, Rana and Zhao, Ben Y.},
-  booktitle = {Proceedings of the 32nd USENIX Security Symposium},
+  booktitle = {Proceedings of the 32nd {USENIX} Security Symposium},
   year      = {2023},
   note      = {arXiv:2302.04222}
 }
 
-%% [VERIFIED] Anti-DreamBooth - arXiv:2303.15433
-@inproceedings{vanle2023antidreambooth,
-  title     = {Anti-{DreamBooth}: Protecting Users from Personalized Text-to-Image Synthesis},
-  author    = {Van Le, Thanh and Phung, Hao and Nguyen, Thuan Hoang and Dao, Quan and Tran, Ngoc and Tran, Anh},
-  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision},
-  year      = {2023},
-  note      = {arXiv:2303.15433}
-}
-
-%% [VERIFIED] Purify Once Edit Freely - arXiv:2603.13028
+%% [VERIFIED] Purify Once, Edit Freely - arXiv:2603.13028 (ICLR 2026 confirmed)
+%% Title confirmed: "Purify Once, Edit Freely: Breaking Image Protections under Model Mismatch"
+%% Introduces VAE-Trans and EditorClean (FLUX.1-fill-dev based) purifiers
 @article{zhao2026purify,
-  title     = {Purify Once, Edit Freely: {FLUX}-Based Purification Defeats Diffusion Immunization},
-  author    = {Zhao, Litian and others},
+  title     = {Purify Once, Edit Freely: Breaking Image Protections under Model Mismatch},
+  author    = {[TODO: verify author list from arxiv.org/abs/2603.13028]},
   journal   = {arXiv preprint arXiv:2603.13028},
   year      = {2026},
-  note      = {\textbf{[PLACEHOLDER: verify author list]}}
+  note      = {\textbf{[NEEDS-AUTHORS: see arxiv.org/abs/2603.13028]}}
 }
 
 %% [PLACEHOLDER] Pleimling et al. 2026 commodity purification
 @article{pleimling2026commodity,
-  title     = {Commodity Image-to-Image Tools Defeat Lp-Bounded Immunization},
+  title     = {Commodity Image-to-Image Tools Defeat {Lp}-Bounded Immunization},
   author    = {Pleimling, D. and others},
   journal   = {arXiv preprint},
   year      = {2026},
@@ -69,30 +65,21 @@
 %% [VERIFIED] STE - Bengio et al. 2013 arXiv:1308.3432
 @article{bengio2013ste,
   title     = {Estimating or Propagating Gradients Through Stochastic Neurons for Conditional Computation},
-  author    = {Bengio, Yoshua and Léonard, Nicholas and Courville, Aaron},
+  author    = {Bengio, Yoshua and L{\'e}onard, Nicholas and Courville, Aaron},
   journal   = {arXiv preprint arXiv:1308.3432},
   year      = {2013}
 }
 
-%% [PLACEHOLDER] STE for quantization-aware training
-@inproceedings{hubara2016ste_quant,
-  title     = {Binarized Neural Networks},
-  author    = {Hubara, Itay and Courbariaux, Matthieu and Soudry, Daniel and El-Yaniv, Ran and Bengio, Yoshua},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2016},
-  note      = {\textbf{[PLACEHOLDER: verify this is the correct STE-quant citation]}}
-}
-
 %% [VERIFIED] DCT-Shield ICCV 2025 - arXiv:2504.17894
 @inproceedings{dctshield2025,
-  title     = {{DCT-Shield}: Frequency-Aware Adversarial Robustness Under {JPEG} Compression},
-  author    = {[TODO: verify authors]},
-  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  title     = {{DCT-Shield}: A Robust Frequency Domain Defense against Malicious Image Editing},
+  author    = {[TODO: verify authors from arxiv.org/abs/2504.17894]},
+  booktitle = {Proceedings of the {IEEE/CVF} International Conference on Computer Vision},
   year      = {2025},
-  note      = {arXiv:2504.17894. \textbf{[PLACEHOLDER: verify authors and title]}}
+  note      = {arXiv:2504.17894. \textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED] FGSM/JPEG adversarial fragility - Goodfellow et al. 2014
+%% [VERIFIED] FGSM - Goodfellow et al. 2014/ICLR 2015, arXiv:1412.6572
 @inproceedings{goodfellow2014fgsm,
   title     = {Explaining and Harnessing Adversarial Examples},
   author    = {Goodfellow, Ian J. and Shlens, Jonathon and Szegedy, Christian},
@@ -101,56 +88,64 @@
   note      = {arXiv:1412.6572}
 }
 
-%% [PLACEHOLDER] IDProtector Chen et al. 2024
+%% [VERIFIED] IDProtector - arXiv:2412.11638
 @article{chen2024idprotector,
-  title     = {{IDProtector}: Deep Feature-Space Image Protection Against Identity-Consistent Editing},
-  author    = {Chen, [TODO]},
-  journal   = {arXiv preprint},
+  title     = {{IDProtector}: An Adversarial Noise Encoder to Protect Against {ID}-Preserving Image Generation},
+  author    = {[TODO: verify author list from arxiv.org/abs/2412.11638]},
+  journal   = {arXiv preprint arXiv:2412.11638},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: verify title, authors, arXiv ID]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [PLACEHOLDER] Anti-Inpainting Guo et al. 2025
+%% [VERIFIED] Anti-Inpainting - arXiv:2505.13023
+%% Authors: Yimao Guo, Zuomin Qu, Wei Lu, Xiangyang Luo
 @article{guo2025antiinpaint,
-  title     = {Anti-Inpainting: Adversarial Immunization Against Diffusion Inpainting},
-  author    = {Guo, [TODO] and others},
-  journal   = {arXiv preprint},
-  year      = {2025},
-  note      = {\textbf{[PLACEHOLDER: verify title, authors, arXiv ID]}}
+  title     = {Anti-Inpainting: A Proactive Defense Approach against Malicious Diffusion-based Inpainters under Unknown Conditions},
+  author    = {Guo, Yimao and Qu, Zuomin and Lu, Wei and Luo, Xiangyang},
+  journal   = {arXiv preprint arXiv:2505.13023},
+  year      = {2025}
 }
 
-%% [PLACEHOLDER] PromptFlare Na et al. 2025 - ACM MM 2025
+%% [VERIFIED] PromptFlare - arXiv:2508.16217, ACM MM 2025
+%% DOI: 10.1145/3746027.3755763
 @inproceedings{na2025promptflare,
-  title     = {{PromptFlare}: Adversarial Prompt-Space Immunization},
-  author    = {Na, [TODO] and others},
-  booktitle = {Proceedings of the ACM International Conference on Multimedia},
+  title     = {{PromptFlare}: Prompt-Generalized Defense via Cross-Attention Decoy in Diffusion-Based Inpainting},
+  author    = {[TODO: verify author list from arxiv.org/abs/2508.16217]},
+  booktitle = {Proceedings of the 33rd {ACM} International Conference on Multimedia},
   year      = {2025},
-  note      = {\textbf{[PLACEHOLDER: verify title, authors, venue]}}
+  doi       = {10.1145/3746027.3755763},
+  note      = {arXiv:2508.16217. \textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [PLACEHOLDER] Attention Attack Trippodo et al. 2025 - ACM MM 2025
-@inproceedings{trippodo2025attn,
-  title     = {Disrupting Cross-Attention for Image Immunization},
-  author    = {Trippodo, [TODO] and others},
-  booktitle = {Proceedings of the ACM International Conference on Multimedia},
+%% [VERIFIED] AdvPaint (labeled Attention Attack in paper) - arXiv:2503.10081
+%% GitHub: github.com/JoonsungJeon/AdvPaint
+@article{trippodo2025attn,
+  title     = {{AdvPaint}: Protecting Images from Inpainting Manipulation via Adversarial Attention Disruption},
+  author    = {Jeon, Joonsung and others},
+  journal   = {arXiv preprint arXiv:2503.10081},
   year      = {2025},
-  note      = {\textbf{[PLACEHOLDER: verify title, authors, venue]}}
+  note      = {\textbf{[NEEDS-AUTHORS: check arxiv.org/abs/2503.10081]}}
 }
 
-%% [PLACEHOLDER] FLUX.1 Black Forest Labs 2024
-@techreport{flux2024,
-  title     = {{FLUX.1}: Generative Flow Matching for Text-to-Image Generation},
+%% [VERIFIED] FLUX.1 - no official technical report from BFL
+%% Best citation: "Demystifying Flux Architecture" arXiv:2507.09595 (reverse-engineering study)
+%% OR cite the HuggingFace model card
+@misc{flux2024,
+  title     = {{FLUX.1}: Rectified Flow Transformer for Text-to-Image Generation},
   author    = {{Black Forest Labs}},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: verify official citation format for FLUX]}}
+  howpublished = {\url{https://huggingface.co/black-forest-labs/FLUX.1-schnell}},
+  note      = {No official technical report. Architecture described in arXiv:2507.09595.}
 }
 
-%% [PLACEHOLDER] SD 3.5 Stability AI 2024
-@techreport{sd35_2024,
-  title     = {Stable Diffusion 3.5: MM-{DiT} Architecture for High-Fidelity Generation},
-  author    = {{Stability AI}},
+%% [VERIFIED] SD 3 / SD 3.5 - arXiv:2403.03206 (Esser et al. ICML/CVPR 2024)
+%% SD 3.5 shares the MM-DiT architecture; cite SD3 paper for architecture
+@article{sd35_2024,
+  title     = {Scaling Rectified Flow Transformers for High-Resolution Image Synthesis},
+  author    = {Esser, Patrick and Kulal, Sumith and Blattmann, Andreas and Rombach, Robin and others},
+  journal   = {arXiv preprint arXiv:2403.03206},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: verify official citation format for SD 3.5]}}
+  note      = {Stable Diffusion 3 / 3.5 architecture paper}
 }
 
 %% [PLACEHOLDER] OpenAI GPT-image-edit
@@ -162,88 +157,88 @@
   note      = {\textbf{[PLACEHOLDER: update to correct citation when final]}}
 }
 
-%% [PLACEHOLDER] Instagram/Twitter JPEG compression quality settings
+%% [PLACEHOLDER - no authoritative academic source] Instagram/Twitter JPEG quality
+%% Twitter: q=85 (luminance/chrominance), 4:2:0 chroma subsampling
+%% Instagram: optimized at q~75-85 equivalent
 @misc{instagram_compression,
-  title     = {Social Media Image Compression Quality Settings},
-  author    = {[TODO]},
+  title     = {Social Media Image Compression Characteristics},
+  author    = {compress-or-die.com},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: find authoritative source for Instagram q75 / Twitter q70]}}
+  howpublished = {\url{https://compress-or-die.com/Better-image-quality-in-your-Twitter-tweets}},
+  note      = {Twitter q=85 documented; Instagram q~75--85 equivalent. No peer-reviewed source. \textbf{[Consider citing empirical study if available]}}
 }
 
-%% [PLACEHOLDER] High-res adversarial - Xiao et al. 2018
+%% [PLACEHOLDER] High-res adversarial - Xiao et al. 2018 arXiv:1801.02610
 @article{xiao2018highres,
   title     = {Generating Adversarial Examples with Adversarial Networks},
   author    = {Xiao, Chaowei and Li, Bo and Zhu, Jun-Yan and He, Warren and Liu, Mingyan and Song, Dawn},
   journal   = {arXiv preprint arXiv:1801.02610},
-  year      = {2018},
-  note      = {\textbf{[PLACEHOLDER: check this is the right high-res adversarial citation]}}
+  year      = {2018}
 }
-
 
 %% ============================================================
 %% Citations from literature agent (2026-04-09) — JPEG + ViT sensitivity
-%% All verified via DOI/URL
 %% ============================================================
 
-%% [VERIFIED] RSPC CVPR 2023 — ViT patch corruption sensitivity
+%% [NEEDS-AUTHORS] RSPC CVPR 2023 — ViT patch corruption sensitivity
 @inproceedings{guo2023rspc,
   title     = {Improving Robustness of Vision Transformers by Reducing Sensitivity to Patch Corruptions},
-  author    = {Guo, Yong and others},
-  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  author    = {[TODO: verify from openaccess.thecvf.com/CVPR2023]},
+  booktitle = {Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern Recognition},
   year      = {2023},
-  note      = {\url{https://openaccess.thecvf.com/content/CVPR2023/html/Guo_Improving_Robustness_of_Vision_Transformers_by_Reducing_Sensitivity_To_Patch_CVPR_2023_paper.html}. \textbf{[PLACEHOLDER: verify author list]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED arXiv:2211.16421] RGB no more — ViTs natively accept DCT blocks
+%% [VERIFIED arXiv:2211.16421] RGB no more — ViTs natively accept DCT blocks (CVPR 2023)
 @inproceedings{li2022jpegvit,
   title     = {{RGB} No More: Minimally-decoded {JPEG} Vision Transformers},
-  author    = {Li, Ngai-Man M. and others},
-  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  author    = {[TODO: verify from arxiv.org/abs/2211.16421]},
+  booktitle = {Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern Recognition},
   year      = {2023},
-  note      = {arXiv:2211.16421. \textbf{[PLACEHOLDER: verify author list]}}
+  note      = {arXiv:2211.16421. \textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED arXiv:2406.08443] Transform-dependent adversarial attacks — JPEG as trigger
+%% [VERIFIED arXiv:2406.08443] Transform-dependent adversarial attacks
 @article{chen2024transformadv,
   title     = {Transform-Dependent Adversarial Attacks},
-  author    = {Chen, [TODO] and others},
+  author    = {[TODO: verify from arxiv.org/abs/2406.08443]},
   journal   = {arXiv preprint arXiv:2406.08443},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: verify author list and title]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED arXiv:2304.02234] JPEG bypasses adversarial immunization — baseline paper
+%% [VERIFIED arXiv:2304.02234] JPEG bypasses adversarial immunization
 @article{zhao2023jpegbypass,
   title     = {{JPEG} Compressed Images Can Bypass Protections Against {AI} Editing},
-  author    = {Zhao, [TODO] and others},
+  author    = {[TODO: verify from arxiv.org/abs/2304.02234]},
   journal   = {arXiv preprint arXiv:2304.02234},
   year      = {2023},
-  note      = {\textbf{[PLACEHOLDER: verify author list]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED arXiv:2404.13320] Pixel is a barrier — encoder as vulnerability
+%% [VERIFIED arXiv:2404.13320] Pixel is a barrier
 @article{pierson2024pixel,
   title     = {Pixel Is a Barrier: Diffusion Models Are More Adversarially Robust Than We Think},
-  author    = {[TODO]},
+  author    = {[TODO: verify from arxiv.org/abs/2404.13320]},
   journal   = {arXiv preprint arXiv:2404.13320},
   year      = {2024},
-  note      = {\textbf{[PLACEHOLDER: verify author list and title]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
-%% [VERIFIED ICLR 2025] Adversarial protections cannot protect artists — community consensus
+%% [VERIFIED ICLR 2025] Adversarial protections cannot protect artists
 @inproceedings{vanle2025cannot,
   title     = {Adversarial Perturbations Cannot Reliably Protect Artists from Generative {AI}},
-  author    = {[TODO]},
+  author    = {[TODO: verify from proceedings.iclr.cc, hash: af800ac69aea2fb5c4bcf8c6a5f3c79d]},
   booktitle = {Proceedings of the International Conference on Learning Representations},
   year      = {2025},
-  note      = {\url{https://proceedings.iclr.cc/paper_files/paper/2025/hash/af800ac69aea2fb5c4bcf8c6a5f3c79d-Abstract-Conference.html}. \textbf{[PLACEHOLDER: verify author list]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
 
 %% [VERIFIED NDSS 2025] GAP-Diff — JPEG-robust facial protection
 @inproceedings{gapdiff2025,
   title     = {{GAP-Diff}: Protecting {JPEG}-Compressed Images from Diffusion-based Facial Customization},
-  author    = {[TODO]},
+  author    = {[TODO: verify from ndss-symposium.org]},
   booktitle = {Proceedings of the Network and Distributed System Security Symposium},
   year      = {2025},
-  note      = {\url{https://www.ndss-symposium.org/ndss-paper/gap-diff-protecting-jpeg-compressed-images-from-diffusion-based-facial-customization/}. \textbf{[PLACEHOLDER: verify author list]}}
+  note      = {\textbf{[NEEDS-AUTHORS]}}
 }
