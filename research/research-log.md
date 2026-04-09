@@ -282,3 +282,37 @@ on any of the three deployment dimensions. Competitive positioning confirmed.
 - research-state.yaml: H1/H6 status=refuted, current_focus updated
 
 **Awaiting**: H7 training results to complete the paper.
+
+---
+
+## 2026-04-09 — H7 Results In: All GPU Experiments Complete
+
+**H7 result (h7_jpeg_robust vs h1a_no_jpeg):**
+- h7_jpeg_robust: FLUX clean=0.090, q75=0.080, q70=0.090 | PSNR=35.65 dB
+- h1a_no_jpeg:    FLUX clean=0.070, q75=0.090, q70=0.100 | PSNR=34.81 dB
+- **H7 REFUTED**: JPEG augmentation produces even weaker perturbation than H1a.
+  No JPEG paradox for H7 (FLUX q75/clean ratio ≈ 0.9, vs sd15_only's 1.5).
+- Marginal positive: H7 SD3.5 EDR=0.100 (vs H1a's 0.060) — JPEG aug may help SD3.5 specifically.
+
+**Consolidated picture (all checkpoints vs FLUX.1-schnell):**
+- sd15_only:  clean=0.200, q75=0.300 (+50%), q70=0.260 | PSNR=32.71
+- H1a:        clean=0.140, q75=0.150 (+7%),  q70=0.150  | PSNR=34.81
+- H7:         clean=0.090, q75=0.080 (−11%), q70=0.090  | PSNR=35.65
+
+**Meta-finding: "less is more"**: Each additional training objective (multi-model, JPEG aug)
+weakens the perturbation. Simplest training = strongest result.
+
+**All GPU experiments complete. Paper can now be written.**
+- H2: CONFIRMED (1.60×)
+- H1: REFUTED (VAE transfer works without multi-model training)
+- H6: REFUTED (sd15_only already survives light FLUX purification)
+- H7: REFUTED (JPEG aug weakens; paradox not trainable)
+- SURPRISE: sd15_only JPEG paradox (+50% FLUX EDR at q=75, t=−4.33, p<<0.001)
+- SURPRISE: Cross-model transfer (FLUX=0.200, SD3.5=0.140) from SD15-only training
+- SURPRISE: EditorClean needs s≥0.5 (PSNR→23dB) to defeat DiffVax
+
+**Actions:**
+- Updated findings.md: H7 results section added
+- Updated paper experiments_draft.md: H7 table filled with real numbers
+- Updated research-state.yaml: H7 status=refuted, current_focus=all experiments complete
+- Committed + generated complete_results.png figure

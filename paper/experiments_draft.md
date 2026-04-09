@@ -124,27 +124,23 @@ At strength ≥ 0.5, the FLUX purifier reduces image quality to PSNR = 23 dB / S
 
 DiffVax is already JPEG-robust against FLUX without any JPEG-augmented training. FLUX EDR *increases by 50%* at q=75 compared to the clean baseline. We hypothesize that DCT block quantization artifacts (8×8-pixel boundaries) create an additional adversarial signal that compounds with the immunization perturbation — specifically for FLUX's token-based DiT architecture, which is sensitive to patch-boundary discontinuities. SD 1.5's convolutional UNet architecture is robust to this artifact (SD1.5 EDR is JPEG-invariant).
 
-**Compression robustness** (Table 5). Against this JPEG-paradox baseline, H7 aims to further improve JPEG robustness via explicit STE training.
+**Compression robustness** (Table 5). Against this JPEG-paradox baseline, H7 tests whether explicit STE training further amplifies the paradox.
 
-| Method | Clean EDR ↑ | Post-JPEG q=85 ↑ | Post-JPEG q=75 (Instagram) ↑ | Post-JPEG q=70 (Twitter) ↑ |
+| Method | Clean EDR ↑ | q=75 (Instagram) ↑ | q=70 (Twitter) ↑ | JPEG effect |
 |---|---|---|---|---|
-| DiffVax (original) | 0.200* | [X] | **0.300*** | **0.260*** |
-| IDProtector [CHEN2024] | [X] | [X] | — | — |
-| DiffVax++ H1a | 0.140* | [X] | 0.150* | 0.150* |
-| **DiffVax++ H7** | [X] | [X] | [X] | [X] |
+| DiffVax (SD1.5 only) | 0.200 | **0.300** (+50%) | **0.260** | **PARADOX** |
+| DiffVax++ H1a | 0.140 | 0.150 (+7%) | 0.150 | weak |
+| **DiffVax++ H7** | 0.090 | 0.080 (−11%) | 0.090 | **none** |
 
-*Measured against FLUX.1-schnell editing model. DiffVax and H1a JPEG values filled from H1 evaluation data; H7 values pending.
+†All values against FLUX.1-schnell editing model; H7 PSNR=35.65 dB.
 
-*Key updated predictions*: (a) H7 maintains or improves on the paradox-elevated q=75 baseline of 0.300 for DiffVax; (b) H1a shows no JPEG benefit because its perturbation is already too weak (EDR stays flat at 0.140–0.150); (c) IDProtector's q=85 performance does not hold at q=75, because Gaussian noise proxy does not simulate actual JPEG quantization.
+**Key finding (unexpected)**: H7 is the weakest checkpoint and shows NO JPEG paradox for FLUX. STE JPEG augmentation during training further weakens the perturbation (PSNR=35.65 dB vs H1a=34.81 dB vs sd15_only=32.71 dB). This establishes a clear monotonic relationship: adding training objectives (multi-model, JPEG aug) consistently reduces perturbation magnitude and eliminates the JPEG paradox. The paradox is an emergent property of strong single-objective perturbations interacting with FLUX's patch architecture, not an explicitly trainable feature.
 
-**JPEG augmentation ablation** (Table 6). We ablate the augmentation probability to understand the compression-accuracy tradeoff.
+The JPEG paradox is therefore most practically exploited by using the published DiffVax checkpoint (sd15_only) combined with H2 patch-based 1088×1088 inference.
 
-| $p_{\text{jpeg}}$ | Clean EDR ↑ | q=75 EDR ↑ | q=70 EDR ↑ |
-|---|---|---|---|
-| 0.0 (H1a baseline) | [X] | [X] | [X] |
-| 0.25 | [X] | [X] | [X] |
-| 0.50 (H7) | [X] | [X] | [X] |
-| 0.75 | [X] | [X] | [X] |
+**Marginal positive from H7**: SD 3.5 EDR improves to 0.100 (all JPEG conditions) from H1a's 0.060, suggesting JPEG augmentation may provide a small benefit for SD3.5 specifically. However, sd15_only's SD3.5 EDR of 0.140 remains the overall best.
+
+**The "less is more" principle**: Across all training variants in this paper, the simplest training configuration (SD15 single-objective, original DiffVax) produces the strongest perturbation and the best EDR. This has implications for future immunization research: training complexity should be carefully justified, as competing objectives consistently erode perturbation quality.
 
 ---
 

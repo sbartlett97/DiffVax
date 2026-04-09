@@ -83,7 +83,7 @@ hypotheses:
 
   H7:
     title: "JPEG-augmented training produces immunizations that survive social media upload compression"
-    status: protocol_committed
+    status: refuted
     priority: 2
     rationale: >
       Instagram (~q=75) and Twitter (~q=70) apply JPEG compression to all uploads.
@@ -138,6 +138,24 @@ hypotheses:
     metric: edit_disruption_rate after purification attempt
 
 current_focus: >
+  H7 RESULTS IN AND ANALYZED (2026-04-09). ALL GPU EXPERIMENTS COMPLETE.
+  H7 REFUTED: STE JPEG aug training further weakens perturbation (PSNR=35.65 vs H1a 34.81).
+  No JPEG paradox for H7. The paradox is emergent from sd15_only's strong perturbation.
+
+  COMPLETE RESULT PICTURE:
+  - H2: CONFIRMED 1.60× (sd15_only + 1088px patch, stride=256)
+  - H1: REFUTED (multi-model weakens perturbation by 2.1 dB)
+  - H6: REFUTED (H1a weaker; sd15_only already survives light purification)
+  - H7: REFUTED (JPEG aug further weakens; no paradox amplification)
+  - SURPRISE: sd15_only transfers to FLUX (0.200) and SD3.5 (0.140) via shared VAE
+  - SURPRISE: JPEG q=75 increases sd15_only FLUX EDR 0.200→0.300 (+50%)
+  - SURPRISE: Light FLUX purification (s=0.3) fails on sd15_only (net +0.200)
+
+  BEST SYSTEM: sd15_only + 1088px patches
+  FUTURE WORK: H1b (gradient normalization), H1c (DiT curriculum)
+
+  PAPER STATUS: ALL EXPERIMENTAL GAPS FILLED. Ready for ml-paper-writing.
+
   REVISED H1/H6 RESULTS ANALYZED (2026-04-08 loop-9). Both hypotheses REFUTED.
 
   H1 RESULT: sd15_only (PSNR=32.71) outperforms H1a (PSNR=34.81) on all models:

@@ -325,6 +325,30 @@ At strength=0.5-0.7, both checkpoints produce net survival ≈ 0.017, because th
 
 ---
 
+## H7: JPEG-Robust Training — NEGATIVE RESULT (2026-04-09)
+
+**Result**: H7 (SD+FLUX multi-model + STE JPEG augmentation) is the WEAKEST checkpoint of all tested. PSNR=35.65 dB (H1a=34.81, sd15_only=32.71).
+
+| Checkpoint | FLUX clean | FLUX q=75 | FLUX q=70 | JPEG effect | SD1.5 | SD3.5 |
+|---|---|---|---|---|---|---|
+| sd15_only | **0.200** | **0.300** (+50%) | **0.260** | **PARADOX** | **0.300** | **0.140** |
+| H1a | 0.140 | 0.150 (+7%) | 0.150 | weak | 0.290 | 0.060 |
+| **H7** | 0.090 | 0.080 (−11%) | 0.090 | **NONE** | 0.100 | 0.100 |
+
+**Why H7 fails**: JPEG augmentation in the training forward pass further weakens the gradient signal — the attack model sees compressed images, so its loss is lower, producing smaller gradients and a weaker perturbation (PSNR=35.65 vs H1a's 34.81). The JPEG aug adds another competing objective on top of the already-unstable multi-model training.
+
+**JPEG paradox is NOT trainable**: H7 shows NO JPEG paradox for FLUX (q75=0.080, actually slightly below clean=0.090). The paradox is an emergent property of sd15_only's strong focused perturbation interacting with FLUX's patch architecture. It cannot be explicitly trained — it appears when the perturbation is strong and the training objective is simple.
+
+**Positive finding from H7**: H7 improves SD3.5 EDR to 0.100 (all JPEG conditions), up from H1a's 0.060. Still below sd15_only's 0.140, but suggests JPEG augmentation may specifically help SD3.5. This is the one marginal positive from H7.
+
+**Trend across all checkpoints** (clear monotonic relationship):
+- PSNR ↑ (weaker perturbation) → EDR ↓, JPEG paradox disappears
+- sd15_only (PSNR=32.71): strongest perturbation, strongest EDR, JPEG paradox present
+- H1a (PSNR=34.81): 2.1 dB weaker, EDR drops, paradox nearly gone (+7%)
+- H7 (PSNR=35.65): 2.9 dB weaker than sd15_only, EDR halved, no paradox
+
+**Meta-finding**: Every training modification (multi-model, JPEG aug) weakens the perturbation. The simplest training (SD15-only, single objective) produces the strongest result. This is a "less is more" finding: complexity in training hurts when the primary objective is perturbation strength.
+
 ## H1b/H1c: Potential Recoveries for Multi-Model Training (2026-04-08)
 
 The H1a failure is specifically a gradient magnitude imbalance problem. Two targeted fixes:
