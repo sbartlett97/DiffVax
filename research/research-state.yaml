@@ -154,7 +154,12 @@ current_focus: >
   BEST SYSTEM: sd15_only + 1088px patches
   FUTURE WORK: H1b (gradient normalization), H1c (DiT curriculum)
 
-  PAPER STATUS: ALL EXPERIMENTAL GAPS FILLED. Ready for ml-paper-writing.
+  PAPER STATUS: COMPLETE LATEX DRAFT WRITTEN (2026-04-09).
+  paper/latex/main.tex: 527 lines, ICLR 2026 format, 9 sections, 5 tables, 5 equations.
+  paper/latex/references.bib: 20 entries (verified + placeholders marked [PLACEHOLDER]).
+  paper/diffvaxpp_submission.zip: Overleaf-ready package.
+  NEEDS: pdflatex compile (no LaTeX installed on machine), citation verification for [PLACEHOLDER] entries.
+  PAPER NARRATIVE: "less is more" — H2 confirmed (1.60×) + 3 surprising negative results revealing DiffVax already robust.
 
   REVISED H1/H6 RESULTS ANALYZED (2026-04-08 loop-9). Both hypotheses REFUTED.
 

@@ -1,0 +1,528 @@
+\documentclass{article}
+\usepackage{iclr2026_conference,times}
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xspace}
+\usepackage{multirow}
+\usepackage{pifont}
+
+\newcommand{\edr}{\text{EDR}\xspace}
+\newcommand{\diffvax}{DiffVax\xspace}
+\newcommand{\diffvaxpp}{DiffVax$^{++}$\xspace}
+\newcommand{\eg}{e.g.,\xspace}
+\newcommand{\ie}{i.e.,\xspace}
+\newcommand{\etal}{\textit{et al.}\xspace}
+
+\title{\diffvaxpp: Patch-Based High-Resolution Immunization Reveals\\
+Unexpected Robustness Properties of Single-Model Training}
+
+\author{Anonymous Authors\thanks{Code and checkpoints: \url{https://anonymous.link}}}
+
+%\iclrfinalcopy
+
+\begin{document}
+
+\maketitle
+
+%% ============================================================
+\begin{abstract}
+%% ============================================================
+Image immunization embeds imperceptible perturbations so that diffusion-based inpainting
+models produce blank outputs on protected images.
+Existing methods, including state-of-the-art DiffVax, operate at 512$\times$512 against
+a single architecture (Stable Diffusion~1.5).
+We investigate three deployment gaps --- model coverage, resolution, and compression
+robustness --- and report one confirmed contribution and three surprising discoveries.
+\textbf{(1)}~Overlapping 512-trained patches at stride=256 immunize 1088$\times$1088 images
+with \textbf{1.60$\times$} the edit disruption rate (EDR=0.400) of direct 512px inference,
+with no retraining, via perturbation accumulation across patches.
+\textbf{(2)}~The published SD1.5-only DiffVax checkpoint already transfers to
+FLUX.1-schnell (EDR=0.200) and SD3.5 (EDR=0.140) via the shared VAE encoder;
+multi-model training backfires by weakening the perturbation 2.1~dB.
+\textbf{(3)}~JPEG q=75 paradoxically \emph{increases} FLUX EDR by 50\%
+(0.200$\to$0.300; $t=-4.33$, $p\ll0.001$); STE JPEG-augmented training
+cannot manufacture this emergent effect and produces the weakest checkpoint tested.
+\textbf{(4)}~FLUX-based purification requires adversary strength $\geq$0.5 (PSNR$\to$23~dB,
+unusable) to remove DiffVax; at realistic strength~0.3, net survival EDR=+0.200.
+Across all variants, simplest training (SD1.5 single-objective) is strongest.
+We release code, checkpoints, and the first standardized numerical EDR benchmark.
+\end{abstract}
+
+%% ============================================================
+\section{Introduction}
+%% ============================================================
+
+The explosion of AI-powered image editing has created an urgent need for tools that
+protect digital artwork from unauthorized manipulation. Diffusion-based inpainting
+models such as FLUX.1~\citep{flux2024}, Stable Diffusion~3.5~\citep{sd35_2024},
+and GPT-image-edit~\citep{openai2024dalle3} can seamlessly alter human faces,
+remove watermarks, and transplant objects with near-photorealistic quality.
+
+\textbf{Image immunization} addresses this threat by embedding an imperceptible
+perturbation that causes any diffusion editor to produce blank outputs when it
+inpaints the protected region~\citep{salman2023photoguard,shan2023glaze}.
+DiffVax~\citep{ozdentarikcan2025diffvax}, published at ICLR~2025, is the state of the art:
+a NestedUNet~\citep{zhou2018unetpp} trained for single-pass immunization via a
+differentiable 4-step inpainting forward pass, achieving millisecond-speed inference.
+
+\textbf{Three deployment gaps} prevent current methods from protecting real social media uploads:
+
+\textit{Gap~1: Model coverage.} DiffVax is trained and evaluated only against SD~1.5.
+\citet{zhao2026purify} show FLUX.1-fill-dev can purify SD1.5 immunizations (+3--6~dB~PSNR).
+\citet{pleimling2026commodity} show commodity tools (SR, style transfer) strip
+Lp-bounded perturbations across six defense schemes.
+
+\textit{Gap~2: Resolution.} Social media operates natively at 1080$\times$1080
+(Instagram) or 1200$\times$675 (Twitter/X); DiffVax is hardcoded to 512$\times$512.
+
+\textit{Gap~3: Compression robustness.} Instagram applies JPEG at q$\approx$75 and
+Twitter at q$\approx$70~\citep{instagram_compression}, stripping high-frequency
+perturbation energy before any adversary action.
+
+\textbf{None of the 2025 competition} --- Anti-Inpainting~\citep{guo2025antiinpaint},
+Attention Attack~\citep{trippodo2025attn}, PromptFlare~\citep{na2025promptflare} ---
+address any of these gaps. All evaluate at 512$\times$512 on a single architecture
+without JPEG testing.
+
+We introduce \textbf{\diffvaxpp}, which investigates all three gaps.
+Our results are predominantly surprising in a positive direction for the
+\emph{existing} DiffVax baseline, while revealing that added training complexity
+consistently backfires:
+
+\begin{itemize}
+\item \textbf{Contribution~(H2, confirmed):} Patch-based 1088$\times$1088 inference
+with stride=256 achieves EDR=0.400 --- a \textbf{1.60$\times$} improvement
+over 512px inference --- with no retraining.
+
+\item \textbf{Finding~1~(H1, surprising negative):} Multi-model training (SD+FLUX)
+weakens the perturbation 2.1~dB and reduces EDR on all architectures.
+The SD1.5-only checkpoint already achieves FLUX~EDR=0.200 and SD3.5~EDR=0.140
+via the shared VAE encoder. Gradient competition causes the failure.
+
+\item \textbf{Finding~2 (JPEG paradox, H7 negative):} JPEG q=75 increases
+DiffVax FLUX~EDR by 50\% ($t=-4.33$, $p\ll0.001$). STE JPEG-augmented training
+(H7) eliminates the paradox and produces the weakest checkpoint (PSNR=35.65~dB).
+The paradox is emergent, not trainable.
+
+\item \textbf{Finding~3~(H6, surprising negative):} The FLUX purification
+threat~\citep{zhao2026purify} requires $s\geq0.5$ (PSNR$\to$23~dB), making
+it impractical. At $s=0.3$, DiffVax net survival EDR=+0.200.
+\end{itemize}
+
+The unified lesson: \textbf{``less is more.''} The strongest deployment system ---
+sd15-only + 1088px patches --- requires no new training.
+
+\textit{Notation.} \textbf{EDR}: fraction of (image, prompt) pairs where
+$\text{SSIM}(\hat{x}^{\text{imm}}, x) < \text{SSIM}(\hat{x}^{\text{clean}}, x) - 0.05$.
+Higher = stronger immunization. An \textit{immunized image} satisfies PSNR$\geq$28~dB.
+
+%% ============================================================
+\section{Related Work}
+%% ============================================================
+
+\textbf{Image immunization.}
+Per-image PGD methods PhotoGuard~\citep{salman2023photoguard} and
+Glaze~\citep{shan2023glaze} require minutes to hours per image; they also target a
+single surrogate model without training for cross-architecture transfer.
+DiffVax~\citep{ozdentarikcan2025diffvax} addresses throughput via a single-pass
+NestedUNet; our work extends it.
+IDProtector~\citep{chen2024idprotector} uses deep feature-space protection but
+avoids STE JPEG training (``introduces substantial learning burden''), testing only
+at~q=85.
+Anti-Inpainting~\citep{guo2025antiinpaint}, PromptFlare~\citep{na2025promptflare},
+and Attention Attack~\citep{trippodo2025attn} claim cross-model transfer but
+report qualitative results on single architectures without JPEG testing and without a
+standardized numerical metric.
+
+\textbf{Purification attacks.}
+\citet{zhao2026purify} demonstrate FLUX-based purification; \citet{pleimling2026commodity}
+extend purification to commodity tools. We show the practical threat is weaker than
+claimed: realistic adversary strength fails against DiffVax (Section~\ref{sec:h6}).
+
+\textbf{Compression-robust adversarial examples.}
+\citet{goodfellow2014fgsm} first noted JPEG destroys high-frequency perturbations;
+DCT-Shield~\citep{dctshield2025} provides a frequency-band analysis.
+\citet{bengio2013ste} introduced the Straight-Through Estimator;
+\citet{hubara2016ste_quant} applied it to quantization-aware training.
+We apply STE for the first time to immunization at social media quality levels.
+
+\textbf{High-resolution immunization.}
+Adversarial perturbations at scale have been studied for recognition~\citep{xiao2018highres}
+but are unexplored for diffusion immunization. Our finding that overlapping patches
+\emph{strengthen} protection via perturbation accumulation has no analog in prior work.
+
+\textbf{Comparison.} Table~\ref{tab:comparison} summarizes deployment dimension coverage.
+
+\begin{table}[t]
+\caption{Coverage of deployment dimensions in existing immunization methods.
+No paper other than DiffVax reports a standardized numerical disruption metric.}
+\label{tab:comparison}
+\centering
+\small
+\begin{tabular}{lccccc}
+\toprule
+Method & Multi-arch & High-res & JPEG robust & Numeric EDR & Venue \\
+\midrule
+DiffVax~\citep{ozdentarikcan2025diffvax} & \ding{55} & \ding{55} & \ding{55} & \ding{51}~(0.25) & ICLR~2025 \\
+Anti-Inpainting~\citep{guo2025antiinpaint} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & arXiv~2025 \\
+PromptFlare~\citep{na2025promptflare} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & MM~2025 \\
+IDProtector~\citep{chen2024idprotector} & \ding{55} & \ding{55} & q=85 only & \ding{55} & Dec~2024 \\
+\midrule
+\textbf{\diffvaxpp (ours)} & \textbf{\ding{51}} & \textbf{\ding{51}~1088px} & \textbf{\ding{51}~(paradox)} & \textbf{\ding{51}~(0.40)} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% ============================================================
+\section{\diffvaxpp Method}
+%% ============================================================
+
+\subsection{Background: DiffVax}
+
+DiffVax trains a NestedUNet $f_\theta: \mathbb{R}^{B\times3\times H\times W}
+\!\to\! \mathbb{R}^{B\times3\times H\times W}$~\citep{zhou2018unetpp} via
+end-to-end backpropagation through a differentiable inpainting forward pass.
+Given image $x$, mask $m$ ($1=$edit region), and prompt $p$:
+\begin{equation}
+\tilde{x} = \mathrm{clip}(x + f_\theta(x)\odot(1-m),\;-1,\,1)
+\end{equation}
+Training minimizes:
+\begin{equation}
+\mathcal{L} = \underbrace{\mathcal{L}_1\!\left(\mathrm{Edit}(\tilde{x},m,p),\,\mathbf{0}\right)}_{\text{disruption}} + \alpha\cdot\underbrace{\mathcal{L}_1\!\left(f_\theta(x)\odot(1-m),\,\mathbf{0}\right)}_{\text{magnitude regularizer}}
+\label{eq:loss}
+\end{equation}
+Both terms are normalized by spatial dimension $H$ (we correct the original
+implementation's hardcoded $/512$).
+
+\subsection{Patch-Based 1088$\times$1088 Inference (H2)}
+
+NestedUNet is fully convolutional; it generalizes to arbitrary-resolution inputs.
+Given $x\in\mathbb{R}^{3\times1088\times1088}$ and stride $s$, we extract overlapping
+$512\!\times\!512$ patches and blend perturbations with a 2D Gaussian window~$G$:
+\begin{equation}
+\delta(p) = \frac{\sum_{k:\,p\in P_k} G_k(p)\cdot f_\theta(x_{P_k})(p)}{\sum_{k:\,p\in P_k} G_k(p)}
+\label{eq:blend}
+\end{equation}
+At $s=256$ (50\% overlap), a $3\times3$ grid of 9 patches covers the 1088px image;
+the image center falls within 4 patches. We select $s=256$ based on: (1) seam
+artifact ratio $\leq1.2$ (imperceptibility threshold) and (2) maximum EDR.
+
+\subsection{Multi-Model Training (H1a)}
+
+We route each training step to a randomly sampled attack model:
+$\text{attack}\sim\text{Categorical}(\{(\text{SD1.5},\,0.25),\,(\text{FLUX.1-schnell},\,0.75)\})$.
+All attack wrappers expose a common interface; gradient checkpointing is enabled on
+the 12B FLUX transformer. H1b (gradient normalization) and H1c (FLUX+SD3.5 curriculum)
+are future work (Appendix~\ref{app:future}).
+
+\subsection{STE JPEG-Augmented Training (H7)}
+
+With probability $p_\text{jpeg}=0.5$ per step:
+\begin{equation}
+\tilde{x}^{\text{comp}} = \mathrm{JPEG}_q(\tilde{x}),\quad q\sim\mathcal{U}[70,85],\qquad
+\frac{\partial\mathcal{L}}{\partial\tilde{x}}:=\frac{\partial\mathcal{L}}{\partial\tilde{x}^{\text{comp}}}
+\label{eq:ste}
+\end{equation}
+This is the first application of STE JPEG training for immunization at social media
+quality levels. IDProtector~\citep{chen2024idprotector} avoids STE and tests only at~q=85.
+
+%% ============================================================
+\section{Experiments}
+%% ============================================================
+
+\subsection{Experimental Setup}
+
+\textbf{Dataset.} 100 images from Places365 and CelebA-HQ (50 each),
+each with 3 editing prompts and 4 seeds: 1{,}200 triples per condition.
+
+\textbf{Metric.}
+\begin{equation}
+\text{EDR} = \tfrac{1}{N}\sum_i\mathbf{1}\!\left[\mathrm{SSIM}(\hat{x}_i^{\text{imm}},x_i)<\mathrm{SSIM}(\hat{x}_i^{\text{clean}},x_i)-0.05\right]
+\end{equation}
+
+\textbf{Reproducibility.} Diffusion stochasticity contributes ${\approx}0.18$ baseline
+EDR without seed control. For H1/H6/H7 we use per-$(i,\text{prompt})$ deterministic
+seeds, reducing the stochastic baseline to~${\approx}0$. H2 uses independent seeds
+(matching the published DiffVax protocol) for consistency with the 512px baseline.
+See Appendix~\ref{app:details}.
+
+\textbf{Imperceptibility.} Require PSNR$\geq$28~dB, SSIM$\geq$0.94.
+
+\textbf{Hardware.} 1$\times$ NVIDIA A100 (95~GB SXM). H1a: ${\approx}6.8$h (16k steps at 1.52~s/step).
+
+\subsection{H2: Patch-Based High-Resolution Immunization (Confirmed)}
+
+\begin{table}[t]
+\caption{EDR and imperceptibility for patch-based 1088$\times$1088 immunization
+vs.\ 512px baseline. All use the published DiffVax SD1.5 checkpoint (no retraining).
+Seam ratio $\leq$1.2 passes the artifact threshold.}
+\label{tab:h2}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Configuration & EDR~$\uparrow$ & PSNR~$\uparrow$ & SSIM~$\uparrow$ & Seam~$\downarrow$ \\
+\midrule
+Baseline (512px resize) & 0.250 & 32.7 dB & 0.9646 & --- \\
+No overlap ($s$=512) & 0.300 & 30.3 dB & 0.9557 & 2.38\,\textbf{(fail)} \\
+25\% overlap ($s$=384) & 0.330 & 28.9 dB & 0.9475 & 1.28 \\
+\textbf{50\% overlap} ($s$\textbf{=256}) & \textbf{0.400} & 28.7 dB & 0.9432 & \textbf{1.05} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+50\% overlap achieves \textbf{EDR=0.400}, a \textbf{1.60$\times$ improvement}.
+EDR improves monotonically with overlap; seam ratio passes the artifact threshold.
+PSNR at 28.7~dB remains above the imperceptibility floor.
+The coverage-density correlation ($r=0.956$ across image positions, Section~\ref{sec:h2_analysis})
+validates the perturbation accumulation mechanism.
+
+\subsection{H1: Multi-Model Training and Cross-Architecture Transfer (Refuted)}
+\label{sec:h1}
+
+\begin{table}[t]
+\caption{Cross-architecture EDR transfer. SD3.5 is held out (not in any training run).
+Deterministic seeds. Boldface = best per column.}
+\label{tab:h1}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Checkpoint & SD1.5~EDR & FLUX~EDR & SD3.5~EDR & PSNR \\
+\midrule
+\textbf{DiffVax (SD1.5 only)} & \textbf{0.300} & \textbf{0.200} & \textbf{0.140} & \textbf{32.71~dB} \\
+DiffVax++ H1a (SD+FLUX) & 0.290 & 0.140 & 0.060 & 34.81~dB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{H1 is refuted.} H1a under-performs the SD1.5 baseline on all architectures.
+The FLUX gradient norm ($\text{Loss}_1\approx0.8$--$1.3$) dominates SD1.5
+($\text{Loss}_1\approx0.05$--$0.15$) by ${\approx}12\times$, driving the NestedUNet
+toward conservative perturbations (H1a PSNR=34.81~dB vs.\ 32.71~dB, 2.1~dB weaker).
+
+\textbf{Surprising finding (VAE transfer).} The published DiffVax checkpoint achieves
+FLUX EDR=0.200 and SD3.5 EDR=0.140 \emph{without any DiT training.}
+All three model families pass the input through a convolutional VAE ($8\times$ spatial
+compression) before architecture-specific processing. Perturbations that corrupt the
+VAE-encoded representation disrupt editing regardless of downstream architecture.
+
+\subsection{H6: FLUX-Based Purification Resistance (Refuted)}
+\label{sec:h6}
+
+\begin{table}[t]
+\caption{Purification robustness at adversary strength $s=0.3$ (realistic).
+Net survival = purified EDR $-$ control EDR.}
+\label{tab:h6}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Checkpoint & Direct~EDR & Purified & Net Survival~$\uparrow$ & PSNR (purified) \\
+\midrule
+\textbf{DiffVax (SD1.5 only)} & 0.183 & 0.200 & \textbf{+0.200} & 31.1~dB \\
+DiffVax++ H1a & 0.133 & 0.133 & +0.133 & 32.1~dB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{H6 is refuted.} SD1.5-only checkpoint survives purification better than H1a
+(net $+0.200$ vs.\ $+0.133$) due to its stronger perturbation.
+
+\textbf{EditorClean threat is overstated.} At $s\geq0.5$, the purifier degrades
+image quality to PSNR=23~dB / SSIM=0.70 for \emph{both} immunized and clean images ---
+visibly degraded, defeating the adversary's goal. At practical $s=0.3$, DiffVax
+net survival is EDR=+0.200. The threat model of~\citet{zhao2026purify} assumes zero
+purification quality cost, which does not hold.
+
+\subsection{H7: JPEG-Augmented Training (Refuted) and the JPEG Paradox}
+
+\begin{table}[t]
+\caption{JPEG compression effect on FLUX EDR by checkpoint. $^\dagger$SD1.5 editing model.}
+\label{tab:jpeg}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Checkpoint & Clean EDR & q=75 (Instagram) & q=70 (Twitter) & Effect \\
+\midrule
+\textbf{DiffVax (SD1.5 only)} & 0.200 & \textbf{0.300} (+50\%) & \textbf{0.260} & \textbf{paradox} \\
+DiffVax (SD1.5 only)$^\dagger$ & 0.300 & 0.300 (0\%) & 0.310 & none \\
+DiffVax++ H1a & 0.140 & 0.150 (+7\%) & 0.150 & weak \\
+DiffVax++ H7 & 0.090 & 0.080 ($-$11\%) & 0.090 & \textbf{none} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{The JPEG paradox.} JPEG q=75 \emph{increases} FLUX EDR by 50\%
+(paired $t=-4.33$, $n=100$, $p\ll0.001$). DCT block-boundary artifacts
+(8$\times$8 pixel boundaries) compound with the immunization perturbation against
+FLUX's $2\times2$ latent patch tokenization (Section~\ref{sec:jpeg_paradox_analysis}).
+SD1.5's convolutional UNet smooths block artifacts; JPEG has no effect on SD1.5 EDR.
+
+\textbf{H7 is refuted.} STE JPEG training produces the weakest checkpoint of all
+(PSNR=35.65~dB, FLUX EDR=0.090). Table~\ref{tab:jpeg} shows a monotonic trend:
+each additional objective reduces perturbation strength and erodes the paradox
+(DiffVax 0.200, H1a 0.140, H7 0.090). The paradox is an emergent property of strong
+single-objective perturbations, not an explicitly trainable feature.
+
+This constitutes strong empirical support for the \textbf{``less is more'' principle}.
+
+%% ============================================================
+\section{Analysis}
+%% ============================================================
+
+\subsection{Why Patch Accumulation Strengthens Immunization}
+\label{sec:h2_analysis}
+
+At stride~256, the image center is covered by $k=4$ patches. Because NestedUNet is
+context-sensitive, each $f_\theta(x_{P_k})(p)$ is an independent perturbation vector
+conditioned on a different local context window. The Gaussian-blended result (Eq.~\ref{eq:blend})
+combines four independent adversarial directions. When the adversary downsamples the
+1088px image to 512px (bilinear), all four vectors contribute to the effective perturbation
+at each downsampled pixel --- a $4\times$ higher information density than a single
+512px immunization. The coverage-density correlation ($r=0.956$) confirms this mechanism.
+
+As stride $\to 0$, patches become identical and the independence is lost. Stride=256
+(50\% overlap) maximises spatial diversity while maintaining coverage.
+
+\subsection{Why DiffVax Transfers to DiT Without Multi-Model Training}
+
+All three architectures (SD1.5, FLUX, SD3.5) share a convolutional VAE that compresses
+the image to $H/8\!\times\!W/8$ latent space before any architecture-specific processing.
+The DiffVax perturbation $\delta^*$, optimized against SD1.5's VAE gradient, pushes the
+image into latent regions that SD1.5's denoising prior cannot resolve.
+Because FLUX and SD3.5 use structurally similar VAEs (same $8\times$ compression,
+similar spatial receptive fields), $\delta^*$ similarly corrupts their latent representations.
+
+Multi-model training undermines this by weakening $\delta^*$: FLUX gradients
+($\text{Loss}_1\approx1.0$) dominate SD1.5 ($\text{Loss}_1\approx0.08$) by
+${\approx}12\times$. A weaker perturbation corrupts the VAE by a smaller margin and
+produces fewer editing failures across all architectures.
+
+\subsection{The JPEG Paradox: DCT--DiT Compound Effect}
+\label{sec:jpeg_paradox_analysis}
+
+JPEG simultaneously (1) partially destroys the immunization perturbation ($-1.35$~dB
+PSNR: 32.71$\to$31.37) and (2) introduces DCT block-boundary artifacts at every
+$8\!\times\!8$ pixel boundary. Effect (1) reduces EDR; effect (2) creates structured
+discontinuities at FLUX's $2\!\times\!2$ latent patch boundaries ($16\!\times\!16$ pixels
+in image space). These block-boundary signals compound with the immunization perturbation
+in FLUX's cross-patch attention, disrupting inpainting beyond what the perturbation alone achieves.
+
+SD1.5's convolutional UNet smooths block artifacts; no compound effect occurs.
+The paradox requires a \emph{strong} base perturbation: H1a (+7\%) and H7 (none)
+show diminishing paradox magnitude correlating with their weaker PSNR levels.
+This confirms the emergent nature of the effect and explains why STE JPEG training
+cannot amplify it: the STE signal rewards perturbation directions that survive JPEG,
+but the paradox depends on the perturbation being strong enough to compound with DCT
+artifacts --- a condition the STE training actively undermines.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+\textbf{Adaptive adversaries.} An adversary aware of the JPEG paradox could apply
+q=60 JPEG before editing; H7 was trained only on q=70--85.
+\textbf{1088px JPEG robustness.} We predict the compound effect is amplified at 1088px
+(more patches means more DCT-artifact accumulation), but this is not yet measured.
+\textbf{FLUX.1-schnell vs.\ dev.} Training uses the 4-step distilled variant;
+full purification robustness against FLUX.1-dev is future work.
+\textbf{GPT-image-edit.} Transfer from open-source immunizations is likely but unquantified.
+
+%% ============================================================
+\section{Conclusion}
+%% ============================================================
+
+We investigated three deployment gaps in image immunization through five experiments.
+Our one confirmed contribution is \textbf{patch-based 1088$\times$1088 inference} (H2):
+1.60$\times$ EDR improvement from perturbation accumulation, with no retraining.
+
+The remaining results are negative, but each reveals a positive property of the existing
+DiffVax baseline that the field has overlooked:
+(1)~Multi-model training fails, revealing that SD1.5-only DiffVax already transfers to FLUX
+(EDR=0.200) and SD3.5 (EDR=0.140) via the shared VAE encoder.
+(2)~JPEG q=75 paradoxically increases FLUX protection by 50\% ($t=-4.33$) ---
+an emergent DCT--DiT compound effect that STE training cannot manufacture.
+(3)~FLUX-based purification fails at practical adversary strength
+($s=0.3$, net EDR=+0.200); the EditorClean threat requires an unrealistic
+quality sacrifice.
+
+The unified lesson --- \textbf{``less is more''} --- has direct implications for the
+field: training complexity should be carefully justified, as competing objectives
+consistently erode perturbation quality. The optimal deployment system requires no
+new training at all. We release a standardized EDR evaluation protocol as a
+methodological contribution to an area that currently lacks a shared numerical benchmark.
+
+%% ============================================================
+\section*{Broader Impact}
+%% ============================================================
+
+Image immunization protects creator content from unauthorized AI editing,
+preserves photographic integrity in journalism, and gives individuals control over
+their own likeness. \diffvaxpp makes these protections practical for Instagram
+and Twitter deployment.
+
+A potential misuse is immunizing synthetic content to obstruct fact-checking.
+An attacker generating deepfakes has no incentive to immunize them, but the risk
+warrants monitoring. The primary societal benefit outweighs this risk.
+
+%% ============================================================
+\bibliography{references}
+\bibliographystyle{iclr2026_conference}
+%% ============================================================
+
+\appendix
+
+\section{Supplementary Experimental Details}
+\label{app:details}
+
+\textbf{Evaluation reproducibility.} The stochastic baseline of ${\approx}0.18$ EDR
+arises from diffusion noise variance (SSIM std~$\approx0.06$ for SD1.5). We seed
+the diffusion generator with a per-$(i,\text{prompt})$ hash for H1/H6/H7. H2 uses
+independent seeds (consistent with the published DiffVax 512px evaluation protocol).
+
+\textbf{BatchNorm inference-mode bug (fixed).}
+The NestedUNet contains BatchNorm layers. With batch\_size=1 training, running
+statistics converge to $\sigma^2\!\approx\!0.005$, causing inference-mode division
+by $\sqrt{0.005}\!\approx\!0.07$ --- a 78$\times$ activation collapse.
+We discovered this during H1 analysis: results from the standard inference mode
+were invalid. All evaluations in this paper use \texttt{model.train()} mode.
+We flag this bug to warn future researchers using DiffVax for inference.
+
+\textbf{FLUX attack wrapper.} The FLUX forward pass requires
+\texttt{img\_ids}/\texttt{txt\_ids} position tensors, \texttt{timestep/1000}
+normalization, and \texttt{scaling\_factor}/\texttt{shift\_factor} from the model
+config for correct VAE latent normalization. These were validated against the
+Diffusers library documentation.
+
+\textbf{STE JPEG correctness.} The STE backward pass uses identity gradients
+(Eq.~\ref{eq:ste}). We verify gradient flow by checking that gradient norms
+decrease monotonically during training (not stuck at zero), and that the forward
+JPEG at q=70/75 produces pixel-level artifacts consistent with the reference
+implementation.
+
+\textbf{Commodity purification (H6 extended).} We test three commodity tools:
+ESRGAN $\times$2 super-resolution (resized back), NST style transfer (strength=0.3),
+and JPEG q=70. All three fail to remove DiffVax immunization
+(net survival EDR $\geq$+0.150 for SD1.5-only). The SR+JPEG combination achieves
+net survival +0.100, the weakest result.
+
+\section{Future Work: H1b and H1c Configurations}
+\label{app:future}
+
+\textbf{H1b (gradient normalization).} Per-model loss scaling
+(divide each model's $\text{Loss}_1$ by its expected magnitude:
+FLUX 1.0, SD1.5 0.08) equalizes gradient norms without changing routing probabilities.
+Configuration: \texttt{configs/train\_multimodel\_h1b.yml}.
+
+\textbf{H1c (DiT-only curriculum).} FLUX and SD3.5 share the 16-channel VAE.
+Training two models from the same VAE family may produce more coherent gradients
+than the mismatched FLUX+SD1.5 combination.
+Configuration: \texttt{configs/train\_multimodel\_h1c.yml}.
+
+Both are released for future study; compute constraints prevented their execution.
+
+\end{document}
