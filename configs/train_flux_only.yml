@@ -1,0 +1,79 @@
+# DiffVax H8: single DiT training — FLUX.1-schnell only
+#
+# Motivation:
+#   Our H1 results show two things: (1) sd15_only already transfers to FLUX/SD35
+#   via the shared convolutional VAE bottleneck, and (2) multi-model training
+#   WEAKENS the perturbation due to gradient competition.
+#
+#   The natural follow-on question: if single-model training is the right approach
+#   and the VAE bottleneck is the universal attack surface, does it matter WHICH
+#   single model we train on?
+#
+#   sd15_only uses a 4-channel VAE. FLUX uses a 16-channel VAE.
+#   Modern DiT models (FLUX.1, SD3.5, FLUX.1-Kontext) all share the 16-channel
+#   VAE design. Training on FLUX should produce perturbations that are:
+#     (a) stronger against FLUX (single-objective, "less is more" applies)
+#     (b) stronger against SD3.5 (same 16-ch VAE family)
+#     (c) possibly weaker against SD1.5 (different 4-ch VAE dimension)
+#
+# Comparison axes:
+#   vs sd15_only:  different VAE dimension (4ch → 16ch), same "single model" principle
+#   vs H1a:        single-objective (no gradient competition), same FLUX attack signal
+#
+# Predicted results:
+#   FLUX EDR:   0.300–0.450 (optimized directly for FLUX's 16-ch VAE + patch tokenizer)
+#   SD3.5 EDR:  0.200–0.350 (shared 16-ch VAE family — stronger than sd15_only's 0.140)
+#   SD1.5 EDR:  0.100–0.200 (different 4-ch VAE — likely weaker than sd15_only's 0.300)
+#   PSNR:       ~32–33 dB (single-objective training → strong perturbation)
+#   JPEG paradox:  LIKELY ENHANCED (perturbation tuned exactly to FLUX patch architecture)
+#
+# Key uncertainties:
+#   - Will the FLUX gradient signal (Loss1 ≈ 1.0, 12× larger than SD15) cause
+#     instability at lr=5e-6? Monitor epoch-level loss curve.
+#   - Does sd15_only transfer to FLUX because of shared VAE spatial structure, or
+#     because of broader inpainting dynamics? flux_only will disambiguate.
+#   - JPEG paradox mechanism: if flux_only produces a perturbation tuned to FLUX's
+#     patch tokenizer, DCT artifacts should compound MORE strongly → test at q=70/75.
+#
+# To run:
+#   modal run scripts/train_modal.py --config configs/train_flux_only.yml
+#   OR
+#   python scripts/train.py --config configs/train_flux_only.yml --data_dir /path/to/data
+#
+# Note: train.py detects flux_only mode via: has_flux=True, has_sd=False, has_sd3=False
+# → routes to FluxAttack singleton (no MultiAttack overhead)
+
+iter_num: 10000
+max_steps: 16000       # same as H1a — controlled comparison at equal compute
+                       # 16000 steps × ~1.8s/step ≈ 8h on A100
+                       # For matched compute vs sd15_only, use max_steps: 112000 (see below)
+checkpoint_every: 5
+learning_rate: 0.000005  # same as H1a; FLUX gradients are large but lr=5e-6 was
+                         # stable for H1a (75% FLUX). Monitor: if Loss1 oscillates >2.0,
+                         # reduce to 0.0000025.
+batch_size: 1
+alpha: 4
+
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax_flux_only_h8"
+
+resolution: 512
+
+# Single attack model: FLUX.1-schnell DiT (16-ch VAE, 4-step flow matching)
+# train.py detects flux_only mode: has_flux=True, has_sd=False, has_sd3=False
+flux_model_link: "black-forest-labs/FLUX.1-schnell"
+# No attack_model_link → single FluxAttack, no routing
+
+# Dataset paths
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+
+# ---
+# Variant 2: matched compute vs sd15_only (uncomment and use separately)
+# sd15_only effective steps: 350 epochs × 1600/5 = 112,000 gradient steps
+# flux_only equivalent: max_steps: 112000 (~56h at 1.8s/step)
+# Run ONLY if H8 short shows promising results (FLUX EDR > 0.250)
+#
+# max_steps: 112000
+# project_name: "diffvax_flux_only_h8_long"

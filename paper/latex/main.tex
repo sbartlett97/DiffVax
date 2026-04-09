@@ -123,6 +123,21 @@ sd15-only + 1088px patches --- requires no new training.
 $\text{SSIM}(\hat{x}^{\text{imm}}, x) < \text{SSIM}(\hat{x}^{\text{clean}}, x) - 0.05$.
 Higher = stronger immunization. An \textit{immunized image} satisfies PSNR$\geq$28~dB.
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig1_overview}
+  \caption{\textbf{Overview of main results.}
+    \textbf{(a)}~Patch-based 1088$\times$1088 inference: overlapping 512px patches accumulate
+    perturbation, yielding 1.60$\times$ baseline EDR with no retraining.
+    \textbf{(b)}~Cross-architecture transfer: the SD1.5-only checkpoint transfers to FLUX.1-schnell
+    and SD3.5 zero-shot; multi-model training backfires (H1a row is weaker on all columns).
+    \textbf{(c)}~JPEG paradox on FLUX: compression at q=75 increases the SD1.5-only checkpoint's
+    EDR by 50\% (from 0.200 to 0.300); the effect disappears for the multi-model and
+    JPEG-augmented checkpoints, showing the paradox is an emergent property of strong,
+    single-objective perturbations.}
+  \label{fig:overview}
+\end{figure*}
+
 %% ============================================================
 \section{Related Work}
 %% ============================================================
@@ -294,6 +309,17 @@ PSNR at 28.7~dB remains above the imperceptibility floor.
 The coverage-density correlation ($r=0.956$ across image positions, Section~\ref{sec:h2_analysis})
 validates the perturbation accumulation mechanism.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig3_patch_accumulation}
+  \caption{\textbf{Patch accumulation mechanism.}
+    \textit{Left}: overlap count heatmap for 1088px image at stride=256. The center pixel
+    is covered by 4 patches (white star), accumulating 4$\times$ the adversarial signal.
+    \textit{Right}: EDR and PSNR vs.\ inference strategy (same NestedUNet checkpoint throughout).
+    Both effectiveness (EDR) and imperceptibility (PSNR$\geq$28~dB) are satisfied at 50\% overlap.}
+  \label{fig:patch}
+\end{figure}
+
 \subsection{H1: Multi-Model Training and Cross-Architecture Transfer (Refuted)}
 \label{sec:h1}
 
@@ -381,6 +407,17 @@ each additional objective reduces perturbation strength and erodes the paradox
 single-objective perturbations, not an explicitly trainable feature.
 
 This constitutes strong empirical support for the \textbf{``less is more'' principle}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig2_jpeg_paradox}
+  \caption{\textbf{JPEG paradox across architectures and checkpoints.}
+    For FLUX.1-schnell (center), the SD1.5-only checkpoint's EDR \emph{increases} by 50\%
+    at q=75 and 30\% at q=70. The effect is absent on SD1.5 (UNet, convolutional) and
+    smaller on SD3.5 (MM-DiT). Multi-model and JPEG-augmented checkpoints show no paradox,
+    confirming the effect requires strong single-objective perturbations.}
+  \label{fig:jpeg}
+\end{figure}
 
 %% ============================================================
 \section{Analysis}

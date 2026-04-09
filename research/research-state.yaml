@@ -124,6 +124,38 @@ hypotheses:
     note: "Requires measuring SD3.5 Loss1 magnitude in first 100 steps; adjust sd3_loss_scale if needed"
     metric: [flux_edr, sd15_edr, sd35_edr]
 
+  H8:
+    title: "Single DiT training (FLUX-only) produces stronger DiT-family perturbations than SD1.5-only"
+    status: new
+    priority: 2
+    rationale: >
+      H1 showed: (a) sd15_only already transfers to FLUX/SD35 via shared convolutional VAE
+      bottleneck; (b) multi-model training fails due to gradient competition. The natural
+      follow-on: does it matter which single model we train on? sd15_only uses a 4-channel
+      VAE; FLUX uses a 16-channel VAE. Training exclusively on FLUX (single-objective,
+      preserving "less is more") should produce perturbations that are:
+        - Stronger against FLUX (single-objective optimisation directly on FLUX)
+        - Stronger against SD3.5 (same 16-ch VAE family → better spatial representation)
+        - Possibly weaker against SD1.5 (different 4-ch VAE dimension)
+      If flux_only achieves FLUX EDR >> sd15_only (0.200) while maintaining any SD15 transfer,
+      it suggests the VAE family dimension matters and modern DiT training is strictly superior.
+      This also tests whether the JPEG paradox is enhanced when the base perturbation is
+      explicitly tuned to FLUX's patch tokenizer architecture.
+    prediction: >
+      flux_only achieves FLUX EDR ≥ 0.300 (vs sd15_only 0.200), SD35 EDR ≥ 0.200
+      (vs sd15_only 0.140), SD15 EDR possibly 0.100-0.200 (weaker than sd15_only 0.300),
+      PSNR ~32-33 dB, JPEG paradox enhanced (q=75 FLUX EDR ≥ 0.450)
+    config: configs/train_flux_only.yml
+    metric: [flux_edr, sd15_edr, sd35_edr, psnr_immunized, jpeg_flux_edr_q75]
+    note: >
+      Training-duration fairness: H8 short (max_steps=16000) matches H1a compute.
+      H8 long (max_steps=112000) matches sd15_only effective compute.
+      Run short first; if FLUX EDR > 0.250, run long for matched comparison.
+    user_motivation: >
+      User insight 2026-04-09: "most modern DiT-based models have a 16-channel VAE latent
+      space — replace original SD1.5 training with a single DiT inpainting model."
+      This directly tests VAE-family hypothesis with maximum perturbation strength.
+
   H6:
     title: "Multi-model immunization resists FLUX-based purification attacks"
     status: refuted
@@ -138,7 +170,17 @@ hypotheses:
     metric: edit_disruption_rate after purification attempt
 
 current_focus: >
-  H7 RESULTS IN AND ANALYZED (2026-04-09). ALL GPU EXPERIMENTS COMPLETE.
+  NEW DIRECTION (2026-04-09): H8 — single DiT training (flux_only).
+  User insight: replace SD1.5 training with FLUX.1-schnell as the single attack model.
+  Config written: configs/train_flux_only.yml. Ready to run on A100.
+  Prediction: FLUX EDR ≥ 0.300, SD35 EDR ≥ 0.200, possible JPEG paradox enhancement.
+
+  PAPER STATUS: LaTeX draft complete (paper/latex/main.tex, 570 lines, ICLR 2026).
+  H8 results, if obtained, would go in Table 3 (cross-architecture transfer) and
+  would strengthen the "VAE family matters" narrative.
+  Training-duration confound noted in §5.2.
+
+  PREVIOUS: H7 RESULTS IN AND ANALYZED (2026-04-09). ALL GPU EXPERIMENTS COMPLETE.
   H7 REFUTED: STE JPEG aug training further weakens perturbation (PSNR=35.65 vs H1a 34.81).
   No JPEG paradox for H7. The paradox is emergent from sd15_only's strong perturbation.
 

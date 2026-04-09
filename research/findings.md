@@ -461,3 +461,70 @@ The FLUX spike epochs (high Loss1) are **not training failures** — they repres
 
 ### Status
 Model is converged and ready for evaluation. Need to kill current run (no checkpoint saved), git pull to get bug fixes, restart. With max_steps=8000 and checkpoint_every=5 fixed, the next run will: save checkpoint at epoch 5 (~8,000 steps, ~3.3h at 1.5s/step) then exit.
+
+---
+
+## H8: Single DiT Training (flux_only) — NEW DIRECTION (2026-04-09)
+
+**User insight**: Modern DiT-based models (FLUX.1, SD3.5, FLUX.1-Kontext) all share a 16-channel VAE latent space. If single-model training is the right approach and the VAE bottleneck is the universal attack surface, does it matter WHICH single model we train on?
+
+### The VAE Family Argument
+
+Two distinct VAE families exist in the current diffusion ecosystem:
+- **4-channel VAE** (scale=0.18215): SD 1.5, SD 2.x — older UNet-based models
+- **16-channel VAE** (scale varies): FLUX.1-schnell, FLUX.1-dev, FLUX.1-Kontext, SD 3.0, SD 3.5, Stable Video Diffusion (some variants)
+
+The sd15_only checkpoint's cross-architecture transfer (FLUX EDR=0.200, SD3.5 EDR=0.140) occurs via the shared 8× spatial compression structure in both VAEs: the convolution-based spatial downsampling is architecturally similar even though channel depth differs. The perturbation corrupts the spatial structure of the latent representation before any architecture-specific processing (attention, patch tokenization) occurs.
+
+**Key question for H8**: If we train directly on FLUX's 16-channel VAE + patch tokenizer, will the resulting perturbation:
+1. Be stronger against FLUX (optimized directly for its architecture)?
+2. Transfer more effectively to SD3.5 (same 16-ch VAE family)?
+3. Be weaker against SD1.5 (different 4-ch VAE family)?
+
+### Predicted Results
+
+| Model     | sd15_only | H8 (flux_only) | Change |
+|-----------|-----------|----------------|--------|
+| SD1.5 EDR | 0.300     | 0.100–0.200    | ↓ (different VAE) |
+| FLUX EDR  | 0.200     | 0.300–0.450    | ↑↑ (direct target, 16-ch VAE) |
+| SD3.5 EDR | 0.140     | 0.200–0.350    | ↑ (same 16-ch VAE family) |
+| PSNR      | 32.71 dB  | ~32–33 dB      | similar (single objective) |
+
+### Connection to "Less is More" Principle
+
+H8 preserves the core insight from H1/H7 analysis: single-objective training produces the strongest perturbation. The only change is which single model to target:
+- sd15_only: 4-ch VAE, UNet-based, 4-step inpainting
+- flux_only: 16-ch VAE, MM-DiT, 4-step flow matching (distilled)
+
+If the "less is more" principle is purely about training focus (not VAE dimension), flux_only should produce equally strong perturbations on FLUX that sd15_only produces on SD1.5. If VAE dimension also matters, flux_only will dominate FLUX/SD3.5 while potentially losing SD1.5 coverage.
+
+### JPEG Paradox Enhancement Prediction
+
+The JPEG paradox (sd15_only: FLUX EDR +50% at q=75) arises from DCT block-boundary artifacts (8×8px) compounding with FLUX's 2×2 latent patch tokenization. If flux_only produces perturbations tuned directly to FLUX's patch architecture, the DCT-patch interaction should be even stronger:
+- sd15_only was not designed for FLUX's tokenizer — the paradox is emergent
+- flux_only is explicitly tuned to FLUX's gradient signal — perturbation will target FLUX's patch structure by design
+- **Prediction**: JPEG paradox is LIKELY ENHANCED for flux_only (FLUX q=75 EDR > 0.450)
+
+### Config Ready
+
+`configs/train_flux_only.yml` created. Key settings:
+- `flux_model_link: "black-forest-labs/FLUX.1-schnell"` (only attack model)
+- `max_steps: 16000` (same as H1a for controlled comparison at equal compute)
+- `learning_rate: 0.000005` (same as H1a — monitor for FLUX gradient instability)
+- `batch_size: 1, alpha: 4` (same as all prior runs)
+- train.py detects single-FLUX mode via `has_flux=True, has_sd=False, has_sd3=False` → routes to singleton `FluxAttack`
+
+### Key Uncertainties
+
+1. **FLUX gradient magnitude**: Training Loss1 for FLUX ≈ 1.0 (12× larger than SD15's 0.08). Single-model training should be stable (no gradient competition), but may need LR reduction if loss oscillates > 2.0.
+2. **Does transfer to SD3.5 improve?**: VAE family argument predicts yes, but SD3.5 uses MM-DiT conditioning with CLIP+T5 text encoders while FLUX uses the same combination. This may help transfer, or it may not matter — only empirical test will answer this.
+3. **JPEG paradox persistence**: If flux_only generates perturbations specifically tuned to FLUX's patch tokenizer, the DCT-patch compounding effect should be present. Will test at q=70 and q=75.
+
+### To Run
+
+```bash
+modal run scripts/train_modal.py --config configs/train_flux_only.yml
+```
+
+Expected: ~8h on A100 (16k steps × 1.8s/step). If FLUX EDR > 0.250 on short run, run matched-compute variant (112k steps, ~56h).
+

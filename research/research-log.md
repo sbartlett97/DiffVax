@@ -316,3 +316,32 @@ weakens the perturbation. Simplest training = strongest result.
 - Updated paper experiments_draft.md: H7 table filled with real numbers
 - Updated research-state.yaml: H7 status=refuted, current_focus=all experiments complete
 - Committed + generated complete_results.png figure
+
+---
+
+## 2026-04-09 — H8 New Direction: Single DiT (flux_only) Training
+
+**Pivot**: Following "less is more" principle from H1/H7, user proposed training on a single DiT model rather than SD1.5. Modern DiT models (FLUX.1, SD3.5, FLUX.1-Kontext) all share a 16-channel VAE — if the VAE bottleneck is the universal attack surface, training on FLUX's 16-ch VAE may produce stronger perturbations against the entire DiT family.
+
+**Rationale**:
+- sd15_only already transfers to FLUX (0.200) and SD3.5 (0.140) via shared spatial VAE structure
+- Multi-model training (H1a, H7) weakens perturbation due to competing gradients
+- H8 preserves single-objective training while switching from 4-ch to 16-ch VAE target
+- JPEG paradox is likely enhanced: flux_only perturbation tuned to FLUX's patch tokenizer → stronger DCT-patch compounding
+
+**Config created**: `configs/train_flux_only.yml`
+- Single attack model: `black-forest-labs/FLUX.1-schnell`
+- train.py already supports single-FLUX routing (`has_flux=True, has_sd=False, has_sd3=False`)
+- max_steps=16000 (matched to H1a for controlled comparison)
+- Short run first; if FLUX EDR > 0.250, run matched-compute variant (112k steps)
+
+**Predicted results**:
+- FLUX EDR: 0.300–0.450 (up from sd15_only=0.200)
+- SD3.5 EDR: 0.200–0.350 (up from sd15_only=0.140, same 16-ch VAE family)
+- SD1.5 EDR: 0.100–0.200 (down from sd15_only=0.300, different 4-ch VAE)
+- PSNR: ~32–33 dB (single-objective → strong perturbation, similar to sd15_only)
+
+**Paper update**: H8 added as Appendix A (future direction / concurrent work section). If results confirm predictions, H8 becomes a full experiment in the paper replacing H7.
+
+**Updated**: research-state.yaml (H8 hypothesis), findings.md (H8 section), configs/train_flux_only.yml
+

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DiffVax++ — Research Progress: H8 Direction + Paper Figures</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         max-width: 1100px; margin: 40px auto; padding: 0 24px; background: #0d1117; color: #c9d1d9; }
+  h1 { color: #f0f6fc; border-bottom: 2px solid #30363d; padding-bottom: 12px; }
+  h2 { color: #58a6ff; margin-top: 36px; }
+  h3 { color: #79c0ff; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 16px 0; }
+  .confirmed { border-left: 4px solid #3fb950; }
+  .refuted   { border-left: 4px solid #f85149; }
+  .new       { border-left: 4px solid #58a6ff; }
+  .paper     { border-left: 4px solid #d2a8ff; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: #21262d; color: #58a6ff; padding: 10px; text-align: left; }
+  td { padding: 8px 10px; border-bottom: 1px solid #21262d; }
+  tr:hover { background: #1c2128; }
+  .badge-confirmed { background: #1a3a1a; color: #3fb950; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+  .badge-refuted   { background: #3a1a1a; color: #f85149; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+  .badge-new       { background: #1a2a3a; color: #58a6ff; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+  .highlight { color: #3fb950; font-weight: bold; }
+  .warning { color: #f85149; }
+  code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+  .metric { font-size: 2em; font-weight: bold; color: #3fb950; }
+  .metric-label { font-size: 0.85em; color: #8b949e; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  img { max-width: 100%; border-radius: 6px; border: 1px solid #30363d; margin-top: 8px; }
+  .fig-caption { font-size: 0.8em; color: #8b949e; margin-top: 8px; text-align: center; }
+  .prediction { background: #1c2128; border: 1px dashed #30363d; border-radius: 6px; padding: 12px; margin: 8px 0; }
+  pre { background: #1c2128; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.9em; overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<h1>DiffVax++ Research Progress</h1>
+<p style="color:#8b949e">2026-04-09 &nbsp;|&nbsp; Session: H8 Direction + Paper Figures Complete</p>
+
+<div class="grid">
+  <div class="card">
+    <div class="metric">4/4</div>
+    <div class="metric-label">GPU experiments complete</div>
+  </div>
+  <div class="card">
+    <div class="metric" style="color:#58a6ff">3</div>
+    <div class="metric-label">Paper figures generated</div>
+  </div>
+  <div class="card">
+    <div class="metric" style="color:#d2a8ff">ICLR</div>
+    <div class="metric-label">Paper draft + figures ready</div>
+  </div>
+</div>
+
+<h2>Session Summary</h2>
+<div class="card new">
+  <h3>What happened this session</h3>
+  <ol>
+    <li><strong>H8 direction formalized</strong> — Single DiT (flux_only) training hypothesis with full theoretical rationale and predictions</li>
+    <li><strong>findings.md updated</strong> — H8 VAE family argument, predicted results, JPEG paradox enhancement prediction</li>
+    <li><strong>research-log.md updated</strong> — H8 direction entry added</li>
+    <li><strong>3 publication-quality figures generated</strong> from real experiment data (PDFs + PNGs in paper/latex/figures/)</li>
+    <li><strong>Paper figures integrated</strong> into LaTeX (main.tex updated with figure environments and captions)</li>
+    <li><strong>Submission zip rebuilt</strong> (820K, includes figures directory)</li>
+  </ol>
+</div>
+
+<h2>Experiment Results: The Complete Picture</h2>
+
+<div class="card confirmed">
+  <h3>H2 — Patch-Based 1088px Inference <span class="badge-confirmed">CONFIRMED 1.60x</span></h3>
+  <table>
+    <tr><th>Strategy</th><th>EDR ↑</th><th>PSNR ↑</th><th>Seam</th></tr>
+    <tr><td>512px baseline</td><td>0.250</td><td>32.7 dB</td><td>—</td></tr>
+    <tr><td>No overlap (stride 512)</td><td>0.300</td><td>30.3 dB</td><td>2.38 ✗</td></tr>
+    <tr><td>25% overlap (stride 384)</td><td>0.330</td><td>28.9 dB</td><td>1.28</td></tr>
+    <tr><td><strong>50% overlap (stride 256)</strong></td><td class="highlight"><strong>0.400</strong></td><td>28.7 dB</td><td><strong>1.05 ✓</strong></td></tr>
+  </table>
+  <p><strong>1.60× baseline EDR</strong> with no retraining. Mechanism: perturbation accumulation (center pixel covered by 4 patches, coverage-density r=0.956).</p>
+</div>
+
+<div class="card refuted">
+  <h3>H1 — Multi-Model Training <span class="badge-refuted">REFUTED</span> + Surprise</h3>
+  <table>
+    <tr><th>Checkpoint</th><th>SD1.5 EDR</th><th>FLUX EDR</th><th>SD3.5 EDR</th><th>PSNR</th></tr>
+    <tr><td><strong>sd15_only (published)</strong></td><td class="highlight">0.300</td><td class="highlight">0.200</td><td class="highlight">0.140</td><td class="highlight">32.71 dB</td></tr>
+    <tr><td>multimodel_h1a</td><td>0.290</td><td class="warning">0.140</td><td class="warning">0.060</td><td class="warning">34.81 dB</td></tr>
+  </table>
+  <p><strong>Surprise:</strong> sd15_only already transfers to FLUX and SD3.5 via shared VAE bottleneck. Multi-model training hurts (FLUX gradients 12× larger → competing objectives → 2.1 dB weaker perturbation).</p>
+</div>
+
+<div class="card refuted">
+  <h3>H6 — FLUX Purification Robustness <span class="badge-refuted">REFUTED</span> + Surprise</h3>
+  <table>
+    <tr><th>Checkpoint</th><th>Direct EDR</th><th>Purified (s=0.3)</th><th>Net Survival</th></tr>
+    <tr><td><strong>sd15_only</strong></td><td>0.183</td><td>0.200</td><td class="highlight">+0.200</td></tr>
+    <tr><td>H1a (flux_trained)</td><td>0.133</td><td>0.133</td><td>+0.133</td></tr>
+  </table>
+  <p><strong>Surprise:</strong> At s≥0.5 (strong purification), image quality collapses to PSNR=23 dB / SSIM=0.70. EditorClean's threat model assumes zero quality cost — doesn't hold in practice.</p>
+</div>
+
+<div class="card refuted">
+  <h3>H7 — JPEG-Augmented Training <span class="badge-refuted">REFUTED</span> + JPEG Paradox</h3>
+  <table>
+    <tr><th>Checkpoint</th><th>FLUX clean</th><th>FLUX q=75</th><th>FLUX q=70</th><th>Effect</th></tr>
+    <tr><td><strong>sd15_only</strong></td><td>0.200</td><td class="highlight"><strong>0.300 (+50%)</strong></td><td>0.260</td><td class="highlight">PARADOX</td></tr>
+    <tr><td>H1a</td><td>0.140</td><td>0.150 (+7%)</td><td>0.150</td><td>weak</td></tr>
+    <tr><td>H7 (JPEG aug)</td><td class="warning">0.090</td><td class="warning">0.080 (−11%)</td><td>0.090</td><td class="warning">NONE</td></tr>
+  </table>
+  <p><strong>JPEG Paradox (t=−4.33, p≪0.001):</strong> DCT 8×8 block artifacts compound with FLUX's 2×2 patch tokenization. STE training destroys the paradox — it's emergent from strong single-objective perturbations, not trainable.</p>
+</div>
+
+<h2>New Direction: H8 — Single DiT Training</h2>
+<div class="card new">
+  <h3>The Question</h3>
+  <p>All modern DiT models (FLUX.1, SD3.5, FLUX.1-Kontext) share a <strong>16-channel VAE</strong>. The published sd15_only checkpoint uses a 4-channel VAE as its training target. Does training on FLUX's native 16-ch VAE produce:</p>
+  <ul>
+    <li>Stronger perturbations against FLUX (direct optimization target)?</li>
+    <li>Better transfer to SD3.5 (same 16-ch VAE family)?</li>
+    <li>Weaker transfer to SD1.5 (different 4-ch VAE)?</li>
+  </ul>
+
+  <div class="prediction">
+    <strong>Predicted results</strong>
+    <table>
+      <tr><th>Model</th><th>sd15_only (current best)</th><th>H8 flux_only (prediction)</th></tr>
+      <tr><td>SD1.5 EDR</td><td>0.300</td><td>0.100–0.200 (↓ different VAE family)</td></tr>
+      <tr><td>FLUX EDR</td><td>0.200</td><td class="highlight">0.300–0.450 (↑↑ direct target)</td></tr>
+      <tr><td>SD3.5 EDR</td><td>0.140</td><td class="highlight">0.200–0.350 (↑ same 16-ch family)</td></tr>
+      <tr><td>JPEG paradox</td><td>+50% at q=75</td><td class="highlight">Likely enhanced (patch-tuned perturbation)</td></tr>
+      <tr><td>PSNR</td><td>32.71 dB</td><td>~32–33 dB (single objective → strong)</td></tr>
+    </table>
+  </div>
+
+  <h3>To Run</h3>
+  <pre>modal run scripts/train_modal.py --config configs/train_flux_only.yml
+# ~8h on A100 (16k steps × 1.8s/step)
+# If FLUX EDR > 0.250: run matched-compute variant (112k steps, ~56h)</pre>
+
+  <p>train.py already supports single-FLUX routing (<code>has_flux=True, has_sd=False, has_sd3=False</code> → singleton FluxAttack).</p>
+</div>
+
+<h2>Paper Status</h2>
+<div class="card paper">
+  <h3>ICLR 2026 Submission — paper/diffvaxpp_submission.zip (820K)</h3>
+  <div class="grid-2">
+    <div>
+      <h4 style="color:#3fb950">✅ Complete</h4>
+      <ul>
+        <li>Full LaTeX paper (main.tex, ~600 lines, 9 pages)</li>
+        <li>All 5 tables with real experimental numbers</li>
+        <li><strong>3 publication figures (added this session)</strong><br>
+            fig1_overview.pdf — 3-panel overview<br>
+            fig2_jpeg_paradox.pdf — JPEG paradox detail<br>
+            fig3_patch_accumulation.pdf — patch mechanism</li>
+        <li>25 citations (14 arXiv-verified)</li>
+        <li>All ICLR 2026 style files included</li>
+      </ul>
+    </div>
+    <div>
+      <h4 style="color:#f85149">⚠️ Still needed</h4>
+      <ul>
+        <li>14 [NEEDS-AUTHORS] bib entries — arXiv IDs verified, need author names from arxiv.org</li>
+        <li>7 [PLACEHOLDER] entries — no academic source exists</li>
+        <li>LaTeX compilation — upload to Overleaf to verify</li>
+        <li>H8 results — if positive, update paper tables</li>
+      </ul>
+    </div>
+  </div>
+  <p><strong>To compile:</strong> Upload <code>paper/diffvaxpp_submission.zip</code> to overleaf.com</p>
+</div>
+
+<h2>The "Less is More" Principle — Monotonic Trend</h2>
+<div class="card">
+  <pre>Checkpoint    PSNR         FLUX EDR (clean)  JPEG paradox
+sd15_only     32.71 dB     0.200             +50% at q=75  ← STRONGEST
+H1a           34.81 dB     0.140             +7%           ← weaker
+H7            35.65 dB     0.090             none          ← weakest
+
+Each added objective (multi-model, JPEG aug) weakens the perturbation.
+H8 tests: change the single model target, not add more models.</pre>
+  <p>The strongest deployment system requires no new training: <strong>sd15_only + 1088px patches</strong> = EDR=0.400, JPEG bonus at +50% on FLUX.</p>
+</div>
+
+<h2>Paper Figures Preview</h2>
+<p>Figures in <code>paper/latex/figures/</code> (PDF for LaTeX, PNG for preview)</p>
+
+<div class="card">
+  <img src="../paper/latex/figures/fig1_overview.png" alt="Figure 1: Overview">
+  <div class="fig-caption"><strong>Figure 1:</strong> Three-panel overview — (a) patch inference 1.60×, (b) cross-architecture transfer heatmap, (c) JPEG paradox on FLUX (+50%)</div>
+</div>
+
+<div class="card">
+  <img src="../paper/latex/figures/fig2_jpeg_paradox.png" alt="Figure 2: JPEG Paradox">
+  <div class="fig-caption"><strong>Figure 2:</strong> JPEG paradox — effect on all 3 evaluation models × 3 checkpoints × clean/q75/q70</div>
+</div>
+
+<div class="card">
+  <img src="../paper/latex/figures/fig3_patch_accumulation.png" alt="Figure 3: Patch Accumulation">
+  <div class="fig-caption"><strong>Figure 3:</strong> Patch accumulation mechanism — overlap count heatmap (4× at center) + EDR/PSNR vs strategy</div>
+</div>
+
+<p style="color:#8b949e; margin-top:40px; font-size:0.85em">
+Generated by DiffVax++ autoresearch loop | 2026-04-09
+</p>
+</body>
+</html>
