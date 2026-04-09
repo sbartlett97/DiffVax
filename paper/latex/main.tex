@@ -414,6 +414,16 @@ Multi-model training undermines this by weakening $\delta^*$: FLUX gradients
 ${\approx}12\times$. A weaker perturbation corrupts the VAE by a smaller margin and
 produces fewer editing failures across all architectures.
 
+\textbf{Training-duration confound.} A potential concern is that H1a ran for only
+10 epochs (${\approx}16{,}000$ gradient steps, batch\_size=1) while the original DiffVax
+ran for 350 epochs with batch\_size=5 (${\approx}112{,}000$ gradient steps, or ${\sim}3.5\times$ more
+effective updates when accounting for the larger batch). We observe that H1a's training
+loss stabilised by epoch~10, suggesting it did not under-converge; however, a matched-compute
+comparison (H1a at batch\_size=5 for 350 epochs) would be the cleanest test.
+We note that the gradient competition mechanism is structural (loss magnitude imbalance every step,
+independent of total training time) and predict it would persist under matched compute.
+H1b (gradient normalization via per-model loss scaling) addresses the root cause rather than the symptom.
+
 \subsection{The JPEG Paradox: DCT--DiT Compound Effect}
 \label{sec:jpeg_paradox_analysis}
 
