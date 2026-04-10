@@ -289,7 +289,10 @@ def main():
         key = (r["checkpoint"], r["eval_model"], r["jpeg_quality"])
         summary[key].append(r)
 
-    for (ckpt, mdl, jpeg_q), rows in sorted(summary.items()):
+    for (ckpt, mdl, jpeg_q), rows in sorted(
+        summary.items(),
+        key=lambda kv: (kv[0][0], kv[0][1], float("inf") if kv[0][2] == "none" else kv[0][2]),
+    ):
         edr = sum(r["disrupted"] for r in rows) / len(rows)
         psnr = sum(r["psnr_immunized"] for r in rows) / len(rows)
         ssim = sum(r["ssim_imm_orig"] for r in rows) / len(rows)
