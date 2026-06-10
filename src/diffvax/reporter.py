@@ -33,7 +33,7 @@ class TrainingReporter:
     def __init__(self, config: Dict[str, Any], output_dir: str) -> None:
         cfg: Dict[str, Any] = config.get("reporting", {})
         self.webhook_url: Optional[str] = cfg.get("webhook_url") or None
-        self.checkpoint_every: int = int(cfg.get("checkpoint_every_n_epochs", 10000))
+        self.checkpoint_every: int = int(cfg.get("checkpoint_every_n_epochs", 50))
         self.log_path: str = os.path.join(output_dir, "training_log.json")
         self._events: List[Dict[str, Any]] = []
 

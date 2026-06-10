@@ -176,6 +176,11 @@ class DiffVaxImmunization:
             from diffvax.losses.attention_loss import AttentionDisruptionLoss
             self._attention_loss = AttentionDisruptionLoss(self._config)
 
+        # H7: fixed noise target — cached per output shape so the optimizer has a
+        # consistent direction. A per-batch random target has E[|x-t|]=1 for all x,
+        # making loss1 a constant in expectation and its gradient pure noise.
+        self._fixed_noise_target: dict = {}  # shape -> tensor
+
     # ------------------------------------------------------------------
     # Inference helper
     # ------------------------------------------------------------------
@@ -352,7 +357,8 @@ class DiffVaxImmunization:
                 mask_batch = mask_batch.cuda()
 
                 mask_batch.requires_grad = False
-                img_batch.requires_grad_()
+                # img_batch.requires_grad_() removed — no code consumes input-image
+                # gradients; enabling it wastes memory tracking the input graph.
 
                 ones = torch.ones_like(mask_batch)
 
@@ -467,14 +473,21 @@ class DiffVaxImmunization:
 
                 # ---- Loss computation ----
                 resolution = h
-                # H7: noise target — random-sign (±1) pattern forces harder disruption
-                # than all-zeros (black), especially against DiT models with strong
-                # semantic priors. Basis: Mist (arXiv:2305.12683) target-image insight.
+                # H7: fixed ±1 noise target (Mist insight, arXiv:2305.12683).
+                # Target is cached per shape so the optimizer has a consistent
+                # direction across batches — a per-batch random target has
+                # E[|x-t|]=1 for all x, making loss1 a constant in expectation.
                 if self._config.get("noise_target", {}).get("enabled", False):
-                    target_image_t = (
-                        torch.randint(0, 2, img_out.shape, device="cuda", dtype=img_out.dtype)
-                        * 2 - 1
-                    )
+                    shape_key = tuple(img_out.shape)
+                    if shape_key not in self._fixed_noise_target:
+                        g = torch.Generator(device="cuda").manual_seed(1234)
+                        self._fixed_noise_target[shape_key] = (
+                            torch.randint(
+                                0, 2, img_out.shape,
+                                generator=g, device="cuda", dtype=img_out.dtype,
+                            ) * 2 - 1
+                        )
+                    target_image_t = self._fixed_noise_target[shape_key]
                 else:
                     target_image_t = torch.zeros_like(img_out).cuda()
 
@@ -596,9 +609,15 @@ class DiffVaxImmunization:
                     pbar.update(1)
                     continue
 
+                # Unscale gradients before any code reads or modifies .grad.
+                # scaler.scale(loss).backward() multiplies .grad by the scaler
+                # factor (~65536); unscale_ divides them back to true magnitude.
+                # Must happen before flat_minima.apply() and record_gradient, and
+                # before scaler.step() (which calls unscale_ internally if not done).
+                scaler.unscale_(self.optimizer)
+
                 # ---- Phase 6: Flat-minima regularization (post-backward) ----
-                # Applied after backward so only first-order derivatives are
-                # needed, allowing flash attention instead of O(N²) math SDPA.
+                # Applied after unscale_ so grad_norm reads true gradient magnitudes.
                 if self._flat_minima is not None:
                     self._flat_minima.apply(self.unetmodel, lambda_flat)
 
@@ -613,8 +632,36 @@ class DiffVaxImmunization:
                         grad_vec = torch.cat(grad_vecs)
                         self.attack_manager.record_gradient(model_name, grad_vec)
 
+                # NaN/Inf check before stepping — abort and save before the
+                # poisoned update is applied to the model weights.
+                if torch.isnan(loss) or torch.isinf(loss):
+                    if self._attention_loss is not None:
+                        self._attention_loss.remove_hooks()
+                    nan_path = path_of_models + f"iter_{cur_iter}_early.pth"
+                    torch.save(self.model.state_dict(), nan_path)
+                    self.reporter.report_error(
+                        "nan_loss",
+                        f"NaN/Inf loss detected at epoch={epoch_i} batch={i} "
+                        f"(global iter={cur_iter}). "
+                        f"Emergency checkpoint saved: {nan_path}",
+                        epoch=epoch_i,
+                        batch=i,
+                    )
+                    tqdm.write(
+                        f"[NaN] Loss is NaN/Inf at epoch={epoch_i} batch={i} — "
+                        f"aborting. Checkpoint: {nan_path}"
+                    )
+                    return
+
                 scaler.step(self.optimizer)
                 scaler.update()
+
+                # S1: log scaler state periodically to surface silent step-skipping
+                if batch_iter_count % 100 == 0:
+                    tqdm.write(
+                        f"[Scaler] scale={scaler.get_scale():.0f} "
+                        f"batch={batch_iter_count}"
+                    )
 
                 batch_iter_count += 1
 
@@ -637,25 +684,6 @@ class DiffVaxImmunization:
                     + (f" Lat: {loss_latent_val:.5f}" if loss_latent_val else "")
                 )
                 pbar.update(1)
-
-                if torch.isnan(loss):
-                    if self._attention_loss is not None:
-                        self._attention_loss.remove_hooks()
-                    nan_path = path_of_models + f"iter_{cur_iter}_early.pth"
-                    torch.save(self.model.state_dict(), nan_path)
-                    self.reporter.report_error(
-                        "nan_loss",
-                        f"NaN loss detected at epoch={epoch_i} batch={i} "
-                        f"(global iter={cur_iter}). "
-                        f"Emergency checkpoint saved: {nan_path}",
-                        epoch=epoch_i,
-                        batch=i,
-                    )
-                    tqdm.write(
-                        f"[NaN] Loss is NaN at epoch={epoch_i} batch={i} — "
-                        f"aborting. Checkpoint: {nan_path}"
-                    )
-                    return
 
                 losses = []
                 losses1 = []

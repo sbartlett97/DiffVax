@@ -41,10 +41,22 @@ class DifferentiableEoT:
         self.resize_range = cfg.get("resize_range", [0.5, 2.0])
         self.blur_sigma_range = cfg.get("blur_sigma_range", [0.0, 2.0])
         self.noise_std_range = cfg.get("noise_std_range", [0.0, 0.03])
-        self.p_jpeg = cfg.get("p_jpeg", 0.8)
+        self.p_jpeg = float(cfg.get("p_jpeg", 0.8))
         self.p_resize = cfg.get("p_resize", 0.5)
         self.p_blur = cfg.get("p_blur", 0.3)
         self.p_noise = cfg.get("p_noise", 0.3)
+
+        # Fail loudly if JPEG is requested but kornia is missing. A silent
+        # passthrough would train a model believed to be JPEG-robust but isn't.
+        if self.p_jpeg > 0:
+            try:
+                import kornia.enhance  # noqa: F401
+            except ImportError:
+                raise ImportError(
+                    "DifferentiableEoT: p_jpeg > 0 requires kornia. "
+                    "Install it with: pip install kornia\n"
+                    "Or set p_jpeg: 0 in the eot config to disable JPEG augmentation."
+                )
     def _apply_jpeg(self, x: Tensor) -> Tensor:
         """Apply differentiable JPEG compression via kornia.
 

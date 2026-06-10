@@ -93,7 +93,9 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="stable-diffusion-v1-5/stable-diffusion-v1-5",
         pipeline_type=PipelineType.SD_IMG2IMG,
         native_resolution=1024,
-        strength=1.0,
+        # strength=1.0 destroys the input image (pure noise); use 0.75 so the
+        # perturbation can meaningfully condition the output.
+        strength=0.75,
         uses_mask=False,
     ),
     ModelConfig(
@@ -101,7 +103,7 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="stabilityai/stable-diffusion-xl-base-1.0",
         pipeline_type=PipelineType.SDXL_IMG2IMG,
         native_resolution=1024,
-        strength=1.0,
+        strength=0.75,
         uses_mask=False,
         prompt_key="flux_prompts",
     ),
@@ -118,7 +120,7 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.1-dev",
         pipeline_type=PipelineType.FLUX_IMG2IMG,
         native_resolution=1088,
-        strength=1.0,
+        strength=0.75,
         uses_mask=False,
         prompt_key="flux_prompts",
     ),
@@ -127,7 +129,7 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.2-dev",
         pipeline_type=PipelineType.FLUX_IMG2IMG,
         native_resolution=1088,
-        strength=1.0,
+        strength=0.75,
         uses_mask=False,
         prompt_key="flux_prompts",
         enabled=False,
@@ -261,7 +263,8 @@ def immunize_image(
 
     with torch.no_grad():
         img_f = image_torch.float()
-        unet_out = perturbation_net(img_f).half() * (1 - mask_torch)
+        # Full-image perturbation, matching train semantics (no mask gating here).
+        unet_out = perturbation_net(img_f).half()
 
     img_adv = torch.clamp(image_torch + unet_out, -1, 1)
     # Convert [-1, 1] tensor to PIL
