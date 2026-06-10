@@ -289,18 +289,26 @@ class FluxAttack(BaseAttack):
         sigma = scheduler.sigmas[t_start].to(dtype)
         noisy_latents = (1.0 - sigma) * packed + sigma * noise
 
-        # H2: partial-timestep gradient — backprop only through early timesteps.
-        n_grad_steps = max(1, int(len(timesteps) * self._gradient_timestep_fraction))
+        # H2: backprop through the LAST n_grad_steps (chain-rule reachable from loss).
+        n_steps = len(timesteps)
+        n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
+        first_grad_step = n_steps - n_grad_steps
 
-        # H4: register TGR backward hooks on transformer blocks if enabled.
+        # H4: TGR hooks disabled — register_backward_hook return value replaces
+        # grad_input, not grad_output, corrupting gradients silently.
         if self._tgr_enabled:
-            self._register_tgr_hooks(transformer)
+            import warnings
+            warnings.warn(
+                "H4 TGR hooks are disabled due to incorrect grad semantics with "
+                "register_backward_hook. Set token_gradient_regularization=False.",
+                stacklevel=2,
+            )
 
         # ----- 9. Denoising loop -----
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
         for step_idx, t in enumerate(timesteps):
-            use_grad = step_idx < n_grad_steps
+            use_grad = step_idx >= first_grad_step
             grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
 
             with grad_ctx:
@@ -341,8 +349,7 @@ class FluxAttack(BaseAttack):
                     noise_pred, t, noisy_latents, return_dict=False
                 )[0]
 
-        if self._tgr_enabled:
-            self._remove_tgr_hooks()
+        # TGR hooks were not registered (disabled); nothing to remove.
 
         # ----- 10. Unpack: (B, seq, C*4) -> (B, C*4, H//2, W//2) -----
         # Use differentiable reshape (row-major order is preserved through the loop)

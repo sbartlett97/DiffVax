@@ -5,14 +5,23 @@ from torch import nn
 from huggingface_hub import PyTorchModelHubMixin
 
 
+def _group_norm(num_channels: int) -> nn.GroupNorm:
+    """GroupNorm with up to 8 groups — batch-size-independent, safe at bs=1."""
+    num_groups = min(8, num_channels)
+    # Ensure num_channels is divisible by num_groups (reduce groups if needed)
+    while num_channels % num_groups != 0:
+        num_groups -= 1
+    return nn.GroupNorm(num_groups=num_groups, num_channels=num_channels)
+
+
 class VGGBlock(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels):
         super().__init__()
         self.relu = nn.ReLU(inplace=True)
         self.conv1 = nn.Conv2d(in_channels, middle_channels, 3, padding=1)
-        self.bn1 = nn.BatchNorm2d(middle_channels)
+        self.bn1 = _group_norm(middle_channels)
         self.conv2 = nn.Conv2d(middle_channels, out_channels, 3, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.bn2 = _group_norm(out_channels)
 
     def forward(self, x):
         out = self.conv1(x)

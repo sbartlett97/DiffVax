@@ -250,25 +250,34 @@ class SD3Attack(BaseAttack):
 
         guidance_scale = 7.0
 
-        # H2: partial-timestep gradient — how many of the denoising steps receive
-        # gradients. Early steps (high sigma) shape global structure; later steps
-        # refine fine detail. Using only the first k steps for backprop saves VRAM
-        # proportionally to the skipped fraction.
-        n_grad_steps = max(1, int(len(timesteps) * self._gradient_timestep_fraction))
+        # H2: partial-timestep gradient — backprop through the LAST n_grad_steps.
+        # The chain rule requires continuity from the loss backward to img_adv:
+        #   loss → vae.decode → final latents → last denoise step → … → first step → vae.encode
+        # Only steps reachable from the loss (i.e. final steps) can carry gradients.
+        # Running early steps under no_grad saves VRAM without severing the chain.
+        n_steps = len(timesteps)
+        n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
+        first_grad_step = n_steps - n_grad_steps
 
-        # H4: TGR — register backward hooks on transformer blocks that normalize
-        # per-token gradient magnitude, reducing variance across the joint-attention
-        # sequence at high resolution (18k+ tokens at 1088px).
+        # H4: TGR hooks are disabled — register_backward_hook is deprecated and its
+        # return value replaces grad_input (not grad_output), corrupting gradients.
+        # Re-enable only after rewriting with register_full_backward_hook and a
+        # measured baseline showing improvement.
         if self._tgr_enabled:
-            self._register_tgr_hooks(transformer)
+            import warnings
+            warnings.warn(
+                "H4 TGR hooks are disabled due to incorrect grad semantics with "
+                "register_backward_hook. Set token_gradient_regularization=False.",
+                stacklevel=2,
+            )
 
         # ------ 5. MM-DiT denoising loop ------
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
         for step_idx, t in enumerate(timesteps):
-            # Only backpropagate through the first n_grad_steps timesteps.
-            # Later steps run under no_grad to reduce backward-graph VRAM.
-            use_grad = step_idx < n_grad_steps
+            # Backprop only through the final n_grad_steps (closest to the loss).
+            # Early steps run under no_grad to save activation memory.
+            use_grad = step_idx >= first_grad_step
             grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
 
             with grad_ctx:
@@ -312,8 +321,7 @@ class SD3Attack(BaseAttack):
                     noise_pred, t, noisy_latents, return_dict=False
                 )[0]
 
-        if self._tgr_enabled:
-            self._remove_tgr_hooks()
+        # TGR hooks were not registered (disabled); nothing to remove.
 
         # ------ 6. VAE decode ------
         latents_out = noisy_latents / vae_scaling_factor + vae_shift_factor
