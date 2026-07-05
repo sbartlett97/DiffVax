@@ -8,22 +8,23 @@ research_question: >
   (DALL-E 3, Flux 1.x, SD3, SD3.5), given that the current system is only proven
   at 512×512 against UNet-based diffusers?
 
-status: inner_loop  # bootstrap | inner_loop | outer_loop | conclude
+status: outer_loop  # bootstrap | inner_loop | outer_loop | conclude — code verification done, awaiting GPU runs
 
 # ============================
 # CURRENT DIRECTION: INNER LOOP
 # ============================
 current_direction: inner_loop
 current_hypothesis: >
-  Cycle 3 (2026-07-05): training-signal audit. Fixed C7 (H8 latent loss sign
-  inversion — was rewarding identical latents) and C8 (partial-timestep
-  truncation severed the only gradient path to img_adv for gtf<1.0; replaced
-  with straight-through latent path). Real-code gradient tests added
-  (tests/test_attack_gradient_flow.py) incl. A4 mini learning test proving
-  loss1 decreases through the real SD3Attack loop on CPU.
+  Cycles 3-5 (2026-07-05) complete: training-signal audit fixed C7 (H8 sign
+  inversion) and C8 (severed gtf<1.0 gradient path, straight-through fix);
+  Phase 7 verified live under non-reentrant checkpointing; H4 TGR re-enabled
+  with full_backward_pre_hook; full loss-path + metrics audit clean; real
+  training loop proven to learn end-to-end on CPU (35-test suite).
+  CODE-LEVEL VERIFICATION COMPLETE — see findings.md confidence assessment.
 next_hypothesis: >
-  Device-agnostic DiffVaxImmunization refactor → full training-loop CPU smoke
-  test; then GPU training validation of research_v3.yml.
+  Tier 2: GPU validation per research/gpu-validation-runbook.md (signal
+  sanity run, protection eval, ablations, 1088px). Tier 3: black-box
+  transfer probe against closed models.
 
 # ============================
 # HYPOTHESES
