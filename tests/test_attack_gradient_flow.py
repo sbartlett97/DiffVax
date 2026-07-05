@@ -85,12 +85,37 @@ class FakeVAE(nn.Module):
         return (out,)
 
 
+class _FakeAttn(nn.Module):
+    def forward(self, x):
+        return torch.tanh(x) * 0.5
+
+
+class _FakeBlock(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.attn = _FakeAttn()
+
+    def forward(self, x):
+        return x + self.attn(x)
+
+
 class FakeSD3Transformer(nn.Module):
-    """MM-DiT stand-in: content-dependent, shape-preserving map."""
+    """MM-DiT stand-in: content-dependent, shape-preserving map with real
+    ``transformer_blocks`` (each exposing ``.attn``) so Phase 7 attention
+    hooks can attach exactly as they do on the production transformer."""
+
+    def __init__(self, n_blocks: int = 6):
+        super().__init__()
+        self.transformer_blocks = nn.ModuleList(
+            _FakeBlock() for _ in range(n_blocks)
+        )
 
     def forward(self, hidden_states, timestep=None, encoder_hidden_states=None,
                 pooled_projections=None, return_dict=False):
-        return (torch.tanh(hidden_states) * 0.1,)
+        x = hidden_states
+        for block in self.transformer_blocks:
+            x = block(x)
+        return (x * 0.1,)
 
 
 class FakeFluxTransformer(nn.Module):
@@ -150,7 +175,7 @@ class FakeFluxPipe:
         return embeds, text_ids
 
 
-def make_sd3_attack(gtf: float) -> SD3Attack:
+def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True) -> SD3Attack:
     atk = SD3Attack.__new__(SD3Attack)
     atk.pipe = FakeSD3Pipe()
     atk.model_link = "fake"
@@ -158,10 +183,11 @@ def make_sd3_attack(gtf: float) -> SD3Attack:
     atk._gradient_timestep_fraction = gtf
     atk._tgr_enabled = False
     atk._tgr_hooks = []
+    atk._use_grad_ckpt = use_grad_ckpt
     return atk
 
 
-def make_flux_attack(gtf: float) -> FluxAttack:
+def make_flux_attack(gtf: float, use_grad_ckpt: bool = True) -> FluxAttack:
     atk = FluxAttack.__new__(FluxAttack)
     atk.pipe = FakeFluxPipe()
     atk.model_link = "fake"
@@ -170,6 +196,7 @@ def make_flux_attack(gtf: float) -> FluxAttack:
     atk._tgr_enabled = False
     atk._tgr_hooks = []
     atk.vae_scale_factor = 8
+    atk._use_grad_ckpt = use_grad_ckpt
     return atk
 
 
@@ -305,6 +332,81 @@ def test_a3_latent_loss_gradient_flows_to_adv_only():
 
     assert img_adv.grad is not None and img_adv.grad.abs().sum() > 0
     assert img_orig.grad is None, "No gradient may flow through the clean branch"
+
+
+# ---------------------------------------------------------------------------
+# A5: Phase 7 attention loss carries gradient through the checkpointed attack
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a5_attention_loss_gradient_through_checkpointed_attack():
+    """Hook-captured activations under NON-REENTRANT gradient checkpointing
+    stay connected to the graph (verified property), so the Phase 7 attention
+    entropy loss must produce a nonzero gradient on img_adv through the real
+    SD3Attack loop with checkpointing enabled and gtf=0.5.
+    """
+    from diffvax.losses.attention_loss import AttentionDisruptionLoss
+
+    torch.manual_seed(8)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(0.5)  # _use_grad_ckpt defaults True below
+    attn_loss = AttentionDisruptionLoss(
+        {"attention_loss": {"target_blocks": "middle", "num_hooks": 2}}
+    )
+    attn_loss.register_hooks(atk.pipe.transformer)
+    try:
+        _ = atk.attack(
+            prompt=["edit"], image=img_adv, height=64, width=64,
+            num_inference_steps=4, batch_size=1, strength=0.9,
+        )
+        loss_attn = attn_loss.compute()
+    finally:
+        attn_loss.remove_hooks()
+
+    assert loss_attn.requires_grad, (
+        "Attention loss lost its grad path through the checkpointed attack"
+    )
+    (grad,) = torch.autograd.grad(loss_attn, img_adv)
+    assert torch.isfinite(grad).all()
+    assert grad.abs().sum() > 0, "Zero gradient from Phase 7 attention loss"
+
+
+def test_a5_attention_loss_all_detached_warns_and_returns_zero():
+    """If every captured activation is detached (e.g. reentrant checkpointing
+    or a fully no_grad forward), compute() must warn once and return 0 rather
+    than silently adding a constant to the loss.
+    """
+    from diffvax.losses.attention_loss import AttentionDisruptionLoss
+
+    attn_loss = AttentionDisruptionLoss(
+        {"attention_loss": {"target_blocks": "early", "num_hooks": 2}}
+    )
+    transformer = FakeSD3Transformer(n_blocks=4)
+    attn_loss.register_hooks(transformer)
+    try:
+        with torch.no_grad():
+            transformer(torch.randn(1, 16, 8, 8))
+        with pytest.warns(UserWarning, match="detached"):
+            val = attn_loss.compute()
+    finally:
+        attn_loss.remove_hooks()
+
+    assert not val.requires_grad
+    assert val.item() == 0.0
+
+    # Second call must not warn again (one-time warning)
+    attn_loss.register_hooks(transformer)
+    try:
+        with torch.no_grad():
+            transformer(torch.randn(1, 16, 8, 8))
+        import warnings as _w
+        with _w.catch_warnings():
+            _w.simplefilter("error")
+            val2 = attn_loss.compute()
+    finally:
+        attn_loss.remove_hooks()
+    assert val2.item() == 0.0
 
 
 # ---------------------------------------------------------------------------

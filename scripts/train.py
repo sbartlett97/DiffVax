@@ -51,6 +51,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             flux_model_link,
             gradient_timestep_fraction=flux_cfg.get("gradient_timestep_fraction", 1.0),
             token_gradient_regularization=flux_cfg.get("token_gradient_regularization", False),
+            use_gradient_checkpointing=flux_cfg.get("use_gradient_checkpointing", True),
         )
         models["flux"] = flux_attack
         probabilities["flux"] = flux_prob
@@ -65,6 +66,7 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
             sd3_model_link,
             gradient_timestep_fraction=sd3_cfg.get("gradient_timestep_fraction", 1.0),
             token_gradient_regularization=sd3_cfg.get("token_gradient_regularization", False),
+            use_gradient_checkpointing=sd3_cfg.get("use_gradient_checkpointing", True),
         )
         models["sd3"] = sd3_attack
         probabilities["sd3"] = sd3_prob

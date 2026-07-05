@@ -40,7 +40,8 @@ class FluxAttack(BaseAttack):
 
     def __init__(self, model_link: str, strength: float = 0.75,
                  gradient_timestep_fraction: float = 1.0,
-                 token_gradient_regularization: bool = False):
+                 token_gradient_regularization: bool = False,
+                 use_gradient_checkpointing: bool = True):
         # Lazy import — only fail when someone actually uses FLUX
         try:
             from diffusers import Flux2KleinPipeline as PipeClass
@@ -65,6 +66,12 @@ class FluxAttack(BaseAttack):
         # H4: TGR token gradient regularization (CVPR 2023, arXiv:2303.15754)
         self._tgr_enabled = bool(token_gradient_regularization)
         self._tgr_hooks: list = []
+        # Gradient checkpointing trades VRAM for a recomputed forward.
+        # Non-reentrant checkpointing (use_reentrant=False) keeps hook-captured
+        # activations (Phase 7 attention loss) connected to the graph — only
+        # no_grad-skipped timesteps produce detached captures. Knob exposed for
+        # profiling/debugging; default True.
+        self._use_grad_ckpt = bool(use_gradient_checkpointing)
 
         # vae_scale_factor matches pipeline convention: 2**(len-1)
         # The pipeline then uses vae_scale_factor*2 to account for 2x2 patchification.
@@ -332,12 +339,18 @@ class FluxAttack(BaseAttack):
                         img_ids=i_ids,
                         return_dict=False,
                     )[0]
-                noise_pred = grad_checkpoint(
-                    _transformer_fwd,
-                    noisy_latents, timestep / 1000, prompt_embeds,
-                    text_ids, latent_ids,
-                    use_reentrant=False,
-                )
+                if self._use_grad_ckpt:
+                    noise_pred = grad_checkpoint(
+                        _transformer_fwd,
+                        noisy_latents, timestep / 1000, prompt_embeds,
+                        text_ids, latent_ids,
+                        use_reentrant=False,
+                    )
+                else:
+                    noise_pred = _transformer_fwd(
+                        noisy_latents, timestep / 1000, prompt_embeds,
+                        text_ids, latent_ids,
+                    )
             else:
                 # Skipped step: transformer output is detached (no activation
                 # memory, no Jacobian), but the scheduler step below still

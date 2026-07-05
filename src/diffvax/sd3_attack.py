@@ -41,7 +41,8 @@ class SD3Attack(BaseAttack):
 
     def __init__(self, model_link: str, strength: float = 0.75,
                  gradient_timestep_fraction: float = 1.0,
-                 token_gradient_regularization: bool = False):
+                 token_gradient_regularization: bool = False,
+                 use_gradient_checkpointing: bool = True):
         from diffusers import StableDiffusion3Img2ImgPipeline
 
         self.pipe = StableDiffusion3Img2ImgPipeline.from_pretrained(
@@ -59,6 +60,12 @@ class SD3Attack(BaseAttack):
         # Basis: Token Gradient Regularization, CVPR 2023 (arXiv:2303.15754).
         self._tgr_enabled = bool(token_gradient_regularization)
         self._tgr_hooks: list = []
+        # Gradient checkpointing trades VRAM for a recomputed forward.
+        # Non-reentrant checkpointing (use_reentrant=False) keeps hook-captured
+        # activations (Phase 7 attention loss) connected to the graph — only
+        # no_grad-skipped timesteps produce detached captures. Knob exposed for
+        # profiling/debugging; default True.
+        self._use_grad_ckpt = bool(use_gradient_checkpointing)
 
         # Freeze all parameters — gradient flows through activations only
         self.pipe.vae.requires_grad_(False)
@@ -303,11 +310,18 @@ class SD3Attack(BaseAttack):
                         pooled_projections=pooled,
                         return_dict=False,
                     )[0]
-                noise_pred = grad_checkpoint(
-                    _transformer_fwd,
-                    latent_input, timestep, prompt_embeds_cfg, pooled_embeds_cfg,
-                    use_reentrant=False,
-                )
+                if self._use_grad_ckpt:
+                    noise_pred = grad_checkpoint(
+                        _transformer_fwd,
+                        latent_input, timestep, prompt_embeds_cfg,
+                        pooled_embeds_cfg,
+                        use_reentrant=False,
+                    )
+                else:
+                    noise_pred = _transformer_fwd(
+                        latent_input, timestep, prompt_embeds_cfg,
+                        pooled_embeds_cfg,
+                    )
             else:
                 # Skipped step: transformer output is detached (no activation
                 # memory, no Jacobian), but the scheduler step below still

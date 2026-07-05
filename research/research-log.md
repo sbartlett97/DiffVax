@@ -229,3 +229,50 @@ proof that the training method's own plumbing learns.
 Also made `diffvax.immunization` package imports lazy (PEP 562) so the
 DiffusionGuard baseline's cv2 dependency is no longer required for core
 training. Suite: 30 tests, 29 pass on CPU + 1 CUDA-only skip.
+
+---
+
+## 2026-07-05 — Inner Loop Cycle 4: Loss-Path Audit (EoT, CLIP, Attention, Spectral, Flat-Minima, Eval)
+
+### Audit results
+
+| Component | Verdict |
+|-----------|---------|
+| `eot.py` | Sound. All four transforms differentiable; kornia absence fails loudly (S4); final clamp correct. |
+| `clip_loss.py` | Sign conventions CORRECT (minimize orig↔adv feature cos-sim; minimize out↔prompt alignment). Still hard-codes CUDA — acceptable (GPU-only dependency), noted. |
+| `spectral_loss.py` | Sound. rfft2 low-freq penalty on δ, resolution-normalized, correct mask folding. |
+| `attention_loss.py` | See C9 investigation below — NOT dead, hardened anyway. |
+| `flat_minima.py` | Mathematically inert under Adam: a uniform scalar on all grads cancels in Adam's per-parameter normalization (m/√v is scale-invariant). Harmless but a placebo — documented, left as-is (off by default). |
+| `eval_multimodel.py` | Metric direction correct: `clip_delta = clip_no_defense − clip_with_defense`, positive = protection. C5 strengths already fixed. |
+
+### C9 investigated — hypothesis DISPROVEN, code hardened
+
+Hypothesis: Phase 7 forward hooks capture detached activations under gradient
+checkpointing, making the attention loss a silent no-op on DiT models.
+
+Empirical test (torch checkpoint, both modes): with `use_reentrant=False`
+(what both attacks use) hook-captured tensors KEEP `grad_fn` — non-reentrant
+checkpointing builds the full graph and only drops saved tensors for
+recompute-on-backward. Gradient through a loss built from the captured tensor
+flows correctly. Only `use_reentrant=True` detaches. So Phase 7 is live in
+the current code. (Initial config edits based on the wrong hypothesis were
+reverted within the session.)
+
+Hardening shipped anyway:
+- `AttentionDisruptionLoss.compute()` now filters to gradient-carrying maps
+  (maps captured during no_grad-skipped timesteps at gtf<1.0 ARE detached and
+  previously added constant entropy terms into the average), warns once and
+  returns 0 if every capture is detached (reentrant ckpt / full no_grad), and
+  no longer hard-codes CUDA.
+- `use_gradient_checkpointing` knob added to SD3Attack/FluxAttack and wired
+  through train.py (profiling/debugging).
+- New tests: A5a proves the attention loss produces nonzero grad on img_adv
+  through the REAL checkpointed SD3 attack at gtf=0.5; A5b covers the
+  all-detached warning path. Suite: 32 tests, 31 pass + 1 CUDA-only skip.
+
+### Remaining confidence gaps (unchanged priorities)
+
+1. GPU training validation of research_v3.yml (loss curves, protection rate).
+2. TGR (H4) rewrite with register_full_backward_hook + measured baseline.
+3. Closed-model (nano-banana/DALL-E-class) protection is only claimable via
+   CLIP-H proxy transfer — needs empirical eval, cannot be proven from code.
