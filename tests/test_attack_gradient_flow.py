@@ -175,13 +175,14 @@ class FakeFluxPipe:
         return embeds, text_ids
 
 
-def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True) -> SD3Attack:
+def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True,
+                    tgr: bool = False) -> SD3Attack:
     atk = SD3Attack.__new__(SD3Attack)
     atk.pipe = FakeSD3Pipe()
     atk.model_link = "fake"
     atk.strength = 0.75
     atk._gradient_timestep_fraction = gtf
-    atk._tgr_enabled = False
+    atk._tgr_enabled = tgr
     atk._tgr_hooks = []
     atk._use_grad_ckpt = use_grad_ckpt
     return atk
@@ -407,6 +408,86 @@ def test_a5_attention_loss_all_detached_warns_and_returns_zero():
     finally:
         attn_loss.remove_hooks()
     assert val2.item() == 0.0
+
+
+# ---------------------------------------------------------------------------
+# A6: TGR (H4) — full backward PRE-hook semantics
+# ---------------------------------------------------------------------------
+
+def test_a6_tgr_pre_hook_equalizes_token_gradients():
+    """The TGR pre-hook must equalize per-token gradient norms while
+    preserving the overall gradient scale (mean token norm).
+    """
+
+    class SeqBlock(nn.Module):
+        def forward(self, x):  # (B, seq, dim)
+            return x * 2.0
+
+    block = SeqBlock()
+    handle = block.register_full_backward_pre_hook(
+        SD3Attack._tgr_backward_pre_hook
+    )
+    try:
+        x = torch.randn(1, 4, 8, requires_grad=True)
+        out = block(x)
+        # Token 0 dominates the loss by 100x
+        loss = out[:, 0].sum() * 10.0 + out[:, 1:].sum() * 0.1
+        loss.backward()
+        tok_norms = x.grad.norm(dim=-1)[0]
+    finally:
+        handle.remove()
+
+    assert torch.allclose(tok_norms, tok_norms[0].expand_as(tok_norms), rtol=1e-4), (
+        f"TGR did not equalize token gradient norms: {tok_norms.tolist()}"
+    )
+    assert tok_norms[0].item() > 0
+
+
+def test_a6_tgr_pre_hook_fires_through_checkpoint():
+    """TGR hooks must also apply when the block runs under non-reentrant
+    gradient checkpointing (the attacks' default execution mode)."""
+    from torch.utils.checkpoint import checkpoint
+
+    class SeqBlock(nn.Module):
+        def forward(self, x):
+            return x * 2.0
+
+    block = SeqBlock()
+    handle = block.register_full_backward_pre_hook(
+        SD3Attack._tgr_backward_pre_hook
+    )
+    try:
+        x = torch.randn(1, 4, 8, requires_grad=True)
+        out = checkpoint(block, x, use_reentrant=False)
+        loss = out[:, 0].sum() * 10.0 + out[:, 1:].sum() * 0.1
+        loss.backward()
+        tok_norms = x.grad.norm(dim=-1)[0]
+    finally:
+        handle.remove()
+
+    assert torch.allclose(tok_norms, tok_norms[0].expand_as(tok_norms), rtol=1e-4), (
+        f"TGR inactive under checkpointing: {tok_norms.tolist()}"
+    )
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a6_tgr_enabled_attack_gradients_stay_finite_nonzero():
+    """Regression for the old register_backward_hook implementation, which
+    corrupted gradients (replaced grad_input): with TGR enabled the real
+    attack loop must still deliver finite, nonzero gradient to img_adv."""
+    torch.manual_seed(9)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(0.5, tgr=True)
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    assert len(atk._tgr_hooks) > 0, "TGR hooks were not registered"
+    loss1 = out.float().abs().mean()
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert torch.isfinite(grad).all(), "TGR corrupted gradients (NaN/Inf)"
+    assert grad.abs().sum() > 0, "TGR zeroed the gradient"
 
 
 # ---------------------------------------------------------------------------

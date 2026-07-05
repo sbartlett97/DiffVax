@@ -80,35 +80,41 @@ class SD3Attack(BaseAttack):
     # ------------------------------------------------------------------
 
     def _register_tgr_hooks(self, transformer) -> None:
-        """Register backward hooks on transformer blocks for TGR.
+        """Register full backward PRE-hooks on transformer blocks for TGR.
 
-        Each hook normalizes the per-token gradient to unit norm, reducing
-        the token-to-token variance that causes poor adversarial transfer
-        in high-token-count attention (TGR, CVPR 2023, arXiv:2303.15754).
+        ``register_full_backward_pre_hook`` fires before the block's backward
+        and its return value replaces grad_output — the correct interception
+        point for token-gradient normalization. (The previous implementation
+        used ``register_backward_hook``, whose return value replaces
+        grad_input, silently corrupting gradients; it was force-disabled.)
+        Hooks are persistent: they fire on every backward, including the
+        recomputed forward graphs produced by non-reentrant gradient
+        checkpointing (verified by tests/test_attack_gradient_flow.py).
         """
         self._remove_tgr_hooks()
         blocks = getattr(transformer, "transformer_blocks", None) or []
         for block in blocks:
-            # Hook on the block output so gradient normalization applies
-            # to the full residual stream exiting each transformer block.
-            h = block.register_backward_hook(self._tgr_backward_hook)
+            h = block.register_full_backward_pre_hook(self._tgr_backward_pre_hook)
             self._tgr_hooks.append(h)
 
     @staticmethod
-    def _tgr_backward_hook(module, grad_input, grad_output):
-        """Normalize per-token gradient magnitude to reduce variance.
+    def _tgr_backward_pre_hook(module, grad_output):
+        """Equalize per-token gradient magnitude, preserving overall scale.
 
-        grad_output[0] shape: (B, seq_len, dim)
-        We normalize across the feature dim so each token's gradient
-        vector has unit L2 norm, following TGR (arXiv:2303.15754).
+        grad_output[0] shape: (B, seq_len, dim). Each token's gradient vector
+        is rescaled to the mean token norm — this removes the token-to-token
+        variance that hurts adversarial transfer in high-token-count attention
+        (TGR, CVPR 2023, arXiv:2303.15754) without changing the global
+        gradient magnitude.
         """
         normed = []
         for g in grad_output:
             if g is None or g.ndim < 3:
                 normed.append(g)
                 continue
-            norm = g.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-            normed.append(g / norm)
+            tok_norm = g.norm(dim=-1, keepdim=True)
+            mean_norm = tok_norm.mean(dim=1, keepdim=True)
+            normed.append(g / tok_norm.clamp(min=1e-8) * mean_norm)
         return tuple(normed)
 
     def _remove_tgr_hooks(self) -> None:
@@ -272,17 +278,11 @@ class SD3Attack(BaseAttack):
         n_steps = len(timesteps)
         n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
 
-        # H4: TGR hooks are disabled — register_backward_hook is deprecated and its
-        # return value replaces grad_input (not grad_output), corrupting gradients.
-        # Re-enable only after rewriting with register_full_backward_hook and a
-        # measured baseline showing improvement.
-        if self._tgr_enabled:
-            import warnings
-            warnings.warn(
-                "H4 TGR hooks are disabled due to incorrect grad semantics with "
-                "register_backward_hook. Set token_gradient_regularization=False.",
-                stacklevel=2,
-            )
+        # H4: TGR — persistent full-backward-pre-hooks normalize per-token
+        # gradient magnitude during every backward pass. Registered lazily on
+        # first use; they remain attached for the lifetime of the attack.
+        if self._tgr_enabled and not self._tgr_hooks:
+            self._register_tgr_hooks(transformer)
 
         # ------ 5. MM-DiT denoising loop ------
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
@@ -343,8 +343,6 @@ class SD3Attack(BaseAttack):
             noisy_latents = scheduler.step(
                 noise_pred, t, noisy_latents, return_dict=False
             )[0]
-
-        # TGR hooks were not registered (disabled); nothing to remove.
 
         # ------ 6. VAE decode ------
         latents_out = noisy_latents / vae_scaling_factor + vae_shift_factor

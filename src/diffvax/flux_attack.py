@@ -121,7 +121,12 @@ class FluxAttack(BaseAttack):
     # ------------------------------------------------------------------
 
     def _register_tgr_hooks(self, transformer) -> None:
-        """Register backward hooks on single_transformer_blocks for TGR."""
+        """Register full backward PRE-hooks for TGR (replaces grad_output).
+
+        See SD3Attack._register_tgr_hooks for the hook-semantics rationale.
+        Persistent: hooks fire on every backward, including recomputed graphs
+        from non-reentrant gradient checkpointing.
+        """
         self._remove_tgr_hooks()
         # FLUX.2 Klein uses single_transformer_blocks (MMDiT single-stream)
         blocks = (
@@ -130,19 +135,21 @@ class FluxAttack(BaseAttack):
             or []
         )
         for block in blocks:
-            h = block.register_backward_hook(self._tgr_backward_hook)
+            h = block.register_full_backward_pre_hook(self._tgr_backward_pre_hook)
             self._tgr_hooks.append(h)
 
     @staticmethod
-    def _tgr_backward_hook(module, grad_input, grad_output):
-        """Normalize per-token gradient magnitude (TGR, CVPR 2023)."""
+    def _tgr_backward_pre_hook(module, grad_output):
+        """Equalize per-token gradient magnitude, preserving overall scale
+        (TGR, CVPR 2023, arXiv:2303.15754)."""
         normed = []
         for g in grad_output:
             if g is None or g.ndim < 3:
                 normed.append(g)
                 continue
-            norm = g.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-            normed.append(g / norm)
+            tok_norm = g.norm(dim=-1, keepdim=True)
+            mean_norm = tok_norm.mean(dim=1, keepdim=True)
+            normed.append(g / tok_norm.clamp(min=1e-8) * mean_norm)
         return tuple(normed)
 
     def _remove_tgr_hooks(self) -> None:
@@ -305,15 +312,11 @@ class FluxAttack(BaseAttack):
         n_steps = len(timesteps)
         n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
 
-        # H4: TGR hooks disabled — register_backward_hook return value replaces
-        # grad_input, not grad_output, corrupting gradients silently.
-        if self._tgr_enabled:
-            import warnings
-            warnings.warn(
-                "H4 TGR hooks are disabled due to incorrect grad semantics with "
-                "register_backward_hook. Set token_gradient_regularization=False.",
-                stacklevel=2,
-            )
+        # H4: TGR — persistent full-backward-pre-hooks normalize per-token
+        # gradient magnitude during every backward pass. Registered lazily on
+        # first use; they remain attached for the lifetime of the attack.
+        if self._tgr_enabled and not self._tgr_hooks:
+            self._register_tgr_hooks(transformer)
 
         # ----- 9. Denoising loop -----
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
@@ -369,8 +372,6 @@ class FluxAttack(BaseAttack):
             noisy_latents = scheduler.step(
                 noise_pred, t, noisy_latents, return_dict=False
             )[0]
-
-        # TGR hooks were not registered (disabled); nothing to remove.
 
         # ----- 10. Unpack: (B, seq, C*4) -> (B, C*4, H//2, W//2) -----
         # Use differentiable reshape (row-major order is preserved through the loop)

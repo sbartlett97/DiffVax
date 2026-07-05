@@ -43,14 +43,14 @@ flux_probability: 0.25
 # -- H2: Partial-timestep gradient (enables 1088px on 24 GB GPU) --
 sd3_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true  # (currently force-disabled in code)
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
   # Non-reentrant gradient checkpointing keeps Phase 7 hook captures live
   # (verified by tests/test_attack_gradient_flow.py::test_a5). Leave true.
   use_gradient_checkpointing: true
 
 flux_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true  # (currently force-disabled in code)
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
   use_gradient_checkpointing: true
 
 # -- H7: Noise target --

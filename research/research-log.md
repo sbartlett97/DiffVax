@@ -276,3 +276,34 @@ Hardening shipped anyway:
 2. TGR (H4) rewrite with register_full_backward_hook + measured baseline.
 3. Closed-model (nano-banana/DALL-E-class) protection is only claimable via
    CLIP-H proxy transfer — needs empirical eval, cannot be proven from code.
+
+---
+
+## 2026-07-05 — Inner Loop Cycle 5: H4 TGR Rewrite + Metrics Audit + Confidence Assessment
+
+### H4 TGR re-enabled with correct hook semantics
+
+Rewrote TGR in both attacks using `register_full_backward_pre_hook`, whose
+return value replaces grad_output (the old `register_backward_hook` return
+replaced grad_input, corrupting gradients — the reason C4 force-disabled it).
+Normalization is now scale-preserving: each token gradient is rescaled to the
+mean token norm, removing token-to-token variance without changing global
+magnitude (relevant under Adam). Hooks are persistent (registered lazily at
+first attack call) so they fire during the actual training backward — and,
+verified empirically, through non-reentrant checkpoint recomputation.
+Tests A6a-c: equalization, checkpoint interaction, and a corruption
+regression (finite nonzero grads with TGR active through the real attack).
+
+### Metrics audit
+
+skimage SSIM/PSNR, reference FSIM (phase congruency + Scharr GM), and
+OpenCLIP score (normalized cosine ×100) — all standard and correct.
+
+### Confidence assessment written to findings.md
+
+Three tiers: (1) proven by tests — gradient integrity at all gtf, loss
+signs, end-to-end learning, Phase 7 viability, TGR; (2) needs GPU — actual
+protection rates and ablations; (3) unprovable from code — closed-model
+(nano-banana/DALL-E 3) transfer, only claimable via black-box evals.
+
+Suite: 35 tests, 34 pass + 1 CUDA-only skip.

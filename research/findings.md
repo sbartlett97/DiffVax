@@ -172,3 +172,78 @@ attack surrogates.
 - **Basis**: Mist (2305.12683) target image selection insight
 - **Change**: Replace zero (black) target in loss1 with high-frequency noise pattern
 - **Prediction**: Improved disruption effect at minimal implementation cost; especially effective for DiT models with semantic priors that gracefully handle black outputs
+
+---
+
+## Verification Status & Confidence Assessment (2026-07-05, cycles 3-4)
+
+The question this loop answers: *can the proposed training method learn a
+model that protects images from editing by hybrid diffusion/transformer
+models (FLUX, SD3.5, nano-banana-class editors)?*
+
+### Tier 1 — Proven by automated tests (CPU, real code paths)
+
+1. **Gradient path integrity.** Nonzero, finite gradient reaches the
+   perturbation from loss1 through the REAL `SD3Attack`/`FluxAttack` loops
+   (VAE encode → patchify/pack → flow-matching noise mix → denoising →
+   decode) at every `gradient_timestep_fraction` ∈ {0.25, 0.5, 1.0} and at
+   partial strengths. Two prior generations of this code silently violated
+   this (C1: loss-side severed; C8: input-side severed — loss1 gradient was
+   exactly zero in the flagship configs, and training would have collapsed
+   the perturbation to zero via loss2).
+2. **Loss sign conventions.** All active terms verified: loss1 (push edit
+   output to target), loss2 (perturbation magnitude), CLIP feature/semantic,
+   spectral low-frequency penalty, H8 latent disruption (was INVERTED —
+   rewarding identical latents — until C7), attention entropy (negated
+   correctly).
+3. **End-to-end learning.** The real `train_immunization_all_images_batch`
+   (dataset→UNet++→clamp→attack→losses→GradScaler→Adam→checkpoints) reduces
+   its loss and updates weights on CPU with a stub surrogate; a tiny
+   NestedUNet also reduces loss1 through the real SD3 attack loop at
+   gtf=0.5.
+4. **Phase 7 viability.** Attention-hook captures stay graph-connected under
+   non-reentrant gradient checkpointing (hypothesis that checkpointing killed
+   the loss was tested and DISPROVEN); detached captures from no_grad-skipped
+   steps are now filtered out with a loud warning if nothing survives.
+5. **H4 TGR.** Rewritten with `register_full_backward_pre_hook` (grad_output
+   semantics — the old `register_backward_hook` version corrupted gradients
+   and was force-disabled). Scale-preserving per-token norm equalization,
+   verified to fire through checkpointing, and to keep attack gradients
+   finite and nonzero.
+6. **Degenerate strength.** At strength=1.0 the flow-matching init mix
+   carries mathematically zero image signal — protection-irrelevant batches;
+   training draws from [0.5, 1.0) are safe (t_start ≥ 1).
+
+### Tier 2 — Requires GPU runs (cannot be proven from code)
+
+- Actual protection rates against real FLUX.2 Klein / SD3.5 weights
+  (research_v3.yml, then train_1088_v3.yml). All prior "pending training
+  validation" claims still pending; the difference is that the training
+  signal is now verified to exist, so a run measures the method rather
+  than the bugs.
+- Whether TGR/spectral/latent/attention terms each improve protection
+  (ablations); whether gtf=0.5 matches gtf=1.0 quality at half VRAM.
+- JPEG/resize robustness in practice (EoT path is differentiable and
+  fail-loud, but robustness magnitude is empirical).
+
+### Tier 3 — Unprovable from this repo (external/closed models)
+
+- **nano-banana (Gemini image editing), DALL-E 3, Midjourney**: no
+  gradient access exists or will exist. Protection claims can only rest on
+  (a) surrogate transfer from the FLUX/SD3.5 ensemble, and (b) the CLIP-H
+  proxy argument (shared semantic interface). Both are empirical transfer
+  claims requiring black-box evaluation against the actual services, and
+  transfer to closed models is historically much weaker than white-box
+  results. Any protection-rate claim for these models without such an eval
+  would be unsupported.
+
+### Overall
+
+The training METHOD is now verified sound: every loss term carries correctly
+signed, nonzero gradient to the perturbation network through the real DiT
+attack paths, and the loop demonstrably learns. Confidence that it "can
+accurately learn a protective model" against white-box surrogates (FLUX.2,
+SD3.5, SD1.5) is high pending one GPU validation run. Confidence for
+closed-model transfer (nano-banana et al.) is necessarily lower and capped
+until black-box evals are run — this is a property of the threat model, not
+of the code.
