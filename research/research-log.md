@@ -140,3 +140,72 @@ negligible VRAM relative to attack surrogates (<150 MB fp32).
 All 7 hypotheses implemented.  No training validation yet.  Next priority:
 run `research_v3.yml` for 5k iterations to validate loss convergence and
 check VRAM at 1024px with partial-timestep gradient.
+
+---
+
+## 2026-07-05 — Inner Loop Cycle 3: Training-Signal Audit (C7, C8) + Real-Code Gradient Tests
+
+### C7 (critical): H8 latent loss sign was inverted
+
+`diffvax_immunization.py` computed `loss_latent = (1 - cos_sim(lat_orig, lat_adv))`
+and ADDED it to the minimized total loss. Minimizing `1 - cos_sim` maximizes
+similarity — i.e. it rewarded keeping the adversarial latents IDENTICAL to the
+clean latents, the exact opposite of the H8 disruption objective, and actively
+pushed the perturbation toward zero. Both flagship configs
+(`research_v3.yml`, `train_1088_v3.yml`) shipped with `latent_loss.enabled: true`,
+so every planned training run carried this anti-protective term at weight 1.0.
+
+Fix: extracted `src/diffvax/losses/latent_loss.py::latent_disruption_loss`,
+which returns the cosine SIMILARITY (minimize → push apart, bounded [-1, 1]).
+Regression tests in `tests/test_attack_gradient_flow.py` (A3).
+
+### C8 (critical): C1-era partial-timestep truncation still severed the chain
+
+The C1 fix kept the LAST `n_grad_steps` under `enable_grad` and ran earlier
+steps wholly under `no_grad`. But the latent chain
+`vae.encode → step_0 → … → step_N → vae.decode` is the ONLY gradient route back
+to `img_adv` (transformer frozen, prompts detached): the first whole-step
+`no_grad` detaches `noisy_latents`, and every later step operates on a tensor
+with `requires_grad=False`. Result: for ANY `gradient_timestep_fraction < 1.0`
+with a multi-step schedule, loss1's gradient was silently zero. Because loss2
+(perturbation magnitude) still had gradient, training would not crash — it
+would converge to a null perturbation. Both flagship configs use `gtf=0.5`.
+
+Fix (straight-through latent path) in `sd3_attack.py` and `flux_attack.py`:
+skipped steps run only the TRANSFORMER under `no_grad` (detached noise_pred —
+this is where the activation VRAM lives), while `scheduler.step` always
+executes with grad enabled so the additive Euler integration path stays
+connected end to end. This also restores the literature-grounded intent
+(Distraction CVPR 2024): the FIRST `n_grad_steps` (early, high-sigma) now get
+transformer Jacobians, not the last.
+
+### New test harness: real attack classes, not stubs
+
+`tests/test_attack_gradient_flow.py` drives the REAL `SD3Attack.attack` and
+`FluxAttack.attack` with lightweight fake diffusers pipelines (fake 16-ch VAE,
+fake MM-DiT/DiT, FlowMatch-style scheduler):
+- A1/A2: nonzero finite gradient reaches `img_adv` at gtf ∈ {0.25, 0.5, 1.0}
+  through both attacks (fails on the pre-fix code).
+- A3: latent-loss sign regression (identical → 1.0, anti-aligned → −1.0).
+- A4: mini learning test — a tiny NestedUNet trained through the real
+  SD3Attack loop at gtf=0.5 measurably reduces loss1 in 30 steps. First
+  end-to-end evidence on CPU that the training method produces a usable
+  learning signal with partial-timestep gradient enabled.
+
+### New property discovered (documented in test)
+
+At `strength=1.0` with a flow-matching schedule, `t_start=0` and `sigma_0=1.0`,
+so the init mix `(1-sigma)*latents + sigma*noise` contains ZERO image
+contribution: the generation is unconditional and the image gradient is
+mathematically zero. `strength_range` upper bound 1.0 is safe only because
+`int(n*strength) < n` for strength just below 1.0 (t_start ≥ 1). Eval and
+training should treat strength≈1.0 batches as protection-irrelevant.
+
+### Status
+
+29 tests pass on CPU torch. Remaining known gaps for full confidence:
+1. `DiffVaxImmunization.train_immunization_all_images_batch` is CUDA-hard-coded;
+   a device-agnostic refactor would allow the FULL training loop (dataset,
+   EoT, LossComposer, scaler, curriculum) to run as a CPU smoke test.
+2. No quantitative training validation yet (needs GPU).
+3. TGR (H4) remains disabled pending register_full_backward_hook rewrite.

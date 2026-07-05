@@ -250,14 +250,20 @@ class SD3Attack(BaseAttack):
 
         guidance_scale = 7.0
 
-        # H2: partial-timestep gradient — backprop through the LAST n_grad_steps.
-        # The chain rule requires continuity from the loss backward to img_adv:
-        #   loss → vae.decode → final latents → last denoise step → … → first step → vae.encode
-        # Only steps reachable from the loss (i.e. final steps) can carry gradients.
-        # Running early steps under no_grad saves VRAM without severing the chain.
+        # H2: partial-timestep gradient — straight-through latent path.
+        # The latent chain latents_0 → latents_1 → … → latents_N is the ONLY
+        # gradient route from the loss back to img_adv (transformer weights and
+        # prompt embeddings are frozen/detached). Running any whole step under
+        # no_grad detaches noisy_latents and silently zeroes loss1's gradient.
+        # Instead, for skipped steps the TRANSFORMER runs under no_grad (its
+        # Jacobian is not backpropagated — this is where the VRAM lives), while
+        # scheduler.step always executes with grad enabled so the additive
+        # integration path stays connected end to end.
+        # The first n_grad_steps (early, high-sigma) get transformer gradients,
+        # per "Distraction Is All You Need" (CVPR 2024): early steps set global
+        # structure and carry the most protection-relevant signal.
         n_steps = len(timesteps)
         n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
-        first_grad_step = n_steps - n_grad_steps
 
         # H4: TGR hooks are disabled — register_backward_hook is deprecated and its
         # return value replaces grad_input (not grad_output), corrupting gradients.
@@ -275,35 +281,38 @@ class SD3Attack(BaseAttack):
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
         for step_idx, t in enumerate(timesteps):
-            # Backprop only through the final n_grad_steps (closest to the loss).
-            # Early steps run under no_grad to save activation memory.
-            use_grad = step_idx >= first_grad_step
-            grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
+            # Transformer Jacobian only for the first n_grad_steps; the
+            # scheduler integration below always runs with grad enabled so the
+            # latent chain from vae.encode to vae.decode is never severed.
+            use_grad = step_idx < n_grad_steps
 
-            with grad_ctx:
-                # CFG: duplicate latents for uncond + cond
-                latent_input = torch.cat([noisy_latents] * 2, dim=0)
-                timestep = t.expand(latent_input.shape[0])
+            # CFG: duplicate latents for uncond + cond
+            latent_input = torch.cat([noisy_latents] * 2, dim=0)
+            timestep = t.expand(latent_input.shape[0])
 
-                if use_grad:
-                    # Gradient checkpointing: discard transformer intermediate
-                    # activations during forward and recompute them during backward.
-                    # Reduces activation VRAM from ~6 GB/step to ~200 MB/step for
-                    # the 24-block MM-DiT at 512px batch=4 with CFG doubling.
-                    def _transformer_fwd(hs, ts, enc_hs, pooled):
-                        return transformer(
-                            hidden_states=hs,
-                            timestep=ts,
-                            encoder_hidden_states=enc_hs,
-                            pooled_projections=pooled,
-                            return_dict=False,
-                        )[0]
-                    noise_pred = grad_checkpoint(
-                        _transformer_fwd,
-                        latent_input, timestep, prompt_embeds_cfg, pooled_embeds_cfg,
-                        use_reentrant=False,
-                    )
-                else:
+            if use_grad:
+                # Gradient checkpointing: discard transformer intermediate
+                # activations during forward and recompute them during backward.
+                # Reduces activation VRAM from ~6 GB/step to ~200 MB/step for
+                # the 24-block MM-DiT at 512px batch=4 with CFG doubling.
+                def _transformer_fwd(hs, ts, enc_hs, pooled):
+                    return transformer(
+                        hidden_states=hs,
+                        timestep=ts,
+                        encoder_hidden_states=enc_hs,
+                        pooled_projections=pooled,
+                        return_dict=False,
+                    )[0]
+                noise_pred = grad_checkpoint(
+                    _transformer_fwd,
+                    latent_input, timestep, prompt_embeds_cfg, pooled_embeds_cfg,
+                    use_reentrant=False,
+                )
+            else:
+                # Skipped step: transformer output is detached (no activation
+                # memory, no Jacobian), but the scheduler step below still
+                # propagates gradient through the latent path.
+                with torch.no_grad():
                     noise_pred = transformer(
                         hidden_states=latent_input,
                         timestep=timestep,
@@ -312,14 +321,14 @@ class SD3Attack(BaseAttack):
                         return_dict=False,
                     )[0]
 
-                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2, dim=0)
-                noise_pred = noise_pred_uncond + guidance_scale * (
-                    noise_pred_text - noise_pred_uncond
-                )
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2, dim=0)
+            noise_pred = noise_pred_uncond + guidance_scale * (
+                noise_pred_text - noise_pred_uncond
+            )
 
-                noisy_latents = scheduler.step(
-                    noise_pred, t, noisy_latents, return_dict=False
-                )[0]
+            noisy_latents = scheduler.step(
+                noise_pred, t, noisy_latents, return_dict=False
+            )[0]
 
         # TGR hooks were not registered (disabled); nothing to remove.
 

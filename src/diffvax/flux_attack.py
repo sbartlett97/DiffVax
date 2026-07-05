@@ -233,7 +233,7 @@ class FluxAttack(BaseAttack):
         unpatchify → VAE decode → output image.
         """
         device = self.pipe.device
-        if device.type == "cpu":
+        if device.type == "cpu" and torch.cuda.is_available():
             raise RuntimeError(
                 "FluxAttack pipeline is on CPU. Call to_device('cuda') before calling attack()."
             )
@@ -289,10 +289,14 @@ class FluxAttack(BaseAttack):
         sigma = scheduler.sigmas[t_start].to(dtype)
         noisy_latents = (1.0 - sigma) * packed + sigma * noise
 
-        # H2: backprop through the LAST n_grad_steps (chain-rule reachable from loss).
+        # H2: partial-timestep gradient — straight-through latent path.
+        # The latent chain is the ONLY gradient route back to img_adv (the
+        # transformer is frozen, prompts detached). Skipped steps therefore run
+        # only the TRANSFORMER under no_grad; scheduler.step always executes
+        # with grad enabled so the additive integration path stays connected.
+        # The first n_grad_steps (early, high-sigma) get transformer gradients.
         n_steps = len(timesteps)
         n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
-        first_grad_step = n_steps - n_grad_steps
 
         # H4: TGR hooks disabled — register_backward_hook return value replaces
         # grad_input, not grad_output, corrupting gradients silently.
@@ -308,33 +312,37 @@ class FluxAttack(BaseAttack):
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
         for step_idx, t in enumerate(timesteps):
-            use_grad = step_idx >= first_grad_step
-            grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
+            # Transformer Jacobian only for the first n_grad_steps; the
+            # scheduler integration below always runs with grad enabled so the
+            # latent chain from vae.encode to vae.decode is never severed.
+            use_grad = step_idx < n_grad_steps
+            timestep = t.expand(batch_size).to(dtype)
 
-            with grad_ctx:
-                timestep = t.expand(batch_size).to(dtype)
-
-                if use_grad:
-                    # Gradient checkpointing: recompute transformer activations
-                    # during backward instead of retaining them, saving several GB
-                    # for the single_transformer_blocks stack in FLUX.
-                    def _transformer_fwd(hs, ts, enc_hs, t_ids, i_ids):
-                        return transformer(
-                            hidden_states=hs,
-                            timestep=ts,
-                            guidance=None,
-                            encoder_hidden_states=enc_hs,
-                            txt_ids=t_ids,
-                            img_ids=i_ids,
-                            return_dict=False,
-                        )[0]
-                    noise_pred = grad_checkpoint(
-                        _transformer_fwd,
-                        noisy_latents, timestep / 1000, prompt_embeds,
-                        text_ids, latent_ids,
-                        use_reentrant=False,
-                    )
-                else:
+            if use_grad:
+                # Gradient checkpointing: recompute transformer activations
+                # during backward instead of retaining them, saving several GB
+                # for the single_transformer_blocks stack in FLUX.
+                def _transformer_fwd(hs, ts, enc_hs, t_ids, i_ids):
+                    return transformer(
+                        hidden_states=hs,
+                        timestep=ts,
+                        guidance=None,
+                        encoder_hidden_states=enc_hs,
+                        txt_ids=t_ids,
+                        img_ids=i_ids,
+                        return_dict=False,
+                    )[0]
+                noise_pred = grad_checkpoint(
+                    _transformer_fwd,
+                    noisy_latents, timestep / 1000, prompt_embeds,
+                    text_ids, latent_ids,
+                    use_reentrant=False,
+                )
+            else:
+                # Skipped step: transformer output is detached (no activation
+                # memory, no Jacobian), but the scheduler step below still
+                # propagates gradient through the latent path.
+                with torch.no_grad():
                     noise_pred = transformer(
                         hidden_states=noisy_latents,
                         timestep=timestep / 1000,
@@ -345,9 +353,9 @@ class FluxAttack(BaseAttack):
                         return_dict=False,
                     )[0]
 
-                noisy_latents = scheduler.step(
-                    noise_pred, t, noisy_latents, return_dict=False
-                )[0]
+            noisy_latents = scheduler.step(
+                noise_pred, t, noisy_latents, return_dict=False
+            )[0]
 
         # TGR hooks were not registered (disabled); nothing to remove.
 

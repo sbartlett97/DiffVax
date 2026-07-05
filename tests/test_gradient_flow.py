@@ -54,7 +54,12 @@ def _run_denoising_loop_patched(
     strength: float,
     n_inference_steps: int = 4,
 ) -> torch.Tensor:
-    """Patched loop: backprop through the LAST n_grad_steps (connected to loss).
+    """Patched loop: straight-through latent path with partial transformer grad.
+
+    For skipped steps only the TRANSFORMER call runs under no_grad (detached
+    noise_pred); the Euler integration step always executes with grad enabled,
+    so the latent chain stays connected end to end. The first n_grad_steps
+    (early, high-sigma) get transformer gradients.
 
     The stub VAE is the identity / scale-by-0.5 encode, scale-by-2 decode.
     No transformer weights (frozen) — the chain runs through the LATENT PATH:
@@ -76,7 +81,53 @@ def _run_denoising_loop_patched(
     sigma0 = float(sigmas[t_start]) if t_start < len(sigmas) else 0.01
     noisy_latents = (1.0 - sigma0) * latents + sigma0 * noise
 
-    # PATCHED: keep gradients on LAST n_grad_steps
+    # PATCHED: transformer grad on the FIRST n_grad_steps; scheduler step
+    # always differentiable (straight-through latent path).
+    n_steps = len(timesteps)
+    n_grad_steps = max(1, int(n_steps * gtf))
+
+    for step_idx, t in enumerate(timesteps):
+        use_grad = step_idx < n_grad_steps
+        sigma_t = float(sigmas[t]) if t < len(sigmas) else 0.01
+        # Stub "transformer": just scale by a constant (no trainable weights,
+        # but the input carries requires_grad so output inherits it)
+        if use_grad:
+            noise_pred = noisy_latents * 0.1
+        else:
+            with torch.no_grad():
+                noise_pred = noisy_latents * 0.1
+        # Integration step OUTSIDE any no_grad context — keeps the chain.
+        noisy_latents = _euler_step(noisy_latents, noise_pred, sigma_t)
+
+    # VAE decode: output = noisy_latents * 2
+    output = noisy_latents * 2.0
+    return output
+
+
+def _run_denoising_loop_whole_step_no_grad(
+    img_adv: torch.Tensor,
+    gtf: float,
+    strength: float,
+    n_inference_steps: int = 4,
+) -> torch.Tensor:
+    """C1-era loop: keeps the LAST n_grad_steps, but runs each skipped step
+    WHOLLY under no_grad — including the integration step. The first skipped
+    step detaches noisy_latents, and since the transformer is frozen the later
+    "grad" steps operate on a tensor with requires_grad=False, so the output
+    silently carries no gradient for any gtf < 1.0 with multiple steps.
+    """
+    latents = img_adv * 0.5
+    sigmas = torch.linspace(0.99, 0.01, n_inference_steps + 1)
+    all_timesteps = list(range(n_inference_steps - 1, -1, -1))
+
+    init_timestep = min(int(n_inference_steps * strength), n_inference_steps)
+    t_start = max(n_inference_steps - init_timestep, 0)
+    timesteps = all_timesteps[t_start:]
+
+    noise = torch.randn_like(latents).detach()
+    sigma0 = float(sigmas[t_start]) if t_start < len(sigmas) else 0.01
+    noisy_latents = (1.0 - sigma0) * latents + sigma0 * noise
+
     n_steps = len(timesteps)
     n_grad_steps = max(1, int(n_steps * gtf))
     first_grad_step = n_steps - n_grad_steps
@@ -86,12 +137,9 @@ def _run_denoising_loop_patched(
         ctx = torch.enable_grad() if use_grad else torch.no_grad()
         sigma_t = float(sigmas[t]) if t < len(sigmas) else 0.01
         with ctx:
-            # Stub "transformer": just scale by a constant (no trainable weights,
-            # but the input carries requires_grad so output inherits it)
             noise_pred = noisy_latents * 0.1
             noisy_latents = _euler_step(noisy_latents, noise_pred, sigma_t)
 
-    # VAE decode: output = noisy_latents * 2
     output = noisy_latents * 2.0
     return output
 
@@ -223,6 +271,47 @@ def test_t1_patched_loop_fixes_chain_when_no_truncation():
 
     (grad,) = torch.autograd.grad(loss1, img_adv)
     assert grad is not None and grad.abs().sum() > 0, "Zero gradient with patched loop, gtf=1.0"
+
+
+@pytest.mark.parametrize("gtf", [0.25, 0.5])
+def test_t1_truncated_multi_step_keeps_chain(gtf):
+    """T1 (straight-through): gtf < 1.0 with multiple steps must keep gradient.
+
+    Regression for the C1-era fix, which ran skipped steps wholly under
+    no_grad: with any truncation the first skipped step detached the latents
+    and loss1's gradient silently became zero (loss2 still had gradient, so
+    training would collapse the perturbation to zero instead of crashing).
+    """
+    torch.manual_seed(3)
+    img_adv = torch.randn(1, 3, 8, 8, requires_grad=True)
+    fixed_target = torch.full_like(img_adv.detach(), -1.0)
+
+    img_out = _run_denoising_loop_patched(img_adv, gtf=gtf, strength=1.0, n_inference_steps=4)
+    loss1 = (img_out - fixed_target).abs().mean()
+
+    assert loss1.requires_grad, f"Chain severed at gtf={gtf} with 4 steps"
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert grad is not None and torch.isfinite(grad).all()
+    assert grad.abs().sum() > 0, f"Zero gradient at gtf={gtf} — chain severed"
+
+
+def test_t1_whole_step_no_grad_severs_chain():
+    """T1 (documentation): running whole skipped steps under no_grad severs
+    the chain for gtf < 1.0 — this is why the straight-through pattern exists.
+    """
+    torch.manual_seed(4)
+    img_adv = torch.randn(1, 3, 8, 8, requires_grad=True)
+    fixed_target = torch.full_like(img_adv.detach(), -1.0)
+
+    img_out = _run_denoising_loop_whole_step_no_grad(
+        img_adv, gtf=0.5, strength=1.0, n_inference_steps=4
+    )
+    loss1 = (img_out - fixed_target).abs().mean()
+
+    assert not loss1.requires_grad, (
+        "Expected whole-step no_grad loop to sever the chain. If this fails, "
+        "the stub no longer models the C1-era behaviour."
+    )
 
 
 # ---------------------------------------------------------------------------

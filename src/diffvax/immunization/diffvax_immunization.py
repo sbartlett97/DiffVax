@@ -528,6 +528,9 @@ class DiffVaxImmunization:
                 # Compute in latent space using the active attack model's VAE.
                 # VAE encode-only is ~10x cheaper than a full denoising pass —
                 # this can run on every batch regardless of which surrogate is active.
+                # The term is the cosine SIMILARITY between clean and adversarial
+                # latents: minimizing it pushes the latents apart. (An earlier
+                # version added 1 - cos_sim, which rewarded identical latents.)
                 loss_latent = torch.tensor(0.0, device="cuda")
                 latent_loss_weight = float(
                     self._config.get("latent_loss", {}).get("weight", 1.0)
@@ -535,21 +538,10 @@ class DiffVaxImmunization:
                 if self._config.get("latent_loss", {}).get("enabled", False):
                     _vae = attack_model.get_vae()
                     if _vae is not None:
-                        _dtype = next(_vae.parameters()).dtype
-                        _orig_in = img_batch.to(dtype=_dtype)
-                        _adv_in  = img_adv.to(dtype=_dtype)
-                        with torch.no_grad():
-                            _lat_orig = _vae.encode(_orig_in).latent_dist.mode().detach()
-                        _lat_adv = _vae.encode(_adv_in).latent_dist.mode()
-                        # Maximise cosine distance between adversarial and original latents.
-                        # 1 - cosine_similarity → 0 means identical, 2 means opposite.
-                        _lat_orig_flat = _lat_orig.flatten(1)
-                        _lat_adv_flat  = _lat_adv.flatten(1)
-                        loss_latent = (
-                            1.0 - F.cosine_similarity(
-                                _lat_orig_flat, _lat_adv_flat, dim=1
-                            )
-                        ).mean()
+                        from diffvax.losses.latent_loss import latent_disruption_loss
+                        loss_latent = latent_disruption_loss(
+                            _vae, img_batch, img_adv
+                        )
 
                 # ---- Phase 7: Attention disruption loss ----
                 loss_attn = torch.tensor(0.0, device="cuda")
