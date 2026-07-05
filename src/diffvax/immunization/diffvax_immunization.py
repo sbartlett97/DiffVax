@@ -26,7 +26,12 @@ from diffvax.model import NestedUNet
 from diffvax.reporter import TrainingReporter
 from diffvax.utils import set_seed_lib, load_image
 
-scaler = torch.cuda.amp.GradScaler()
+# GradScaler is a passthrough (scale/unscale_/step are no-ops around the
+# optimizer) when CUDA is unavailable, so the loop runs unchanged on CPU.
+try:
+    scaler = torch.amp.GradScaler("cuda", enabled=torch.cuda.is_available())
+except (AttributeError, TypeError):  # torch < 2.3
+    scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
 
 
 class ImmunizationDataset(torch.utils.data.Dataset):
@@ -37,12 +42,14 @@ class ImmunizationDataset(torch.utils.data.Dataset):
     between epochs, the next __getitem__ call uses the updated size.
     """
 
-    def __init__(self, entries, data_dir, images_subdir, masks_subdir, size):
+    def __init__(self, entries, data_dir, images_subdir, masks_subdir, size,
+                 dtype=torch.float16):
         self.entries = entries          # list of {"image_name", "prompt", "flux_prompt"}
         self.data_dir = data_dir
         self.images_subdir = images_subdir
         self.masks_subdir = masks_subdir
         self._current_size = size       # (H, W) tuple, updated by set_resolution()
+        self._dtype = dtype             # fp16 on GPU, fp32 for CPU debugging
 
     @property
     def size(self):
@@ -76,8 +83,8 @@ class ImmunizationDataset(torch.utils.data.Dataset):
         mask_np = np.array(image_mask.convert("L"), dtype=np.uint8)
         mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32)[None])
         return (
-            img_t.half(),
-            mask_t.half(),
+            img_t.to(self._dtype),
+            mask_t.to(self._dtype),
             entry["prompt"],
             entry["flux_prompt"],
         )
@@ -120,11 +127,14 @@ class DiffVaxImmunization:
         else:
             raise ValueError("Either attack_model or attack_manager must be provided")
 
+        # Device-agnostic: CUDA when available, CPU otherwise (tests/debugging).
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         # H6: configurable filter counts — default [32,64,128,256,512] (~1.8M params);
         # set nb_filter: [64,128,256,512,1024] in config for the larger ~7M variant.
         _nb_filter = config.get("nb_filter") or None
         unetmodel = NestedUNet(num_classes=3, nb_filter=_nb_filter)
-        self.unetmodel = unetmodel.to("cuda")
+        self.unetmodel = unetmodel.to(self.device)
         learning_rate = config["learning_rate"]
         self.optimizer = torch.optim.Adam(unetmodel.parameters(), lr=learning_rate)
 
@@ -140,7 +150,7 @@ class DiffVaxImmunization:
         for param in self.unetmodel.parameters():
             param.requires_grad = True
 
-        generator = torch.Generator(device="cuda")
+        generator = torch.Generator(device=self.device)
         self.generator = generator
 
         # ---- Phase 1: EoT augmentation ----
@@ -187,9 +197,9 @@ class DiffVaxImmunization:
 
     def immunize_img(self, img, img_mask, epsilon=32):
         """Apply immunization perturbation to image."""
-        img_f = img.float().cuda()
+        img_f = img.float().to(self.device)
         unet_out = self.unetmodel.forward(img_f)
-        unet_out = unet_out.half().cuda()
+        unet_out = unet_out.to(dtype=img.dtype)
         img_adv = torch.clamp(img + unet_out, self.clamp_min, self.clamp_max)
         return img_adv, unet_out
 
@@ -273,7 +283,8 @@ class DiffVaxImmunization:
         num_inference_steps = int(self._config.get("num_inference_steps", 4))
 
         dataset = ImmunizationDataset(
-            entries, data_dir, images_subdir, masks_subdir, size
+            entries, data_dir, images_subdir, masks_subdir, size,
+            dtype=torch.float16 if self.device.type == "cuda" else torch.float32,
         )
         dl_cfg = self._config.get("dataloader", {})
         num_workers = int(dl_cfg.get("num_workers", 4))
@@ -289,7 +300,8 @@ class DiffVaxImmunization:
             pf = int(dl_cfg.get("prefetch_factor", 4)) if num_workers > 0 else None
             return torch.utils.data.DataLoader(
                 ds, batch_size=bs, shuffle=True,
-                num_workers=num_workers, pin_memory=True,
+                num_workers=num_workers,
+                pin_memory=torch.cuda.is_available(),
                 prefetch_factor=pf,
             )
 
@@ -353,8 +365,8 @@ class DiffVaxImmunization:
                 # Pick prompt set based on active model
                 cur_prompt = flux_prompt_batch if model_name == "flux" else prompt_batch
 
-                img_batch = img_batch.cuda()
-                mask_batch = mask_batch.cuda()
+                img_batch = img_batch.to(self.device)
+                mask_batch = mask_batch.to(self.device)
 
                 mask_batch.requires_grad = False
                 # img_batch.requires_grad_() removed — no code consumes input-image
@@ -363,9 +375,9 @@ class DiffVaxImmunization:
                 ones = torch.ones_like(mask_batch)
 
                 # Perturbation: always full image (no mask gating)
-                img_f = img_batch.float().cuda()
+                img_f = img_batch.float()
                 unet_out = self.unetmodel.forward(img_f)
-                unet_out = unet_out.half().cuda()
+                unet_out = unet_out.to(dtype=img_batch.dtype)
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
@@ -480,16 +492,17 @@ class DiffVaxImmunization:
                 if self._config.get("noise_target", {}).get("enabled", False):
                     shape_key = tuple(img_out.shape)
                     if shape_key not in self._fixed_noise_target:
-                        g = torch.Generator(device="cuda").manual_seed(1234)
+                        g = torch.Generator(device=img_out.device).manual_seed(1234)
                         self._fixed_noise_target[shape_key] = (
                             torch.randint(
                                 0, 2, img_out.shape,
-                                generator=g, device="cuda", dtype=img_out.dtype,
+                                generator=g, device=img_out.device,
+                                dtype=img_out.dtype,
                             ) * 2 - 1
                         )
                     target_image_t = self._fixed_noise_target[shape_key]
                 else:
-                    target_image_t = torch.zeros_like(img_out).cuda()
+                    target_image_t = torch.zeros_like(img_out)
 
                 if attack_model.loss_uses_mask_weighting:
                     loss1_weight = mask_batch
@@ -522,7 +535,7 @@ class DiffVaxImmunization:
                     loss_clip_val = extra_breakdown.get("clip", 0.0)
                     loss_spectral_val = extra_breakdown.get("spectral", 0.0)
                 else:
-                    loss_extra = torch.tensor(0.0, device="cuda")
+                    loss_extra = torch.tensor(0.0, device=self.device)
 
                 # ---- H8: VAE latent-space disruption loss ----
                 # Compute in latent space using the active attack model's VAE.
@@ -531,7 +544,7 @@ class DiffVaxImmunization:
                 # The term is the cosine SIMILARITY between clean and adversarial
                 # latents: minimizing it pushes the latents apart. (An earlier
                 # version added 1 - cos_sim, which rewarded identical latents.)
-                loss_latent = torch.tensor(0.0, device="cuda")
+                loss_latent = torch.tensor(0.0, device=self.device)
                 latent_loss_weight = float(
                     self._config.get("latent_loss", {}).get("weight", 1.0)
                 )
@@ -544,7 +557,7 @@ class DiffVaxImmunization:
                         )
 
                 # ---- Phase 7: Attention disruption loss ----
-                loss_attn = torch.tensor(0.0, device="cuda")
+                loss_attn = torch.tensor(0.0, device=self.device)
                 if attn_active:
                     loss_attn = self._attention_loss.compute()
                 # Always remove hooks after the forward pass to avoid

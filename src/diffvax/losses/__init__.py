@@ -73,7 +73,7 @@ class LossComposer:
             (total_extra_loss, breakdown_dict) where breakdown_dict maps
             term names to their unweighted scalar values for logging.
         """
-        total = torch.tensor(0.0, device="cuda")
+        total = torch.tensor(0.0, device=img_adv.device)
         breakdown: Dict[str, float] = {}
 
         for name, (loss_fn, weight) in self._terms.items():

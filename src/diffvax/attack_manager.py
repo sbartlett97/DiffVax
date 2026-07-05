@@ -105,8 +105,10 @@ class AttackModelManager:
             if self._current_gpu_model is not None:
                 self.models[self._current_gpu_model].to_cpu()
                 torch.cuda.empty_cache()
-            # Load the newly selected model to GPU
-            self.models[selected_name].to_device("cuda")
+            # Load the newly selected model to GPU (CPU when CUDA unavailable,
+            # e.g. stub attacks in the CPU smoke test)
+            _device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.models[selected_name].to_device(_device)
             self._current_gpu_model = selected_name
 
         return selected_name, self.models[selected_name]

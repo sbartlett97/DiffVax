@@ -209,3 +209,23 @@ training should treat strength≈1.0 batches as protection-irrelevant.
    EoT, LossComposer, scaler, curriculum) to run as a CPU smoke test.
 2. No quantitative training validation yet (needs GPU).
 3. TGR (H4) remains disabled pending register_full_backward_hook rewrite.
+
+### Addendum (same session): device-agnostic training loop + full-loop CPU smoke test
+
+Made `DiffVaxImmunization` device-agnostic (`self.device` = cuda when
+available, else cpu): GradScaler becomes a passthrough on CPU, the dataset
+streams fp32 instead of fp16 on CPU, DataLoader pin_memory follows CUDA
+availability, and all hard-coded `"cuda"` literals in the loop/LossComposer/
+AttackModelManager now resolve at runtime. GPU behaviour is unchanged.
+
+New `tests/test_training_smoke.py` runs the REAL
+`train_immunization_all_images_batch` end to end on CPU (disk dataset →
+NestedUNet → clamp → stub attack → loss1/loss2 → scaler → optimizer →
+checkpoints → JSON reporter) for 8 epochs with a tiny NestedUNet and asserts:
+(S1) final checkpoint saved, (S2) epoch-average loss decreases, (S3) model
+parameters changed (no silent step-skipping). This is the first automated
+proof that the training method's own plumbing learns.
+
+Also made `diffvax.immunization` package imports lazy (PEP 562) so the
+DiffusionGuard baseline's cv2 dependency is no longer required for core
+training. Suite: 30 tests, 29 pass on CPU + 1 CUDA-only skip.
