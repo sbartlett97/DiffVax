@@ -24,10 +24,16 @@ from tqdm import tqdm
 
 from diffvax.model import NestedUNet
 from diffvax.reporter import TrainingReporter
-from diffvax.utils import set_seed_lib, load_image
+from diffvax.utils import (
+    set_seed_lib, load_image, resolve_device, resolve_dtype, empty_cache,
+    make_generator,
+)
 
 # GradScaler is a passthrough (scale/unscale_/step are no-ops around the
-# optimizer) when CUDA is unavailable, so the loop runs unchanged on CPU.
+# optimizer) whenever it's constructed with enabled=False. It is CUDA-only
+# and only needed for fp16 (loss scaling prevents fp16 underflow); bf16
+# (MPS) and fp32 (CPU) share fp32's exponent range and need no scaling, so
+# it is disabled there deliberately, not merely because CUDA is absent.
 try:
     scaler = torch.amp.GradScaler("cuda", enabled=torch.cuda.is_available())
 except (AttributeError, TypeError):  # torch < 2.3
@@ -127,8 +133,8 @@ class DiffVaxImmunization:
         else:
             raise ValueError("Either attack_model or attack_manager must be provided")
 
-        # Device-agnostic: CUDA when available, CPU otherwise (tests/debugging).
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Device-agnostic: CUDA > MPS (Apple Silicon) > CPU (tests/debugging).
+        self.device = resolve_device()
 
         # H6: configurable filter counts — default [32,64,128,256,512] (~1.8M params);
         # set nb_filter: [64,128,256,512,1024] in config for the larger ~7M variant.
@@ -150,8 +156,7 @@ class DiffVaxImmunization:
         for param in self.unetmodel.parameters():
             param.requires_grad = True
 
-        generator = torch.Generator(device=self.device)
-        self.generator = generator
+        self.generator = make_generator(self.device)
 
         # ---- Phase 1: EoT augmentation ----
         self._eot = None
@@ -231,7 +236,9 @@ class DiffVaxImmunization:
 
         # Memory-efficient SDPA backward is not implemented in all PyTorch
         # versions; disable it so the runtime prefers flash attention (which
-        # supports first-order backward) with math as a fallback.
+        # supports first-order backward) with math as a fallback. This toggle
+        # is CUDA-specific (selects among CUDA SDPA kernels); MPS uses its own
+        # Metal attention kernel and has no equivalent backend-selection knob.
         if torch.cuda.is_available():
             torch.backends.cuda.enable_mem_efficient_sdp(False)
 
@@ -284,7 +291,7 @@ class DiffVaxImmunization:
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size,
-            dtype=torch.float16 if self.device.type == "cuda" else torch.float32,
+            dtype=resolve_dtype(self.device),
         )
         dl_cfg = self._config.get("dataloader", {})
         num_workers = int(dl_cfg.get("num_workers", 4))
@@ -492,14 +499,18 @@ class DiffVaxImmunization:
                 if self._config.get("noise_target", {}).get("enabled", False):
                     shape_key = tuple(img_out.shape)
                     if shape_key not in self._fixed_noise_target:
-                        g = torch.Generator(device=img_out.device).manual_seed(1234)
+                        # torch.randint's generator= must match the output
+                        # tensor's device on CUDA; MPS generator support is
+                        # unreliable (see make_generator), so always sample
+                        # on CPU and move — cheap, one-time, cached by shape.
+                        g = torch.Generator(device="cpu").manual_seed(1234)
                         self._fixed_noise_target[shape_key] = (
                             torch.randint(
                                 0, 2, img_out.shape,
-                                generator=g, device=img_out.device,
+                                generator=g, device="cpu",
                                 dtype=img_out.dtype,
                             ) * 2 - 1
-                        )
+                        ).to(img_out.device)
                     target_image_t = self._fixed_noise_target[shape_key]
                 else:
                     target_image_t = torch.zeros_like(img_out)
@@ -595,21 +606,24 @@ class DiffVaxImmunization:
                 try:
                     scaler.scale(loss).backward()
                 except RuntimeError as _bwd_exc:
+                    # Covers both "CUDA out of memory" and "MPS backend out
+                    # of memory" — both RuntimeError messages contain this
+                    # substring.
                     _is_oom = "out of memory" in str(_bwd_exc).lower()
                     if not _is_oom:
                         raise
                     # OOM during backward: free state, skip this batch, notify.
                     self.optimizer.zero_grad(set_to_none=True)
-                    torch.cuda.empty_cache()
+                    empty_cache(self.device)
                     if self._attention_loss is not None:
                         self._attention_loss.remove_hooks()
                     _oom_msg = (
-                        f"CUDA OOM during backward pass "
+                        f"{self.device.type.upper()} OOM during backward pass "
                         f"(epoch={epoch_i}, batch={i}): {_bwd_exc}"
                     )
                     tqdm.write(f"[OOM] {_oom_msg} — skipping batch")
                     self.reporter.report_error(
-                        "cuda_oom", _oom_msg, epoch=epoch_i, batch=i
+                        f"{self.device.type}_oom", _oom_msg, epoch=epoch_i, batch=i
                     )
                     pbar.update(1)
                     continue

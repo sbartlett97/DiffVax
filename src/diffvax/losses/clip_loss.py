@@ -19,6 +19,8 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from diffvax.utils import resolve_device, resolve_dtype
+
 
 class CLIPDisruptionLoss:
     """CLIP feature disruption loss for architecture-agnostic immunization.
@@ -43,25 +45,30 @@ class CLIPDisruptionLoss:
 
         import open_clip  # pip install open-clip-torch
 
+        # CUDA > MPS > CPU; fp16 on CUDA, bf16 on MPS, fp32 on CPU (fp16 has
+        # incomplete/unreliable kernel coverage on Apple Silicon).
+        self._device = resolve_device()
+        self._dtype = resolve_dtype(self._device)
+
         model, _, _ = open_clip.create_model_and_transforms(
             model_name, pretrained=pretrained
         )
-        self.model = model.cuda().half()
+        self.model = model.to(device=self._device, dtype=self._dtype)
         self.model.requires_grad_(False)
         self.model.eval()
         self.tokenizer = open_clip.get_tokenizer(model_name)
 
         # CLIP normalization constants (ImageNet stats, shared across CLIP variants)
         self.mean = torch.tensor(
-            [0.48145466, 0.4578275, 0.40821073], device="cuda"
-        ).view(1, 3, 1, 1).half()
+            [0.48145466, 0.4578275, 0.40821073], device=self._device
+        ).view(1, 3, 1, 1).to(self._dtype)
         self.std = torch.tensor(
-            [0.26862954, 0.26130258, 0.27577711], device="cuda"
-        ).view(1, 3, 1, 1).half()
+            [0.26862954, 0.26130258, 0.27577711], device=self._device
+        ).view(1, 3, 1, 1).to(self._dtype)
 
     def _preprocess(self, x: Tensor) -> Tensor:
         """Convert [-1, 1] tensor to CLIP-normalized [0, 1] 224×224 input."""
-        x_01 = (x.half() + 1.0) / 2.0
+        x_01 = (x.to(self._dtype) + 1.0) / 2.0
         x_resized = F.interpolate(
             x_01, (224, 224), mode="bicubic", align_corners=False
         )
@@ -77,7 +84,7 @@ class CLIPDisruptionLoss:
             prompt_list = list(prompts)
         else:
             prompt_list = [prompts]
-        tokens = self.tokenizer(prompt_list).cuda()
+        tokens = self.tokenizer(prompt_list).to(self._device)
         return self.model.encode_text(tokens)
 
     def forward(

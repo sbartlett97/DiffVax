@@ -410,6 +410,37 @@ python -m pytest tests/
   automatically; SD3.5 and FLUX.2 Klein require accepting their gated
   license and an `HF_TOKEN`)
 
+### Apple Silicon (MPS)
+
+Every entry point (`app.py`, `scripts/demo.py`, `scripts/train.py`,
+`scripts/eval_multimodel.py`, `scripts/compare_baselines.py`) picks its
+device automatically — CUDA if present, otherwise MPS on Apple Silicon,
+otherwise CPU — via `diffvax.utils.resolve_device()`. No flags or code
+changes are needed to run on a Mac. A few backend-specific choices follow
+from that:
+
+- **Compute dtype** defaults to bf16 on MPS instead of the fp16 used on CUDA
+  (`resolve_dtype()`), since fp16 has historically incomplete/unreliable
+  MPS kernel coverage. bf16 shares fp32's exponent range, so `GradScaler`
+  is a deliberate no-op on MPS/CPU — it's an fp16-underflow mitigation that
+  bf16 doesn't need, not a missing feature.
+- **Seeded generation** on MPS always uses a CPU `torch.Generator`
+  (`make_generator()`) per diffusers' own guidance — `torch.Generator(device="mps")`
+  does not reproduce seeded results reliably.
+- **`bitsandbytes`/`optimum-quanto`** in `requirements.txt` are unused by any
+  code path — safe to skip installing on Mac (they're CUDA-only quantization
+  backends left over from exploratory work).
+
+What this pass has **not** been able to verify on real Apple Silicon
+hardware (this project has only ever been tested on CUDA and CPU): kornia's
+differentiable JPEG codec (`eot.py`, used when `eot.p_jpeg > 0`), `torch.fft`
+coverage for `spectral_loss.py`, and attention-backward correctness/speed for
+the SD3/FLUX transformer blocks under MPS's Metal SDPA kernel. Treat MPS
+training as "runs without crashing" rather than "performance-validated" until
+someone confirms on a real machine — see
+[research/findings.md](research/findings.md) for the equivalent CUDA-side
+verification status.
+
 ## Project Status
 
 The multi-surrogate / DiT-targeting extensions in this repository (SD3/FLUX

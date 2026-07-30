@@ -19,6 +19,9 @@ from diffvax.utils import (
     set_seed_lib,
     prepare_mask_and_masked_image,
     recover_image,
+    resolve_device,
+    resolve_dtype,
+    empty_cache,
 )
 
 PROJECT_ROOT = _script_dir
@@ -41,6 +44,9 @@ def load_models():
         return
     print("Loading models...")
     attack_model = Attack(MODEL_ID)
+    # Attack() only loads the pipeline (defaults to CPU); explicitly move it
+    # to the best available accelerator for edit_image() calls below.
+    attack_model.to_device(str(resolve_device()))
     diffvax_model = DiffVaxImmunization(
         attack_model,
         config={"learning_rate": 3.0},
@@ -90,8 +96,10 @@ def run_diffvax(editor_value, mask_upload, prompt, seed):
 
     # Prepare tensors
     mask_torch, image_torch, _ = prepare_mask_and_masked_image(image_pil, mask_pil)
-    image_torch = image_torch.half().cuda()
-    mask_torch = mask_torch.half().cuda()
+    device = resolve_device()
+    dtype = resolve_dtype(device)
+    image_torch = image_torch.to(device=device, dtype=dtype)
+    mask_torch = mask_torch.to(device=device, dtype=dtype)
 
     # Immunize
     set_seed_lib(seed)
@@ -109,7 +117,7 @@ def run_diffvax(editor_value, mask_upload, prompt, seed):
     edited_imm = diffvax_model.edit_image(prompt, imm_pil, mask_pil)[0]
     edited_imm = recover_image(edited_imm, imm_pil, mask_pil, background=False)
 
-    torch.cuda.empty_cache()
+    empty_cache()
 
     return imm_pil, edited_orig, edited_imm
 

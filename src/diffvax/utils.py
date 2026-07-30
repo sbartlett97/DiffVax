@@ -7,6 +7,7 @@ import torchvision.transforms as T
 import random
 import json
 from pathlib import Path
+from typing import Optional
 from transformers import set_seed
 from huggingface_hub import snapshot_download
 import shutil
@@ -54,11 +55,73 @@ def prepare_image_return_3d(image):
     return image
 
 
+def resolve_device() -> torch.device:
+    """Best available compute device: CUDA > MPS (Apple Silicon) > CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is not None and mps_backend.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def resolve_dtype(device: torch.device) -> torch.dtype:
+    """Preferred compute dtype for a given device.
+
+    fp16 has full kernel coverage on CUDA and is what the GradScaler path
+    expects. MPS has historically incomplete/unreliable fp16 kernel coverage
+    (attention, some reductions and FFT ops) — bf16 is the supported
+    reduced-precision type on Apple Silicon and, sharing fp32's exponent
+    range, needs no loss scaling. CPU always uses fp32.
+    """
+    if device.type == "cuda":
+        return torch.float16
+    if device.type == "mps":
+        return torch.bfloat16
+    return torch.float32
+
+
+def make_generator(
+    device: torch.device, seed: Optional[int] = None
+) -> torch.Generator:
+    """Construct a torch.Generator appropriate for the given device.
+
+    MPS is special-cased to a CPU generator: diffusers documents that
+    torch.Generator(device="mps") does not reproduce seeded results
+    consistently (a long-standing PyTorch/MPS limitation), and recommends
+    seeding on CPU even when the pipeline itself runs on MPS. CUDA and CPU
+    use their own device's generator as normal.
+    """
+    gen_device = "cpu" if device.type == "mps" else device
+    generator = torch.Generator(device=gen_device)
+    if seed is not None:
+        generator.manual_seed(seed)
+    return generator
+
+
+def empty_cache(device: Optional[torch.device] = None) -> None:
+    """Free cached allocator memory for whichever accelerator backend is active.
+
+    A no-op on CPU. Centralizes the cuda/mps split so call sites don't need
+    their own per-backend branching.
+    """
+    if device is None:
+        device = resolve_device()
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+    elif device.type == "mps" and hasattr(torch, "mps"):
+        torch.mps.empty_cache()
+
+
 def set_seed_lib(seed):
-    """Set random seed for reproducibility."""
+    """Set random seed for reproducibility across CPU, CUDA, and MPS."""
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is not None and mps_backend.is_available() and hasattr(torch, "mps"):
+        torch.mps.manual_seed(seed)
     random.seed(seed)
     set_seed(seed)
 

@@ -307,3 +307,90 @@ protection rates and ablations; (3) unprovable from code — closed-model
 (nano-banana/DALL-E 3) transfer, only claimable via black-box evals.
 
 Suite: 35 tests, 34 pass + 1 CUDA-only skip.
+
+---
+
+## 2026-07-05 — Apple Silicon (MPS) Streamlining Pass
+
+### Motivation
+
+User asked whether further streamlining was possible for running the
+multi-surrogate training pipeline on Apple Silicon MPS backends. An earlier
+audit (same session, prior turn) found ~20 hardcoded `"cuda"`/`.cuda()`/
+`.half()` call sites scattered beyond the `diffvax_immunization.py` device
+refactor already done for CPU testing (C7-C9 cycles): every attack surrogate,
+the attack manager, CLIP loss, both PGD baselines, the CLIP-score metric, and
+every user-facing script/app.
+
+### Shared resolution utilities (src/diffvax/utils.py)
+
+Added `resolve_device()` (CUDA > MPS > CPU), `resolve_dtype(device)` (fp16
+CUDA / bf16 MPS / fp32 CPU — MPS fp16 has historically incomplete/unreliable
+kernel coverage; bf16 shares fp32's exponent range so needs no loss scaling),
+`empty_cache(device=None)` (cuda/mps/no-op dispatch), and `make_generator(device, seed)`.
+
+`make_generator` encodes a documented diffusers/PyTorch limitation:
+`torch.Generator(device="mps")` does not reproduce seeded results reliably,
+so diffusers recommends a CPU generator even when the pipeline itself runs
+on MPS. This is NOT the same as the "device-matched generator" pattern used
+for direct tensor sampling (e.g. the H7 fixed-noise-target cache in
+`diffvax_immunization.py`), which still requires generator/output device
+parity — for that one call site, MPS now samples on CPU and moves the
+result rather than attempting `Generator(device="mps")` at all.
+
+### Applied everywhere
+
+- `attack.py`, `sd3_attack.py`, `flux_attack.py`: constructors accept an
+  optional `dtype` override, default `resolve_dtype(resolve_device())`, used
+  for `torch_dtype=` at `from_pretrained` time. Final `output.half()` casts
+  replaced with `output.to(dtype)` (dtype already read from the live VAE
+  params). `to_cpu()` cache-clearing and the FLUX "still on CPU" guard
+  generalized to any accelerator, not just CUDA.
+- `attack_manager.py`: `select_and_load()` now targets `resolve_device()`
+  instead of a CUDA-or-CPU ternary.
+- `losses/clip_loss.py`, `metrics/clip_score.py`: model/tensors moved via
+  `resolve_device()`/`resolve_dtype()` instead of hardcoded `.cuda().half()`;
+  `clip_score.py` previously ran entirely on CPU tensors while wrapped in a
+  CUDA-only `autocast` context (harmless on torch ≥2.x, which silently
+  disables autocast without a CUDA context, but fragile and left the model
+  off any available GPU).
+- `photoguard_immunization.py`, `diffusionguard_immunization.py`: VAE/UNet
+  dtype casts now read from the live model (`next(vae.parameters()).dtype`)
+  instead of hardcoded `.half()`; generators and cache-clearing
+  device-agnostic.
+- `diffvax_immunization.py`: `self.device` now goes through
+  `resolve_device()`; OOM-recovery path's error-type string and log message
+  generalized from "cuda_oom" (the substring match already covered "MPS
+  backend out of memory" — text-only fix, not a functional gap).
+- `app.py`, `scripts/demo.py`, `scripts/compare_baselines.py`,
+  `scripts/eval_multimodel.py`: replaced hardcoded `.half().cuda()` input-tensor
+  prep with `resolve_device()`/`resolve_dtype()`, and — a real pre-existing
+  gap independent of MPS — added an explicit `attack_model.to_device(...)`
+  call after `Attack(...)` construction. These scripts never moved the SD
+  pipeline off its `from_pretrained` default location before calling
+  `edit_image()`; the hardcoded `.cuda()` on the INPUT tensors masked this on
+  a CUDA machine only in the sense that the immunization step (perturbation
+  network only) worked, while the actual diffusion edit comparison may have
+  been running on CPU. `scripts/train.py` needed no changes — it never
+  touches device/dtype directly, all of it flows through the now-generic
+  constructors.
+
+### Verification
+
+Added `tests/test_device_resolution.py`: monkeypatches
+`torch.cuda.is_available`/`torch.backends.mps.is_available` to test the
+CUDA>MPS>CPU priority logic, dtype-per-backend mapping, and the
+`make_generator` CPU-fallback-for-MPS behavior — all without needing real
+accelerator hardware. Full suite: 46 tests, 45 pass + 1 CUDA-only skip.
+
+### Known limits (documented in README "Apple Silicon (MPS)")
+
+No physical Apple Silicon hardware is available in this environment. What's
+verified is the *selection logic* (device/dtype priority, generator
+fallback) and that nothing regressed on CPU. What remains unverified:
+kornia JPEG codec MPS kernel coverage (`eot.py`), `torch.fft` coverage for
+`spectral_loss.py`, and MPS Metal SDPA backward correctness/performance for
+the SD3/FLUX transformer blocks. This is a "runs without crashing"
+streamlining pass, not an MPS performance/correctness validation — that
+needs a real machine, same caveat structure as the GPU validation runbook
+for CUDA.

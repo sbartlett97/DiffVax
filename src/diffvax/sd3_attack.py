@@ -18,9 +18,10 @@ noise injection → MM-DiT denoising → 16-ch VAE decode → output.
 """
 
 import torch
-from typing import Union, List
+from typing import Optional, Union, List
 
 from diffvax.attack_base import BaseAttack
+from diffvax.utils import empty_cache, resolve_device, resolve_dtype
 
 
 class SD3Attack(BaseAttack):
@@ -42,11 +43,15 @@ class SD3Attack(BaseAttack):
     def __init__(self, model_link: str, strength: float = 0.75,
                  gradient_timestep_fraction: float = 1.0,
                  token_gradient_regularization: bool = False,
-                 use_gradient_checkpointing: bool = True):
+                 use_gradient_checkpointing: bool = True,
+                 dtype: Optional[torch.dtype] = None):
         from diffusers import StableDiffusion3Img2ImgPipeline
 
+        # Defaults to fp16 on CUDA, bf16 on MPS (fp16 has incomplete/unreliable
+        # kernel coverage there), fp32 on CPU. Pass dtype explicitly to override.
+        dtype = dtype or resolve_dtype(resolve_device())
         self.pipe = StableDiffusion3Img2ImgPipeline.from_pretrained(
-            model_link, torch_dtype=torch.float16
+            model_link, torch_dtype=dtype
         )
         self.model_link = model_link
         self.strength = strength
@@ -131,7 +136,7 @@ class SD3Attack(BaseAttack):
 
     def to_cpu(self) -> None:
         self.pipe.to("cpu")
-        torch.cuda.empty_cache()
+        empty_cache()
 
     @property
     def loss_uses_mask_weighting(self) -> bool:
@@ -232,7 +237,7 @@ class SD3Attack(BaseAttack):
             enc = getattr(self.pipe, enc_attr, None)
             if enc is not None:
                 enc.to("cpu")
-        torch.cuda.empty_cache()
+        empty_cache(device)
 
         # ------ 2. VAE encode with gradient flow via mode() ------
         image_input = image.to(device=device, dtype=dtype)
@@ -348,4 +353,6 @@ class SD3Attack(BaseAttack):
         latents_out = noisy_latents / vae_scaling_factor + vae_shift_factor
         output = vae.decode(latents_out.to(dtype), return_dict=False)[0]
 
-        return output.half()
+        # Match whichever compute dtype the pipeline was loaded in (fp16 on
+        # CUDA, bf16 on MPS, fp32 on CPU) rather than hardcoding fp16.
+        return output.to(dtype)

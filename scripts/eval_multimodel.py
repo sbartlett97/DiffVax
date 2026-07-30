@@ -43,6 +43,10 @@ from diffvax.utils import (
     set_seed_lib,
     recover_image,
     prepare_mask_and_masked_image,
+    resolve_device,
+    resolve_dtype,
+    empty_cache,
+    make_generator,
 )
 from diffvax.metrics import MetricType, create_metric
 
@@ -239,7 +243,7 @@ def load_eval_entries(
 
 def load_perturbation_net(checkpoint_path: str) -> NestedUNet:
     """Load the NestedUNet perturbation network from a checkpoint."""
-    net = NestedUNet(num_classes=3).to("cuda").eval()
+    net = NestedUNet(num_classes=3).to(resolve_device()).eval()
     net.load_state_dict(torch.load(checkpoint_path, weights_only=True))
     for param in net.parameters():
         param.requires_grad = False
@@ -257,14 +261,16 @@ def immunize_image(
 
     Returns the immunized PIL image at the original resolution.
     """
+    device = resolve_device()
+    dtype = resolve_dtype(device)
     mask_torch, _, image_torch = prepare_mask_and_masked_image(image_pil, mask_pil)
-    image_torch = image_torch.half().cuda()
-    mask_torch = mask_torch.half().cuda()
+    image_torch = image_torch.to(device=device, dtype=dtype)
+    mask_torch = mask_torch.to(device=device, dtype=dtype)
 
     with torch.no_grad():
         img_f = image_torch.float()
         # Full-image perturbation, matching train semantics (no mask gating here).
-        unet_out = perturbation_net(img_f).half()
+        unet_out = perturbation_net(img_f).to(dtype)
 
     img_adv = torch.clamp(image_torch + unet_out, -1, 1)
     # Convert [-1, 1] tensor to PIL
@@ -280,8 +286,9 @@ def immunize_image(
 
 
 def create_pipeline(config: ModelConfig):
-    """Create and load a diffusion pipeline to GPU based on config."""
-    dtype = torch.float16
+    """Create and load a diffusion pipeline to the best available device."""
+    device = resolve_device()
+    dtype = resolve_dtype(device)
 
     if config.pipeline_type == PipelineType.SD_INPAINTING:
         from diffusers import StableDiffusionInpaintPipeline
@@ -316,15 +323,15 @@ def create_pipeline(config: ModelConfig):
     else:
         raise ValueError(f"Unknown pipeline type: {config.pipeline_type}")
 
-    pipe = pipe.to("cuda")
+    pipe = pipe.to(device)
     return pipe
 
 
 def unload_pipeline(pipe):
-    """Move pipeline off GPU and free memory."""
+    """Move pipeline off the accelerator and free memory."""
     pipe.to("cpu")
     del pipe
-    torch.cuda.empty_cache()
+    empty_cache()
     gc.collect()
 
 
@@ -352,7 +359,7 @@ def run_model(
         img_native = image
         mask_native = mask
 
-    generator = torch.Generator(device="cuda").manual_seed(seed)
+    generator = make_generator(pipe.device, seed)
 
     # Build kwargs, omitting None values so pipeline defaults are used
     kwargs = {"prompt": prompt, "image": img_native, "generator": generator}
@@ -779,7 +786,7 @@ def main():
                 f"({time.time() - t1:.1f}s)"
             )
 
-            torch.cuda.empty_cache()
+            empty_cache()
 
         # Save per-model images
         save_per_model_images(entries, immunized_images, model_cfg.name, edited_pairs, args.output_dir)

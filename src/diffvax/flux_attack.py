@@ -5,9 +5,10 @@ Requires diffusers with FLUX.2 Klein support. Install from source if needed:
 """
 
 import torch
-from typing import Union, List
+from typing import Optional, Union, List
 
 from diffvax.attack_base import BaseAttack
+from diffvax.utils import empty_cache, resolve_device, resolve_dtype
 
 
 def _compute_empirical_mu(image_seq_len: int, num_steps: int) -> float:
@@ -35,13 +36,15 @@ class FluxAttack(BaseAttack):
     back to pixel space.
 
     All model parameters are frozen — only the image path carries gradients.
-    Output is converted to float16 for consistent loss computation with GradScaler.
+    Output matches the pipeline's compute dtype (fp16 on CUDA, bf16 on MPS,
+    fp32 on CPU) for consistent loss computation with GradScaler.
     """
 
     def __init__(self, model_link: str, strength: float = 0.75,
                  gradient_timestep_fraction: float = 1.0,
                  token_gradient_regularization: bool = False,
-                 use_gradient_checkpointing: bool = True):
+                 use_gradient_checkpointing: bool = True,
+                 dtype: Optional[torch.dtype] = None):
         # Lazy import — only fail when someone actually uses FLUX
         try:
             from diffusers import Flux2KleinPipeline as PipeClass
@@ -54,8 +57,11 @@ class FluxAttack(BaseAttack):
                     "Install from source: pip install git+https://github.com/huggingface/diffusers.git"
                 )
 
+        # Defaults to fp16 on CUDA, bf16 on MPS (fp16 has incomplete/unreliable
+        # kernel coverage there), fp32 on CPU. Pass dtype explicitly to override.
+        dtype = dtype or resolve_dtype(resolve_device())
         self.pipe = PipeClass.from_pretrained(
-            model_link, torch_dtype=torch.float16
+            model_link, torch_dtype=dtype
         )
 
         self.model_link = model_link
@@ -93,7 +99,7 @@ class FluxAttack(BaseAttack):
 
     def to_cpu(self):
         self.pipe.to("cpu")
-        torch.cuda.empty_cache()
+        empty_cache()
 
     @property
     def loss_uses_mask_weighting(self) -> bool:
@@ -247,9 +253,12 @@ class FluxAttack(BaseAttack):
         unpatchify → VAE decode → output image.
         """
         device = self.pipe.device
-        if device.type == "cpu" and torch.cuda.is_available():
+        _best_device = resolve_device()
+        if device.type == "cpu" and _best_device.type != "cpu":
             raise RuntimeError(
-                "FluxAttack pipeline is on CPU. Call to_device('cuda') before calling attack()."
+                "FluxAttack pipeline is on CPU but an accelerator "
+                f"({_best_device.type}) is available. Call "
+                f"to_device({_best_device.type!r}) before calling attack()."
             )
         vae = self.pipe.vae
         dtype = next(vae.parameters()).dtype
@@ -264,7 +273,7 @@ class FluxAttack(BaseAttack):
         # so the Qwen3 encoder doesn't need to be in VRAM during backprop.
         if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
             self.pipe.text_encoder.to("cpu")
-        torch.cuda.empty_cache()
+        empty_cache(device)
 
         # ----- 2. VAE encode image (gradient maintained via mode()) -----
         image_input = image.to(device=device, dtype=dtype)
@@ -388,5 +397,6 @@ class FluxAttack(BaseAttack):
         # ----- 13. VAE decode -----
         output = vae.decode(latents_out.to(dtype), return_dict=False)[0]
 
-        # Convert to float16 for consistent loss computation with GradScaler
-        return output.half()
+        # Match whichever compute dtype the pipeline was loaded in (fp16 on
+        # CUDA, bf16 on MPS, fp32 on CPU) rather than hardcoding fp16.
+        return output.to(dtype)
