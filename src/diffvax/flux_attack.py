@@ -7,7 +7,7 @@ Requires diffusers with FLUX.2 Klein support. Install from source if needed:
 import torch
 from typing import Optional, Union, List
 
-from diffvax.attack_base import BaseAttack
+from diffvax.attack_base import BaseAttack, suppress_full_backward_hook_kwarg_warning
 from diffvax.utils import empty_cache, resolve_device, resolve_dtype
 
 
@@ -132,7 +132,14 @@ class FluxAttack(BaseAttack):
         See SD3Attack._register_tgr_hooks for the hook-semantics rationale.
         Persistent: hooks fire on every backward, including recomputed graphs
         from non-reentrant gradient checkpointing.
+
+        Real DiT blocks are called with all-keyword arguments, which triggers
+        PyTorch's benign "no inputs require gradients" full-backward-hook
+        warning on every backward — see
+        suppress_full_backward_hook_kwarg_warning() for why this is safe to
+        silence.
         """
+        suppress_full_backward_hook_kwarg_warning()
         self._remove_tgr_hooks()
         # FLUX.2 Klein uses single_transformer_blocks (MMDiT single-stream)
         blocks = (

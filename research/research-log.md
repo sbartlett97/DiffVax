@@ -454,3 +454,46 @@ sequence (repeated selection of the same surrogate) that unit tests with a
 single `attack()` call per test never exercised. Worth generalizing: any
 future per-call "convenience" reads of aggregate pipeline state should be
 checked against what the code itself mutates elsewhere in the same class.
+
+---
+
+## 2026-07-05 — TGR full-backward-hook warning explained and silenced
+
+### Investigation
+
+User reported (from a real MPS training run with `token_gradient_regularization: true`):
+```
+UserWarning: Full backward hook is firing when gradients are computed with
+respect to module outputs since no inputs require gradients.
+```
+
+Confirmed the precise mechanism empirically (not from memory/speculation):
+`register_full_backward_pre_hook`'s input-tracking cannot see a
+gradient-requiring tensor when the module is called with **all-keyword
+arguments and zero positional arguments** — it defensively concludes "no
+inputs require gradients" and warns, even though the hook still receives the
+*correct* `grad_output` and gradients still flow correctly. Verified with a
+minimal repro: identical block/hook, called positionally → no warning;
+called as `block(hidden_states=hs, encoder_hidden_states=enc)` (kwargs
+only) → warning fires every time. Further verified the hook's captured
+`grad_output` matches the analytically-expected value in the kwargs-only
+case — i.e. the warning has zero bearing on correctness.
+
+Cross-checked against the real `diffusers` source (downloaded and unpacked
+the actual wheel): `SD3Transformer2DModel.forward()` calls each block as
+`block(hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states,
+temb=temb, joint_attention_kwargs=joint_attention_kwargs)` — exactly the
+all-keyword pattern that triggers this. TGR's hooks (added this session,
+H4 rewrite) are attached to these blocks, so this fires on every backward
+whenever `token_gradient_regularization: true`.
+
+### Fix
+
+New `attack_base.suppress_full_backward_hook_kwarg_warning()` installs a
+message-scoped `warnings.filterwarnings("ignore", ...)` (not a blanket
+ignore-all), called once from both `SD3Attack._register_tgr_hooks` and
+`FluxAttack._register_tgr_hooks`. New regression test constructs a
+kwargs-only block + hook matching the real pattern and asserts the warning
+is filtered — verified non-vacuous by confirming the warning fires without
+the filter using the identical setup. Suite: 48 tests, 47 pass + 1 CUDA-only
+skip.

@@ -523,6 +523,52 @@ def test_a6_tgr_pre_hook_fires_through_checkpoint():
 
 
 @pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a6_tgr_registration_suppresses_kwarg_backward_hook_warning():
+    """Real DiT blocks are invoked with all-keyword arguments, which makes
+    PyTorch's full-backward-hook input-tracking (incorrectly) conclude no
+    inputs require grad and warn on every backward. _register_tgr_hooks must
+    install a filter for this specific message so enabling TGR doesn't spam
+    a warning on every training batch. The hook's actual gradient-output
+    correctness (unaffected by this PyTorch bookkeeping quirk) is covered by
+    test_a6_tgr_pre_hook_equalizes_token_gradients and
+    test_a6_tgr_enabled_attack_gradients_stay_finite_nonzero.
+    """
+    import warnings
+
+    class KwargOnlyBlock(nn.Module):
+        def forward(self, hidden_states, encoder_hidden_states=None):
+            return hidden_states + 0.0 * encoder_hidden_states.sum()
+
+    block = KwargOnlyBlock()
+    atk = make_sd3_attack(1.0, tgr=True)
+    atk._register_tgr_hooks(
+        types.SimpleNamespace(transformer_blocks=[block])
+    )
+    try:
+        hs = torch.randn(1, 4, 8, requires_grad=True)
+        enc = torch.randn(1, 4, 8).detach()
+        # Do NOT call simplefilter("always") here — that would reset the
+        # filter list and defeat the very suppression under test. Recording
+        # (record=True) alone preserves whatever filters are already active
+        # (including the one _register_tgr_hooks just installed) and simply
+        # diverts anything that gets through to `w`.
+        with warnings.catch_warnings(record=True) as w:
+            out = block(hidden_states=hs, encoder_hidden_states=enc)
+            out.sum().backward()
+            matched = [
+                x for x in w
+                if "Full backward hook is firing" in str(x.message)
+            ]
+        assert not matched, (
+            "Expected the kwarg-only backward-hook warning to be filtered "
+            "after _register_tgr_hooks; got: "
+            f"{[str(x.message) for x in matched]}"
+        )
+    finally:
+        atk._remove_tgr_hooks()
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
 def test_a6_tgr_enabled_attack_gradients_stay_finite_nonzero():
     """Regression for the old register_backward_hook implementation, which
     corrupted gradients (replaced grad_input): with TGR enabled the real

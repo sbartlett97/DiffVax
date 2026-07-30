@@ -20,7 +20,7 @@ noise injection → MM-DiT denoising → 16-ch VAE decode → output.
 import torch
 from typing import Optional, Union, List
 
-from diffvax.attack_base import BaseAttack
+from diffvax.attack_base import BaseAttack, suppress_full_backward_hook_kwarg_warning
 from diffvax.utils import empty_cache, resolve_device, resolve_dtype
 
 
@@ -95,7 +95,15 @@ class SD3Attack(BaseAttack):
         Hooks are persistent: they fire on every backward, including the
         recomputed forward graphs produced by non-reentrant gradient
         checkpointing (verified by tests/test_attack_gradient_flow.py).
+
+        Real MM-DiT blocks are called with all-keyword arguments
+        (``block(hidden_states=..., encoder_hidden_states=..., temb=...)``),
+        which triggers PyTorch's benign "no inputs require gradients"
+        full-backward-hook warning on every backward — see
+        suppress_full_backward_hook_kwarg_warning() for why this is safe
+        to silence.
         """
+        suppress_full_backward_hook_kwarg_warning()
         self._remove_tgr_hooks()
         blocks = getattr(transformer, "transformer_blocks", None) or []
         for block in blocks:
