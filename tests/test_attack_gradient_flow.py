@@ -336,6 +336,58 @@ def test_a3_latent_loss_gradient_flows_to_adv_only():
 
 
 # ---------------------------------------------------------------------------
+# A7: device resolution must ignore pipe.device (text-encoder-offload drift)
+# ---------------------------------------------------------------------------
+#
+# diffusers' DiffusionPipeline.device property returns whichever component
+# it finds first in the pipeline's constructor signature — in practice this
+# is often a text encoder. Both SD3Attack and FluxAttack move their text
+# encoder(s) to CPU at the end of every attack() call (to save RAM) and never
+# move them back, so pipe.device silently starts reporting "cpu" from the
+# second attack() call onward even though vae/transformer stay on the real
+# accelerator. Regression: attack() must derive its working device from
+# vae's own parameters, never from self.pipe.device. Simulated here with
+# torch.device("meta") as an unmistakable wrong-device sentinel — if attack()
+# ever reads self.pipe.device again, real tensors get an operand on "meta"
+# and the call raises or misbehaves instead of quietly succeeding.
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a7_sd3_attack_ignores_stale_pipe_device():
+    torch.manual_seed(10)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(0.5)
+    atk.pipe.device = torch.device("meta")  # simulate post-offload drift
+
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    assert out.device.type == "cpu"
+    loss1 = out.float().abs().mean()
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert grad.abs().sum() > 0
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a7_flux_attack_ignores_stale_pipe_device():
+    torch.manual_seed(11)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_flux_attack(0.5)
+    atk.pipe.device = torch.device("meta")  # simulate post-offload drift
+
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    assert out.device.type == "cpu"
+    loss1 = out.float().abs().mean()
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert grad.abs().sum() > 0
+
+
+# ---------------------------------------------------------------------------
 # A5: Phase 7 attention loss carries gradient through the checkpointed attack
 # ---------------------------------------------------------------------------
 

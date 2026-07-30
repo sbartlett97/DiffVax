@@ -394,3 +394,63 @@ the SD3/FLUX transformer blocks. This is a "runs without crashing"
 streamlining pass, not an MPS performance/correctness validation — that
 needs a real machine, same caveat structure as the GPU validation runbook
 for CUDA.
+
+---
+
+## 2026-07-05 — C10 (critical): stale pipe.device after text-encoder offload
+
+### Bug report (real MPS training run)
+
+User hit a live crash after the MPS streamlining pass:
+```
+RuntimeError: slow_conv2d_forward_mps: input(device='cpu') and weight(device='mps:0')
+must be on the same device
+```
+at `vae.encode(image_input)` in `SD3Attack.attack()`.
+
+### Root cause
+
+`SD3Attack.attack()` and `FluxAttack.attack()` both captured
+`device = self.pipe.device` at the top of the call, then later in the SAME
+call moved the text encoder(s) to CPU permanently (`enc.to("cpu")`) to save
+RAM during the VAE/transformer-heavy backward pass — nothing ever moves them
+back. `diffusers.DiffusionPipeline.device` (verified against the actual
+diffusers source) returns the device of whichever component appears first
+in the pipeline's constructor signature — for both pipelines that's a text
+encoder, not the VAE or transformer. Once text encoders are parked on CPU
+after the first `attack()` call, every subsequent call to the SAME
+(unswitched) surrogate reads `pipe.device == "cpu"` while `vae`/`transformer`
+are still on the real accelerator — silently, since `AttackModelManager`
+only re-runs `to_device()` when the SELECTED surrogate changes, not on every
+batch. Consecutive batches choosing the same surrogate (a normal outcome of
+`random.choices`) hit this immediately.
+
+`FluxAttack.attack()`'s own "still on CPU" guard (added this session for the
+MPS pass) had the identical bug: it checked `self.pipe.device` too, and
+would have raised its OWN false-positive RuntimeError on the same drift
+before ever reaching the conv2d crash.
+
+### Fix
+
+Both `attack()` methods now derive `device` from `next(vae.parameters()).device`
+(the same pattern already used for `dtype`), computed once `vae` is fetched
+and never touched by the text-encoder offload. `FluxAttack`'s CPU guard was
+reordered to run after this corrected device is known.
+
+### Regression tests (A7)
+
+`tests/test_attack_gradient_flow.py`: sets `atk.pipe.device = torch.device("meta")`
+after construction (an unmistakable wrong-device sentinel — meta tensors
+carry no storage, so any code path that still reads `pipe.device` errors
+immediately instead of quietly misbehaving) and asserts `attack()` still
+succeeds and produces a correctly gradient-carrying output for both
+SD3Attack and FluxAttack. Suite: 47 tests, 46 pass + 1 CUDA-only skip.
+
+### Lesson
+
+This is the same bug *shape* as C1/C7/C8/C4 this session: a plausible-looking
+API call (`pipe.device`) that is quietly wrong under a specific stateful
+sequence (repeated selection of the same surrogate) that unit tests with a
+single `attack()` call per test never exercised. Worth generalizing: any
+future per-call "convenience" reads of aggregate pipeline state should be
+checked against what the code itself mutates elsewhere in the same class.

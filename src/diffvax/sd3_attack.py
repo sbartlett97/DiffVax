@@ -196,11 +196,17 @@ class SD3Attack(BaseAttack):
         Returns:
             Generated image tensor (B, 3, H, W) in float16.
         """
-        device = self.pipe.device
         vae = self.pipe.vae
         transformer = self.pipe.transformer
         scheduler = self.pipe.scheduler
         dtype = next(vae.parameters()).dtype
+        # NOT self.pipe.device: DiffusionPipeline.device returns whichever
+        # component diffusers finds first in the pipeline's signature (often
+        # a text encoder). Since text encoders are deliberately moved to CPU
+        # below and never moved back, pipe.device silently reports "cpu" on
+        # every call after the first, while vae/transformer stay on the
+        # accelerator — vae's own device is the only thing safe to trust.
+        device = next(vae.parameters()).device
 
         # ------ 1. Text encoding (detached — no gradient through text path) ------
         if isinstance(prompt, (tuple, list)):

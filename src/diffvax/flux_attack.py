@@ -252,7 +252,18 @@ class FluxAttack(BaseAttack):
         pack → noise mixing → denoising loop → unpack → BN denormalize →
         unpatchify → VAE decode → output image.
         """
-        device = self.pipe.device
+        vae = self.pipe.vae
+        dtype = next(vae.parameters()).dtype
+        transformer = self.pipe.transformer
+        scheduler = self.pipe.scheduler
+        # NOT self.pipe.device: DiffusionPipeline.device returns whichever
+        # component diffusers finds first in the pipeline's signature (often
+        # a text encoder). Since text_encoder is deliberately moved to CPU
+        # below and never moved back, pipe.device silently reports "cpu" on
+        # every call after the first, while vae/transformer stay on the
+        # accelerator — vae's own device is the only thing safe to trust.
+        device = next(vae.parameters()).device
+
         _best_device = resolve_device()
         if device.type == "cpu" and _best_device.type != "cpu":
             raise RuntimeError(
@@ -260,10 +271,6 @@ class FluxAttack(BaseAttack):
                 f"({_best_device.type}) is available. Call "
                 f"to_device({_best_device.type!r}) before calling attack()."
             )
-        vae = self.pipe.vae
-        dtype = next(vae.parameters()).dtype
-        transformer = self.pipe.transformer
-        scheduler = self.pipe.scheduler
 
         # ----- 1. Text encoding (detached) -----
         with torch.no_grad():
