@@ -247,11 +247,17 @@ class SD3Attack(BaseAttack):
 
         # Offload text encoders to CPU — gradient flows only through VAE + transformer,
         # so T5-XXL + CLIP-G/L (~10-12 GB) don't need to be in VRAM during backprop.
-        for enc_attr in ["text_encoder", "text_encoder_2", "text_encoder_3"]:
-            enc = getattr(self.pipe, enc_attr, None)
-            if enc is not None:
-                enc.to("cpu")
-        empty_cache(device)
+        # CUDA-only: on unified-memory backends (MPS) this doesn't free any
+        # memory (there's no separate VRAM pool to relieve) and repeatedly
+        # shuttling HF's lazily/meta-loaded modules between devices has been
+        # observed to leave them with unmaterialized ("placeholder") storage
+        # on the next call — a real crash, not just a missed optimization.
+        if device.type == "cuda":
+            for enc_attr in ["text_encoder", "text_encoder_2", "text_encoder_3"]:
+                enc = getattr(self.pipe, enc_attr, None)
+                if enc is not None:
+                    enc.to("cpu")
+            empty_cache(device)
 
         # ------ 2. VAE encode with gradient flow via mode() ------
         image_input = image.to(device=device, dtype=dtype)

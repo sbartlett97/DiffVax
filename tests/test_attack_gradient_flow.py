@@ -151,6 +151,11 @@ class FakeSD3Pipe:
         self.vae = FakeVAE()
         self.transformer = FakeSD3Transformer()
         self.scheduler = FakeFlowScheduler()
+        # Real nn.Modules (not just attributes) so a stray .to("cpu") call
+        # is actually observable via .parameters().
+        self.text_encoder = nn.Linear(4, 4)
+        self.text_encoder_2 = nn.Linear(4, 4)
+        self.text_encoder_3 = nn.Linear(4, 4)
 
     def encode_prompt(self, prompt, prompt_2=None, prompt_3=None, device=None,
                       num_images_per_prompt=1, do_classifier_free_guidance=True,
@@ -167,6 +172,9 @@ class FakeFluxPipe:
         self.vae = FakeVAE()
         self.transformer = FakeFluxTransformer()
         self.scheduler = FakeFlowScheduler()
+        # Real nn.Module (not just an attribute) so a stray .to("cpu") call
+        # is actually observable via .parameters().
+        self.text_encoder = nn.Linear(4, 4)
 
     def encode_prompt(self, prompt, device=None):
         bs = len(prompt)
@@ -333,6 +341,79 @@ def test_a3_latent_loss_gradient_flows_to_adv_only():
 
     assert img_adv.grad is not None and img_adv.grad.abs().sum() > 0
     assert img_orig.grad is None, "No gradient may flow through the clean branch"
+
+
+# ---------------------------------------------------------------------------
+# A8: text-encoder CPU offload must be CUDA-only (not MPS/CPU)
+# ---------------------------------------------------------------------------
+#
+# On unified-memory backends (MPS), moving a submodule to "cpu" frees no
+# memory (there's no separate VRAM pool) and has been observed in practice to
+# leave HF's lazily/meta-loaded modules with unmaterialized ("placeholder")
+# storage on the next call — a real crash
+# ("RuntimeError: Placeholder storage has not been allocated on MPS device!").
+# attack() must never call .to("cpu") on the text encoder(s) except when the
+# resolved device is literally "cuda". These tests run with device.type ==
+# "cpu" (no accelerator in this sandbox), so the offload branch must be
+# skipped entirely — verified with a call-spy since a real .to("cpu") on an
+# already-CPU module is otherwise unobservable by final device alone.
+
+class _ToCallSpy:
+    """Wraps nn.Module.to to record every device it was asked to move to,
+    without changing behavior — needed because calling .to("cpu") on a
+    module that's already on CPU is a silent no-op we couldn't otherwise
+    detect just by checking the module's device afterward."""
+
+    def __init__(self, module: nn.Module):
+        self.calls = []
+        self._orig_to = module.to
+
+        def spy_to(*args, **kwargs):
+            self.calls.append((args, kwargs))
+            return self._orig_to(*args, **kwargs)
+
+        module.to = spy_to
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a8_sd3_attack_does_not_offload_text_encoders_off_cuda():
+    torch.manual_seed(12)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(1.0)
+    spies = [
+        _ToCallSpy(atk.pipe.text_encoder),
+        _ToCallSpy(atk.pipe.text_encoder_2),
+        _ToCallSpy(atk.pipe.text_encoder_3),
+    ]
+
+    atk.attack(
+        prompt=["edit"], image=img_adv, height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+
+    for spy in spies:
+        assert not any("cpu" in str(a) + str(kw) for a, kw in spy.calls), (
+            f"Text encoder was moved to cpu off-CUDA: {spy.calls}"
+        )
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a8_flux_attack_does_not_offload_text_encoder_off_cuda():
+    torch.manual_seed(13)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_flux_attack(1.0)
+    spy = _ToCallSpy(atk.pipe.text_encoder)
+
+    atk.attack(
+        prompt=["edit"], image=img_adv, height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+
+    assert not any("cpu" in str(a) + str(kw) for a, kw in spy.calls), (
+        f"Text encoder was moved to cpu off-CUDA: {spy.calls}"
+    )
 
 
 # ---------------------------------------------------------------------------

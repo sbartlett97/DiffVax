@@ -497,3 +497,57 @@ kwargs-only block + hook matching the real pattern and asserts the warning
 is filtered — verified non-vacuous by confirming the warning fires without
 the filter using the identical setup. Suite: 48 tests, 47 pass + 1 CUDA-only
 skip.
+
+---
+
+## 2026-07-05 — C11 (critical): text-encoder CPU offload made CUDA-only per user directive
+
+### Bug report (real MPS training run, third crash in this sequence)
+
+```
+RuntimeError: Placeholder storage has not been allocated on MPS device!
+```
+in `self.pipe.encode_prompt(...)` → CLIP text encoder's token embedding
+lookup, on a LATER call to `SD3Attack.attack()` after at least one prior
+call had already run.
+
+### Root cause
+
+Both `SD3Attack.attack()` and `FluxAttack.attack()` move their text
+encoder(s) to CPU at the end of every call (`enc.to("cpu")`) to save VRAM
+during the VAE/transformer-heavy backward pass, and never move them back —
+relying on `AttackModelManager.select_and_load()`'s whole-pipeline
+`to_device()` to restore them only when the SELECTED SURROGATE CHANGES
+(consistent with the C10 fix earlier this session). HuggingFace pipelines
+loaded with the modern default (`low_cpu_mem_usage=True`) instantiate
+parameters lazily via a meta-device placeholder, materialized in place when
+first dispatched to a real device. Manually yanking an individual submodule
+back and forth between an accelerator and CPU via raw `.to(device)` calls —
+bypassing `accelerate`'s dispatch/hook machinery — was observed in practice
+to leave the text encoder's parameters as unmaterialized placeholder storage
+on a subsequent call, crashing on the very first op that reads a parameter
+(the token embedding lookup).
+
+This is architecturally moot on Apple Silicon regardless of the crash: MPS
+and CPU share the same physical (unified) memory, so moving a submodule to
+"cpu" frees no memory the way it does on CUDA's separate VRAM pool — the
+offload was providing zero benefit on MPS while being an active liability.
+User's explicit directive: "New plan for MPS - DO NOT OFFLOAD ANYTHING TO
+CPU."
+
+### Fix
+
+Both text-encoder-offload blocks are now gated behind `device.type == "cuda"`
+(`device` already correctly resolved from `vae.parameters()` per the C10
+fix). CUDA behavior is unchanged; MPS and CPU never touch the text
+encoder(s) after the initial whole-pipeline placement.
+
+### Regression tests (A8)
+
+`tests/test_attack_gradient_flow.py`: `FakeSD3Pipe`/`FakeFluxPipe` gained
+real `nn.Linear` text-encoder stand-ins; a `_ToCallSpy` wraps their `.to`
+method (necessary because calling `.to("cpu")` on an already-CPU module is a
+silent no-op — final-device inspection alone can't detect whether the call
+happened) and asserts no "cpu" move occurs when `attack()` runs off-CUDA.
+Verified non-vacuous by confirming the spy does catch an unconditional
+`.to("cpu")` call. Suite: 50 tests, 49 pass + 1 CUDA-only skip.

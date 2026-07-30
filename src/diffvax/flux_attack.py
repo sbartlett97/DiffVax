@@ -285,9 +285,15 @@ class FluxAttack(BaseAttack):
 
         # Offload text encoder to CPU — gradient flows only through VAE + transformer,
         # so the Qwen3 encoder doesn't need to be in VRAM during backprop.
-        if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
-            self.pipe.text_encoder.to("cpu")
-        empty_cache(device)
+        # CUDA-only: on unified-memory backends (MPS) this doesn't free any
+        # memory (there's no separate VRAM pool to relieve) and repeatedly
+        # shuttling HF's lazily/meta-loaded modules between devices has been
+        # observed to leave them with unmaterialized ("placeholder") storage
+        # on the next call — a real crash, not just a missed optimization.
+        if device.type == "cuda":
+            if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
+                self.pipe.text_encoder.to("cpu")
+            empty_cache(device)
 
         # ----- 2. VAE encode image (gradient maintained via mode()) -----
         image_input = image.to(device=device, dtype=dtype)
