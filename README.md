@@ -116,6 +116,7 @@ DiffVax/
 │   ├── flux_attack.py                  # FLUX.2 Klein surrogate (16-ch VAE, single-stream DiT)
 │   ├── attack_manager.py               # Multi-surrogate selection + adaptive ensemble weighting
 │   ├── curriculum.py                   # Multi-resolution training curriculum (512→768→1024→1088)
+│   ├── distributed.py                  # Multi-GPU DDP helpers (one surrogate per rank)
 │   ├── eot.py                          # Differentiable EoT augmentation (JPEG/resize/blur/noise)
 │   ├── reporter.py                     # JSON training log + webhook notifications
 │   ├── losses/
@@ -144,7 +145,9 @@ DiffVax/
 ├── tests/
 │   ├── test_gradient_flow.py           # Gradient-flow/loss-signal unit tests (stub denoising loop)
 │   ├── test_attack_gradient_flow.py    # Same properties through the REAL SD3/FLUX attack code
-│   └── test_training_smoke.py          # Full training-loop smoke test on CPU
+│   ├── test_training_smoke.py          # Full training-loop smoke test on CPU
+│   ├── test_device_resolution.py       # CUDA>MPS>CPU device/dtype selection
+│   └── test_distributed.py             # 2-rank gloo DDP tests (gradient sync, collectives)
 │
 ├── notebooks/
 │   ├── diffvax_demo.ipynb              # Interactive demo notebook
@@ -300,6 +303,54 @@ batch, and offloads each surrogate's text encoder(s) to CPU during the
 backward pass, so peak VRAM is bounded by whichever single surrogate is
 currently active, not the sum of all configured surrogates.
 
+### Multi-GPU training (DDP, one surrogate per GPU)
+
+Launch under `torchrun` — no config changes needed, and the single-process
+invocation above is completely unaffected:
+
+```bash
+# 3 GPUs: one surrogate pinned per card
+torchrun --nproc_per_node=3 scripts/train.py --config configs/full_v2.yml
+```
+
+Each rank pins **one** frozen surrogate for the whole run (assigned
+round-robin by rank) and holds its own replica of the NestedUNet under DDP.
+Only the ~9M-parameter NestedUNet's gradients are all-reduced — about 36 MB
+per step, which is comfortable over plain PCIe and needs no NVLink. The
+perturbation network therefore learns from the **whole ensemble every step**,
+rather than from one randomly-sampled surrogate per batch as in the
+single-process path.
+
+The one hard requirement is that the **largest single surrogate fits on one
+card** (~13–16 GB for SD3.5 at 1088px with `gradient_timestep_fraction: 0.5`),
+so 24 GB cards are the sweet spot. This is why a multi-card box of smaller
+GPUs can be substantially cheaper than one large-memory card.
+
+Notes:
+
+- **Rank→surrogate mapping is logged at startup.** With more ranks than
+  surrogates, several ranks share a surrogate type (plain data parallelism
+  within it). With fewer ranks than surrogates, the surplus surrogates are
+  **unused** and a warning is printed — launch at least as many ranks as you
+  have surrogates to train against all of them.
+- **`adaptive_ensemble` and the per-surrogate probabilities are ignored**
+  under DDP: the effective mixture is set by how many ranks are assigned to
+  each surrogate, not by sampling.
+- **Stragglers gate each step.** DDP syncs every step, so the slowest
+  surrogate (SD3.5) sets the pace and a rank running SD 1.5 will idle. If
+  that bothers you, give faster ranks more work via uneven per-stage batch
+  sizes.
+- **Sharding a single surrogate across cards** (tensor/pipeline parallelism)
+  is deliberately *not* implemented. FSDP/ZeRO shard optimizer state and
+  parameters of the model being trained — here that model is ~9M params, so
+  they buy nothing; the memory goes to a *frozen* surrogate and its
+  activations. Splitting the transformer itself would put the gradient path
+  across device boundaries, which is the one thing in this codebase that has
+  repeatedly broken silently. See `src/diffvax/distributed.py` for the full
+  rationale.
+- Rank 0 alone writes checkpoints, Hub uploads, and the JSON training log;
+  other ranks write a rank-suffixed log and no webhook.
+
 ## Configuration
 
 Every config in `configs/` is a full standalone training run; see the header
@@ -405,6 +456,11 @@ python -m pytest tests/
   three surrogates recommends 40 GB for SD3.5's peak. Budget ~64 GB system
   RAM — offloaded text encoders (SD3.5's T5-XXL, FLUX's Qwen3) and inactive
   surrogates live in host memory between batches.
+- Multi-GPU is supported via DDP with one surrogate pinned per card (see
+  [Multi-GPU training](#multi-gpu-training-ddp-one-surrogate-per-gpu)). A box
+  of several 24 GB cards is generally cheaper than one large-memory card and
+  needs no NVLink, since only ~36 MB is all-reduced per step. The distributed
+  wiring is tested on gloo/CPU only — no multi-GPU hardware was available.
 - ~5 GB disk space for the Stable Diffusion Inpainting model, more for
   SD3.5/FLUX.2 Klein weights if those surrogates are enabled (downloaded
   automatically; SD3.5 and FLUX.2 Klein require accepting their gated

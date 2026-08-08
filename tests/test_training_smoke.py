@@ -67,12 +67,12 @@ class StubAttack(BaseAttack):
         return 512
 
 
-def _write_dataset(root):
+def _write_dataset(root, n=2):
     os.makedirs(os.path.join(root, "images"), exist_ok=True)
     os.makedirs(os.path.join(root, "masks"), exist_ok=True)
     rng = np.random.default_rng(0)
     entries = []
-    for i in range(2):
+    for i in range(n):
         name = f"img{i}"
         arr = rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8)
         Image.fromarray(arr, "RGB").save(os.path.join(root, "images", f"{name}.png"))

@@ -551,3 +551,90 @@ silent no-op — final-device inspection alone can't detect whether the call
 happened) and asserts no "cpu" move occurs when `attack()` runs off-CUDA.
 Verified non-vacuous by confirming the spy does catch an unconditional
 `.to("cpu")` call. Suite: 50 tests, 49 pass + 1 CUDA-only skip.
+
+---
+
+## 2026-07-05 — Multi-GPU: ensemble sharding via DDP (one surrogate per rank)
+
+### Question
+
+User asked whether the pipeline could be distributed across multiple GPUs
+with pipeline/tensor parallelism, motivated by cost: renting one
+large-memory card is expensive relative to a box of smaller cards.
+
+### Analysis — why the standard answers don't apply
+
+Checked the actual diffusers 0.39 source rather than assuming:
+- `SD3Transformer2DModel` has **neither** `_tp_plan` nor `_cp_plan` — diffusers'
+  built-in parallelism does nothing for SD3.5.
+- FLUX2 has a `_cp_plan`, but that is *context* parallelism (shards the
+  sequence to cut activations); every rank still holds full weights, so it
+  does not enable smaller cards for a model whose weights don't fit.
+- `_modeling_parallel.py`'s own error strings say "context parallel
+  **inference**" — nothing there is validated for backward.
+
+FSDP / DeepSpeed-ZeRO are also the wrong tool: they shard optimizer state,
+gradients and parameters of the model being *trained*. Here the trained model
+is the ~9M-param NestedUNet with trivial optimizer state; the memory is spent
+on a **frozen** surrogate's weights plus activations retained for a backward
+pass that only produces a gradient w.r.t. its *input*. ZeRO has no lever on
+either. This is an unusual enough shape that the reflexive answer is wrong.
+
+### Implemented: shard the ensemble, not the model
+
+`src/diffvax/distributed.py` + DDP integration. Each rank pins ONE frozen
+surrogate for the whole run (round-robin by rank) and holds a replica of the
+NestedUNet under DDP. Only the NestedUNet's gradients are all-reduced (~36 MB
+fp32/step) — fine over plain PCIe, no NVLink needed. Requirement reduces to:
+the *largest single surrogate* must fit on *one* card.
+
+Bonus: this is a research improvement, not just a cost dodge. The
+single-process path samples ONE surrogate per batch (high-variance gradient);
+under DDP the perturbation net receives the true ensemble gradient every step.
+
+### Collective-safety — the real hazard
+
+DDP synchronises every step, so any per-rank early exit deadlocks the job.
+Three paths needed fixing:
+1. **OOM skip**: `continue` on one rank left peers blocked forever in the
+   gradient all-reduce. Now `any_rank_true()` agrees the skip globally first.
+2. **NaN abort**: `return` on one rank, same hazard. Also collective now.
+3. **Epoch loss / best-model**: ranks comparing *local* losses would disagree
+   about whether to checkpoint. Now `all_reduce_mean()`d so the branch is
+   entered in lockstep; only rank 0 writes.
+
+Also: `DistributedSampler(drop_last=True)` so every rank runs an identical
+number of batches (an uneven count is the same deadlock), `set_epoch()` per
+epoch, seed offset by rank for augmentation diversity (does not perturb the
+sampler, which carries its own seed, nor the H7 fixed target), and
+`self.unetmodel(...)` instead of `.forward()` — the latter bypasses DDP's
+sync hooks entirely.
+
+`scripts/train.py` now builds surrogates lazily so each rank constructs ONLY
+its own; previously it built all enabled surrogates, which under DDP would
+have instantiated the full ensemble on every card and OOM'd immediately.
+
+### Tests
+
+`tests/test_distributed.py` — 6 tests, gloo/CPU, no GPU required:
+- helpers degrade to safe identities single-process;
+- `init_distributed()` declines rather than hanging without rendezvous env;
+- real 2-rank collectives: `all_reduce_mean` averages across ranks, and a
+  flag raised on rank 1 alone is observed by rank 0 (the property the
+  OOM/NaN paths depend on);
+- **load-bearing**: 2 ranks run the REAL training loop and must end with
+  bit-identical weights. Verified non-vacuous — swapping
+  `self.unetmodel(...)` back to `self._unet_module(...)` (bypassing DDP)
+  makes it fail exactly as intended, then restored.
+- rank 0 alone writes checkpoints.
+
+Suite: 57 tests, 56 pass + 1 CUDA-only skip.
+
+### Not verified
+
+gloo/CPU only — no multi-GPU hardware available. NCCL behaviour, real
+per-card memory, and straggler cost (the slowest surrogate gates every step,
+so an SD 1.5 rank will idle waiting for SD3.5) are all unmeasured.
+Deliberately not implemented: tensor/pipeline parallelism *inside* a
+surrogate — that puts the gradient path across device boundaries, the exact
+failure mode that produced C1/C7/C8/C10 this session.

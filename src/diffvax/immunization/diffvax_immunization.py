@@ -24,6 +24,10 @@ from tqdm import tqdm
 
 from diffvax.model import NestedUNet
 from diffvax.reporter import TrainingReporter
+from diffvax.distributed import (
+    all_reduce_mean, any_rank_true, get_local_rank, get_rank, get_world_size,
+    is_distributed, is_main_process,
+)
 from diffvax.utils import (
     set_seed_lib, load_image, resolve_device, resolve_dtype, empty_cache,
     make_generator,
@@ -133,28 +137,70 @@ class DiffVaxImmunization:
         else:
             raise ValueError("Either attack_model or attack_manager must be provided")
 
+        # ---- Distributed (multi-GPU) topology ----
+        # Each rank owns ONE frozen surrogate for the whole run and a replica
+        # of the NestedUNet under DDP; only the ~9M-param NestedUNet gradients
+        # are all-reduced. See src/diffvax/distributed.py for the rationale.
+        self.rank = get_rank()
+        self.world_size = get_world_size()
+        self.is_distributed = is_distributed()
+
         # Device-agnostic: CUDA > MPS (Apple Silicon) > CPU (tests/debugging).
+        # Under distributed CUDA each rank must bind to its OWN GPU, otherwise
+        # every rank would pile onto cuda:0.
         self.device = resolve_device()
+        if self.is_distributed and self.device.type == "cuda":
+            self.device = torch.device(f"cuda:{get_local_rank()}")
+            torch.cuda.set_device(self.device)
+
+        # Non-main ranks must not contend for the same log file or fire
+        # duplicate webhooks; give them a rank-suffixed log and no webhook.
+        if not is_main_process():
+            self.reporter.webhook_url = None
+            _base, _ext = os.path.splitext(self.reporter.log_path)
+            self.reporter.log_path = f"{_base}_rank{self.rank}{_ext}"
 
         # H6: configurable filter counts — default [32,64,128,256,512] (~1.8M params);
         # set nb_filter: [64,128,256,512,1024] in config for the larger ~7M variant.
         _nb_filter = config.get("nb_filter") or None
         unetmodel = NestedUNet(num_classes=3, nb_filter=_nb_filter)
-        self.unetmodel = unetmodel.to(self.device)
-        learning_rate = config["learning_rate"]
-        self.optimizer = torch.optim.Adam(unetmodel.parameters(), lr=learning_rate)
+        unetmodel = unetmodel.to(self.device)
 
         self.load_existing = load_existing
         self.existing_iter_num = existing_iter_num
 
+        # Load weights BEFORE wrapping in DDP: the checkpoint has no "module."
+        # prefix, and DDP broadcasts rank 0's parameters at construction so
+        # every rank starts from identical weights either way.
         if self.load_existing:
             if not load_path:
                 raise ValueError("load_existing=True but no load_path was provided")
-            self.unetmodel.load_state_dict(torch.load(load_path, weights_only=True))
-        self.model = self.unetmodel
+            unetmodel.load_state_dict(torch.load(load_path, weights_only=True))
 
-        for param in self.unetmodel.parameters():
+        for param in unetmodel.parameters():
             param.requires_grad = True
+
+        # _unet_module is always the raw NestedUNet — used for state_dict()
+        # (no "module." prefix), push_to_hub(), and flat-minima gradient
+        # surgery. self.unetmodel is what the training loop CALLS, so it must
+        # be the DDP wrapper when distributed or the gradient hooks never fire.
+        self._unet_module = unetmodel
+        if self.is_distributed:
+            from torch.nn.parallel import DistributedDataParallel
+
+            self.unetmodel = DistributedDataParallel(
+                unetmodel,
+                device_ids=[self.device.index] if self.device.type == "cuda" else None,
+                output_device=self.device.index if self.device.type == "cuda" else None,
+            )
+        else:
+            self.unetmodel = unetmodel
+
+        learning_rate = config["learning_rate"]
+        self.optimizer = torch.optim.Adam(
+            self._unet_module.parameters(), lr=learning_rate
+        )
+        self.model = self._unet_module
 
         self.generator = make_generator(self.device)
 
@@ -203,7 +249,9 @@ class DiffVaxImmunization:
     def immunize_img(self, img, img_mask, epsilon=32):
         """Apply immunization perturbation to image."""
         img_f = img.float().to(self.device)
-        unet_out = self.unetmodel.forward(img_f)
+        # Raw module, not the DDP wrapper: this is an inference helper, and
+        # DDP's forward would try to synchronise gradients that nobody wants.
+        unet_out = self._unet_module(img_f)
         unet_out = unet_out.to(dtype=img.dtype)
         img_adv = torch.clamp(img + unet_out, self.clamp_min, self.clamp_max)
         return img_adv, unet_out
@@ -232,7 +280,12 @@ class DiffVaxImmunization:
             sd_target_resolutions = [512]
         if strength_range is None:
             strength_range = [0.5, 1.0]
-        set_seed_lib(SEED)
+        # Offset the seed per rank so EoT augmentation, denoising strength, and
+        # mask-variant draws differ across ranks — identical streams would make
+        # the ensemble gradient less diverse for no benefit. This does NOT
+        # perturb data partitioning (DistributedSampler carries its own seed)
+        # nor the H7 fixed noise target (seeded from its own generator).
+        set_seed_lib(SEED + self.rank)
 
         # Memory-efficient SDPA backward is not implemented in all PyTorch
         # versions; disable it so the runtime prefers flash attention (which
@@ -296,6 +349,10 @@ class DiffVaxImmunization:
         dl_cfg = self._config.get("dataloader", {})
         num_workers = int(dl_cfg.get("num_workers", 4))
 
+        # Holds the active DistributedSampler so the epoch loop can call
+        # set_epoch() on it (without which every epoch reuses one shuffle).
+        self._sampler = None
+
         def _make_dataloader(ds, bs):
             """Create a fresh DataLoader with the given dataset and batch size.
 
@@ -303,13 +360,32 @@ class DiffVaxImmunization:
             1. Worker subprocesses are forked after set_resolution() and pick up
                the new _current_size (stale workers hold the old value).
             2. The new per-stage batch size is applied immediately.
+
+            Under DDP a DistributedSampler partitions the dataset so each rank
+            sees a disjoint slice, with drop_last=True so every rank runs the
+            SAME number of batches — an uneven count would leave some ranks
+            waiting forever in the gradient all-reduce for peers that already
+            finished the epoch.
             """
             pf = int(dl_cfg.get("prefetch_factor", 4)) if num_workers > 0 else None
+            sampler = None
+            if self.is_distributed:
+                sampler = torch.utils.data.distributed.DistributedSampler(
+                    ds,
+                    num_replicas=self.world_size,
+                    rank=self.rank,
+                    shuffle=True,
+                    drop_last=True,
+                )
+            self._sampler = sampler
             return torch.utils.data.DataLoader(
-                ds, batch_size=bs, shuffle=True,
+                ds, batch_size=bs,
+                shuffle=(sampler is None),
+                sampler=sampler,
                 num_workers=num_workers,
                 pin_memory=torch.cuda.is_available(),
                 prefetch_factor=pf,
+                drop_last=self.is_distributed,
             )
 
         # Initialise with the epoch-0 curriculum resolution and batch size.
@@ -348,12 +424,21 @@ class DiffVaxImmunization:
                 # Recreate DataLoader: spawns fresh workers that inherit the
                 # updated _current_size, and applies the new per-stage batch size.
                 dataloader = _make_dataloader(dataset, _curr_dl_batch)
-                tqdm.write(
-                    f"[Curriculum] Stage change → {curriculum_resolution}px "
-                    f"batch={curriculum_batch_size}"
-                )
+                if is_main_process():
+                    tqdm.write(
+                        f"[Curriculum] Stage change → {curriculum_resolution}px "
+                        f"batch={curriculum_batch_size}"
+                    )
 
-            pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+            # Reshuffle each rank's slice per epoch. Without set_epoch() the
+            # DistributedSampler yields the identical permutation every epoch.
+            if self._sampler is not None:
+                self._sampler.set_epoch(epoch_i)
+
+            pbar = tqdm(
+                enumerate(dataloader), total=len(dataloader),
+                disable=not is_main_process(),
+            )
             epoch_losses = []
             epoch_losses1 = []
             epoch_losses2 = []
@@ -383,7 +468,10 @@ class DiffVaxImmunization:
 
                 # Perturbation: always full image (no mask gating)
                 img_f = img_batch.float()
-                unet_out = self.unetmodel.forward(img_f)
+                # Call the module, not .forward(): DDP's gradient-sync hooks
+                # live in __call__, so calling .forward() directly would
+                # silently skip the all-reduce and let ranks diverge.
+                unet_out = self.unetmodel(img_f)
                 unet_out = unet_out.to(dtype=img_batch.dtype)
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
@@ -603,6 +691,7 @@ class DiffVaxImmunization:
                 per_model_losses[model_name]["loss1"].append(loss1_val)
                 per_model_losses[model_name]["loss2"].append(loss2_val)
 
+                _oom_here = False
                 try:
                     scaler.scale(loss).backward()
                 except RuntimeError as _bwd_exc:
@@ -613,18 +702,29 @@ class DiffVaxImmunization:
                     if not _is_oom:
                         raise
                     # OOM during backward: free state, skip this batch, notify.
+                    _oom_here = True
                     self.optimizer.zero_grad(set_to_none=True)
                     empty_cache(self.device)
                     if self._attention_loss is not None:
                         self._attention_loss.remove_hooks()
                     _oom_msg = (
                         f"{self.device.type.upper()} OOM during backward pass "
-                        f"(epoch={epoch_i}, batch={i}): {_bwd_exc}"
+                        f"(rank={self.rank}, epoch={epoch_i}, batch={i}): {_bwd_exc}"
                     )
                     tqdm.write(f"[OOM] {_oom_msg} — skipping batch")
                     self.reporter.report_error(
                         f"{self.device.type}_oom", _oom_msg, epoch=epoch_i, batch=i
                     )
+
+                # An OOM on ANY rank must skip the batch on EVERY rank. A rank
+                # that proceeded alone would block forever in DDP's gradient
+                # all-reduce waiting for the peer that already moved on, so the
+                # skip decision has to be agreed collectively before acting.
+                if any_rank_true(_oom_here, self.device):
+                    if not _oom_here:
+                        self.optimizer.zero_grad(set_to_none=True)
+                        if self._attention_loss is not None:
+                            self._attention_loss.remove_hooks()
                     pbar.update(1)
                     continue
 
@@ -638,13 +738,13 @@ class DiffVaxImmunization:
                 # ---- Phase 6: Flat-minima regularization (post-backward) ----
                 # Applied after unscale_ so grad_norm reads true gradient magnitudes.
                 if self._flat_minima is not None:
-                    self._flat_minima.apply(self.unetmodel, lambda_flat)
+                    self._flat_minima.apply(self._unet_module, lambda_flat)
 
                 # ---- Phase 5: Record gradient for adaptive weighting ----
                 if adaptive_enabled and self.attack_manager.adaptive:
                     grad_vecs = [
                         p.grad.detach().flatten()
-                        for p in self.unetmodel.parameters()
+                        for p in self._unet_module.parameters()
                         if p.grad is not None
                     ]
                     if grad_vecs:
@@ -652,23 +752,28 @@ class DiffVaxImmunization:
                         self.attack_manager.record_gradient(model_name, grad_vec)
 
                 # NaN/Inf check before stepping — abort and save before the
-                # poisoned update is applied to the model weights.
-                if torch.isnan(loss) or torch.isinf(loss):
+                # poisoned update is applied to the model weights. A NaN on any
+                # ONE rank must abort ALL of them: returning from a single rank
+                # would strand its peers in the next all-reduce.
+                _nan_here = bool(torch.isnan(loss) or torch.isinf(loss))
+                if any_rank_true(_nan_here, self.device):
                     if self._attention_loss is not None:
                         self._attention_loss.remove_hooks()
                     nan_path = path_of_models + f"iter_{cur_iter}_early.pth"
-                    torch.save(self.model.state_dict(), nan_path)
+                    if is_main_process():
+                        torch.save(self.model.state_dict(), nan_path)
+                    _origin = "this rank" if _nan_here else "another rank"
                     self.reporter.report_error(
                         "nan_loss",
-                        f"NaN/Inf loss detected at epoch={epoch_i} batch={i} "
-                        f"(global iter={cur_iter}). "
+                        f"NaN/Inf loss detected on {_origin} at epoch={epoch_i} "
+                        f"batch={i} (global iter={cur_iter}). "
                         f"Emergency checkpoint saved: {nan_path}",
                         epoch=epoch_i,
                         batch=i,
                     )
                     tqdm.write(
-                        f"[NaN] Loss is NaN/Inf at epoch={epoch_i} batch={i} — "
-                        f"aborting. Checkpoint: {nan_path}"
+                        f"[NaN] Loss is NaN/Inf on {_origin} at epoch={epoch_i} "
+                        f"batch={i} — aborting. Checkpoint: {nan_path}"
                     )
                     return
 
@@ -676,7 +781,7 @@ class DiffVaxImmunization:
                 scaler.update()
 
                 # S1: log scaler state periodically to surface silent step-skipping
-                if batch_iter_count % 100 == 0:
+                if batch_iter_count % 100 == 0 and is_main_process():
                     tqdm.write(
                         f"[Scaler] scale={scaler.get_scale():.0f} "
                         f"batch={batch_iter_count}"
@@ -709,40 +814,60 @@ class DiffVaxImmunization:
                 losses2 = []
 
             # ---- Per-epoch summary ----
-            epoch_avg_loss = float(np.mean(epoch_losses)) if epoch_losses else float("inf")
+            _local_epoch_loss = (
+                float(np.mean(epoch_losses)) if epoch_losses else float("inf")
+            )
+            # Average across ranks so every rank agrees on the epoch loss — and
+            # therefore agrees on whether this is a new best. Ranks comparing
+            # their own local losses would disagree about when to checkpoint.
+            epoch_avg_loss = all_reduce_mean(_local_epoch_loss, self.device)
             per_model_avg = {
                 mn: float(np.mean(per_model_losses[mn]["loss"]))
                 for mn in per_model_losses
                 if per_model_losses[mn]["loss"]
             }
-            parts = [f"Epoch {epoch_i}  avg={epoch_avg_loss:.5f}"]
-            for mn in sorted(per_model_losses):
-                m = per_model_losses[mn]
-                parts.append(
-                    f"[{mn}] loss={np.mean(m['loss']):.4f} "
-                    f"loss1={np.mean(m['loss1']):.4f} "
-                    f"loss2={np.mean(m['loss2']):.4f} "
-                    f"(n={len(m['loss'])})"
-                )
-            tqdm.write("  ".join(parts))
+            if is_main_process():
+                parts = [f"Epoch {epoch_i}  avg={epoch_avg_loss:.5f}"]
+                if self.is_distributed:
+                    parts.append(f"(rank0 local={_local_epoch_loss:.5f})")
+                for mn in sorted(per_model_losses):
+                    m = per_model_losses[mn]
+                    parts.append(
+                        f"[{mn}] loss={np.mean(m['loss']):.4f} "
+                        f"loss1={np.mean(m['loss1']):.4f} "
+                        f"loss2={np.mean(m['loss2']):.4f} "
+                        f"(n={len(m['loss'])})"
+                    )
+                tqdm.write("  ".join(parts))
             self.reporter.report_epoch(epoch_i, epoch_avg_loss, per_model_avg)
 
-            # ---- Periodic local checkpoint ----
+            # ---- Periodic local checkpoint (rank 0 only) ----
             if (epoch_i + 1) % self.reporter.checkpoint_every == 0:
                 ckpt_path = path_of_models + f"_epoch{epoch_i}.pth"
-                torch.save(self.model.state_dict(), ckpt_path)
-                self.reporter.report_checkpoint(epoch_i, epoch_avg_loss, ckpt_path, is_best=False)
-                tqdm.write(f"[Checkpoint] Saved periodic checkpoint: {ckpt_path}")
+                if is_main_process():
+                    torch.save(self.model.state_dict(), ckpt_path)
+                    self.reporter.report_checkpoint(
+                        epoch_i, epoch_avg_loss, ckpt_path, is_best=False
+                    )
+                    tqdm.write(f"[Checkpoint] Saved periodic checkpoint: {ckpt_path}")
 
             # ---- Best-model checkpoint + Hub upload ----
+            # Driven by the rank-averaged loss, so this branch is entered on
+            # every rank in lockstep; only rank 0 performs the write.
             if epoch_avg_loss < best_loss:
                 best_loss = epoch_avg_loss
-                torch.save(self.model.state_dict(), best_model_path)
-                self.reporter.report_checkpoint(epoch_i, best_loss, best_model_path, is_best=True)
-                tqdm.write(f"[Checkpoint] New best model (loss={best_loss:.5f}): {best_model_path}")
-                if hub_enabled and hub_repo_id:
+                if is_main_process():
+                    torch.save(self.model.state_dict(), best_model_path)
+                    self.reporter.report_checkpoint(
+                        epoch_i, best_loss, best_model_path, is_best=True
+                    )
+                    tqdm.write(
+                        f"[Checkpoint] New best model (loss={best_loss:.5f}): "
+                        f"{best_model_path}"
+                    )
+                if is_main_process() and hub_enabled and hub_repo_id:
                     try:
-                        self.unetmodel.push_to_hub(
+                        self._unet_module.push_to_hub(
                             repo_id=hub_repo_id,
                             private=hub_private,
                             token=hub_token,
@@ -754,10 +879,15 @@ class DiffVaxImmunization:
                     except Exception as exc:
                         tqdm.write(f"[Hub] Best-model upload failed: {exc}")
 
-            # ---- Periodic Hub upload ----
-            if hub_enabled and hub_repo_id and (epoch_i + 1) % hub_upload_every_n == 0:
+            # ---- Periodic Hub upload (rank 0 only) ----
+            if (
+                is_main_process()
+                and hub_enabled
+                and hub_repo_id
+                and (epoch_i + 1) % hub_upload_every_n == 0
+            ):
                 try:
-                    self.unetmodel.push_to_hub(
+                    self._unet_module.push_to_hub(
                         repo_id=hub_repo_id,
                         private=hub_private,
                         token=hub_token,
@@ -769,25 +899,27 @@ class DiffVaxImmunization:
                 except Exception as exc:
                     tqdm.write(f"[Hub] Periodic upload failed: {exc}")
 
-        # ---- Final save ----
+        # ---- Final save (rank 0 only; all ranks hold identical weights) ----
         final_path = path_of_models + "_final.pth"
-        torch.save(self.model.state_dict(), final_path)
-        if hub_enabled and hub_repo_id:
-            try:
-                self.unetmodel.push_to_hub(
-                    repo_id=hub_repo_id,
-                    private=hub_private,
-                    token=hub_token,
-                    commit_message=f"Training complete: final model (loss={epoch_avg_loss:.5f})",
-                )
-                tqdm.write(f"[Hub] Uploaded final model to {hub_repo_id}")
-            except Exception as exc:
-                tqdm.write(f"[Hub] Final upload failed: {exc}")
+        if is_main_process():
+            torch.save(self.model.state_dict(), final_path)
+            if hub_enabled and hub_repo_id:
+                try:
+                    self._unet_module.push_to_hub(
+                        repo_id=hub_repo_id,
+                        private=hub_private,
+                        token=hub_token,
+                        commit_message=f"Training complete: final model (loss={epoch_avg_loss:.5f})",
+                    )
+                    tqdm.write(f"[Hub] Uploaded final model to {hub_repo_id}")
+                except Exception as exc:
+                    tqdm.write(f"[Hub] Final upload failed: {exc}")
         self.reporter.report_complete(iter_num, epoch_avg_loss, final_path)
-        tqdm.write(
-            f"[Training complete] {iter_num} epochs | final loss={epoch_avg_loss:.5f} | "
-            f"best loss={best_loss:.5f} | model: {final_path}"
-        )
+        if is_main_process():
+            tqdm.write(
+                f"[Training complete] {iter_num} epochs | final loss={epoch_avg_loss:.5f} | "
+                f"best loss={best_loss:.5f} | model: {final_path}"
+            )
 
         return img_adv, final_path
 
