@@ -287,6 +287,74 @@ class DiffVaxImmunization:
         img_adv = torch.clamp(img + unet_out, self.clamp_min, self.clamp_max)
         return img_adv, unet_out
 
+    def _model_card_kwargs(self, checkpoint_type: str, epoch: int, loss_value: float) -> dict:
+        """Build the dynamic fields for NestedUNet's Hub model card template
+        (see model.py::_MODEL_CARD_TEMPLATE) from this run's actual config,
+        so a checkpoint downloaded from the Hub documents what it was
+        actually trained against instead of generic Mixin boilerplate.
+        """
+        cfg = self._config
+
+        surrogate_parts = []
+        if cfg.get("sd_probability", 0) > 0:
+            surrogate_parts.append(
+                f"SD 1.5 inpainting ({cfg.get('attack_model_link')}, "
+                f"p={cfg.get('sd_probability')})"
+            )
+        if cfg.get("sd3_probability", 0) > 0 and cfg.get("sd3_model_link"):
+            surrogate_parts.append(
+                f"SD3/3.5 ({cfg.get('sd3_model_link')}, p={cfg.get('sd3_probability')})"
+            )
+        if cfg.get("flux_probability", 0) > 0 and cfg.get("flux_model_link"):
+            surrogate_parts.append(
+                f"FLUX ({cfg.get('flux_model_link')}, p={cfg.get('flux_probability')})"
+            )
+        surrogates = "; ".join(surrogate_parts) or "none configured"
+
+        curriculum_cfg = cfg.get("curriculum", {})
+        if curriculum_cfg.get("enabled", False):
+            resolution_info = " → ".join(
+                f"{s['resolution']}px (until epoch {s['until_epoch']})"
+                for s in curriculum_cfg.get("stages", [])
+            )
+        else:
+            resolution_info = f"{cfg.get('resolution', 512)}px (static)"
+
+        loss_term_labels = []
+        for key, label in [
+            ("eot", "EoT augmentation"),
+            ("clip_loss", "CLIP disruption"),
+            ("spectral_loss", "Spectral concentration"),
+            ("latent_loss", "Latent-space disruption"),
+            ("attention_loss", "Attention disruption"),
+            ("flat_minima", "Flat-minima regularization"),
+            ("adaptive_ensemble", "Adaptive ensemble weighting"),
+            ("noise_target", "Fixed target for loss1"),
+        ]:
+            if cfg.get(key, {}).get("enabled", False):
+                loss_term_labels.append(label)
+        masked_prob = cfg.get("sd3_attack", {}).get("masked_attack_probability", 0.0)
+        if masked_prob > 0:
+            loss_term_labels.append(f"masked/inpainting-style RePaint attack (p={masked_prob})")
+        loss_terms = ", ".join(loss_term_labels) or "none (v1 baseline: loss1 + loss2 only)"
+
+        hyperparams = (
+            f"alpha={cfg.get('alpha')}, beta={cfg.get('beta')}, "
+            f"learning_rate={cfg.get('learning_rate')}, "
+            f"num_inference_steps={cfg.get('num_inference_steps')}"
+        )
+
+        return {
+            "model_name": f"DiffVax NestedUNet ({cfg.get('project_name', 'diffvax')})",
+            "surrogates": surrogates,
+            "resolution_info": resolution_info,
+            "loss_terms": loss_terms,
+            "hyperparams": hyperparams,
+            "checkpoint_type": checkpoint_type,
+            "epoch": epoch,
+            "loss_value": f"{loss_value:.5f}",
+        }
+
     def _load_target_image_tensor(self, shape, dtype, device):
         """Resize the fixed H7 target image to match img_out's spatial shape
         and normalize to [-1, 1] (same convention as utils.load_image), for
@@ -997,6 +1065,9 @@ class DiffVaxImmunization:
                             commit_message=(
                                 f"Epoch {epoch_i}: best checkpoint (loss={best_loss:.5f})"
                             ),
+                            model_card_kwargs=self._model_card_kwargs(
+                                "best", epoch_i, best_loss
+                            ),
                         )
                         tqdm.write(f"[Hub] Uploaded best checkpoint to {hub_repo_id}")
                     except Exception as exc:
@@ -1017,6 +1088,9 @@ class DiffVaxImmunization:
                         commit_message=(
                             f"Epoch {epoch_i}: periodic checkpoint (loss={epoch_avg_loss:.5f})"
                         ),
+                        model_card_kwargs=self._model_card_kwargs(
+                            "periodic", epoch_i, epoch_avg_loss
+                        ),
                     )
                     tqdm.write(f"[Hub] Uploaded periodic checkpoint to {hub_repo_id}")
                 except Exception as exc:
@@ -1033,6 +1107,9 @@ class DiffVaxImmunization:
                         private=hub_private,
                         token=hub_token,
                         commit_message=f"Training complete: final model (loss={epoch_avg_loss:.5f})",
+                        model_card_kwargs=self._model_card_kwargs(
+                            "final", epoch_i, epoch_avg_loss
+                        ),
                     )
                     tqdm.write(f"[Hub] Uploaded final model to {hub_repo_id}")
                 except Exception as exc:
