@@ -67,6 +67,7 @@ def _build_surrogate_specs(config):
                 gradient_timestep_fraction=sd3_cfg.get("gradient_timestep_fraction", 1.0),
                 token_gradient_regularization=sd3_cfg.get("token_gradient_regularization", False),
                 use_gradient_checkpointing=sd3_cfg.get("use_gradient_checkpointing", True),
+                offload_text_encoders=sd3_cfg.get("offload_text_encoders", True),
             )
 
         specs.append(("sd3", sd3_prob, _build_sd3))

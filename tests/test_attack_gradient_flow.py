@@ -189,7 +189,7 @@ class FakeFluxPipe:
 
 
 def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True,
-                    tgr: bool = False) -> SD3Attack:
+                    tgr: bool = False, offload_text_encoders: bool = True) -> SD3Attack:
     atk = SD3Attack.__new__(SD3Attack)
     atk.pipe = FakeSD3Pipe()
     atk.model_link = "fake"
@@ -198,6 +198,7 @@ def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True,
     atk._tgr_enabled = tgr
     atk._tgr_hooks = []
     atk._use_grad_ckpt = use_grad_ckpt
+    atk._offload_text_encoders = offload_text_encoders
     return atk
 
 

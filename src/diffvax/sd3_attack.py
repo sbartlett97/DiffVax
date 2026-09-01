@@ -45,6 +45,7 @@ class SD3Attack(BaseAttack):
                  gradient_timestep_fraction: float = 1.0,
                  token_gradient_regularization: bool = False,
                  use_gradient_checkpointing: bool = True,
+                 offload_text_encoders: bool = True,
                  dtype: Optional[torch.dtype] = None):
         from diffusers import StableDiffusion3Img2ImgPipeline
 
@@ -72,6 +73,13 @@ class SD3Attack(BaseAttack):
         # no_grad-skipped timesteps produce detached captures. Knob exposed for
         # profiling/debugging; default True.
         self._use_grad_ckpt = bool(use_gradient_checkpointing)
+        # CUDA-only text-encoder offload (see attack()) is opt-out. Turning it
+        # off keeps T5-XXL + CLIP-G/L resident in VRAM permanently instead of
+        # shuttling ~10-12 GB to CPU and back every call — a good trade when a
+        # single resident surrogate already has ample VRAM headroom (e.g. one
+        # SD3.5-only surrogate on a 24GB+ cloud GPU) and the per-batch
+        # host<->device transfer would otherwise cost real training throughput.
+        self._offload_text_encoders = bool(offload_text_encoders)
 
         # Freeze all parameters — gradient flows through activations only
         self.pipe.vae.requires_grad_(False)
@@ -275,7 +283,10 @@ class SD3Attack(BaseAttack):
         # shuttling HF's lazily/meta-loaded modules between devices has been
         # observed to leave them with unmaterialized ("placeholder") storage
         # on the next call — a real crash, not just a missed optimization.
-        if device.type == "cuda":
+        # Also opt-out via self._offload_text_encoders (see __init__) when a
+        # single resident surrogate has enough VRAM headroom that the transfer
+        # cost isn't worth paying every call.
+        if device.type == "cuda" and self._offload_text_encoders:
             for enc_attr in ["text_encoder", "text_encoder_2", "text_encoder_3"]:
                 enc = getattr(self.pipe, enc_attr, None)
                 if enc is not None:
