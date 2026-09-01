@@ -860,6 +860,7 @@ class DiffVaxImmunization:
                 loss1_val = loss1.item()
                 loss2_val = loss2.item()
                 loss_latent_val = loss_latent.item()
+                loss_attn_val = loss_attn.item()
 
                 losses.append(loss.item())
                 losses1.append(loss1_val)
@@ -997,6 +998,7 @@ class DiffVaxImmunization:
                     + (f" CLIP: {loss_clip_val:.5f}" if loss_clip_val else "")
                     + (f" Spec: {loss_spectral_val:.5f}" if loss_spectral_val else "")
                     + (f" Lat: {loss_latent_val:.5f}" if loss_latent_val else "")
+                    + (f" Attn: {loss_attn_val:.5f}" if loss_attn_val else "")
                 )
                 pbar.update(1)
 
