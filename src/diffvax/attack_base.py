@@ -126,3 +126,14 @@ class BaseAttack(ABC):
         Default returns False. Override to True in inpainting subclasses.
         """
         return False
+
+    @property
+    def supports_masked_attack(self) -> bool:
+        """Whether this model can additionally run a mask-conditioned attack
+        while remaining fundamentally a full-image model (distinct from
+        is_inpainting, which means masked-ONLY, no full-image capability).
+
+        Default returns False. Override to True in subclasses that implement
+        optional mask-conditioned blending (e.g. SD3Attack's RePaint mode).
+        """
+        return False

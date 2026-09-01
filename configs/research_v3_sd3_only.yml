@@ -1,0 +1,234 @@
+# =======================================================
+# DiffVax v3 — Research Configuration (SD3.5-only variant)
+# =======================================================
+# Identical hypothesis bundle to research_v3.yml (H1-H8), restricted to a
+# single resident surrogate (SD3.5) so it fits in a unified-memory budget
+# (e.g. Apple Silicon) where AttackModelManager's "offload inactive
+# surrogate to CPU" strategy provides no relief — CPU and GPU share the same
+# physical RAM there, so every configured surrogate's weights stay resident
+# for the whole run regardless of which one is nominally "active" (see
+# research/findings.md). Setting flux_probability to 0 and flux_model_link
+# to null means _build_surrogate_specs() in scripts/train.py never
+# constructs FluxAttack at all, so its 9B DiT + 8B Qwen3 text encoder are
+# never loaded.
+#
+#   H7: noise_target.enabled — noise loss1 target (Mist insight)
+#   H1: attention_loss.target_blocks="middle" — DeContext 2512.16625
+#   H2: sd3_attack.gradient_timestep_fraction=0.5 — activation memory reduction
+#   H3: clip_loss.model="ViT-H-14" — DALL-E 3 coverage via CLIP-H
+#   H4: sd3_attack.token_gradient_regularization=true — TGR CVPR2023
+#
+# H-mask: sd3_attack.masked_attack_probability=0.5 — half of SD3.5 batches now
+# route through a masked/inpainting-style RePaint attack (ported from
+# diffusers' StableDiffusion3InpaintPipeline's 16-channel-transformer blend)
+# instead of full-image img2img, using the SAME resident pipeline, so the
+# perturbation network learns to generalize across both editing modalities
+# rather than being validated only against whole-image edits. Stated decision,
+# not an oversight: clip_loss (below) reads img_out unweighted, so on masked
+# batches its disruption signal covers the whole composite (mostly-unchanged
+# surroundings + a small generated region) rather than the masked region
+# alone — left this way deliberately, since a real inpainting edit genuinely
+# *is* the whole composite as a downstream viewer would see it.
+#
+# What this run CAN validate: every per-surrogate hypothesis above (loss
+# terms, gradient mechanics) against real SD3.5 MM-DiT gradients.
+# What it CANNOT validate: Phase 5 adaptive ensemble weighting (needs 2+
+# resident surrogates to have anything to reweight — silently no-ops with
+# one), or any cross-architecture-transfer claim (SD3.5 -> FLUX / closed
+# models) — see the assistant's response in this session for the full
+# breakdown of why the multi-surrogate config OOMs on unified memory.
+#
+# VRAM ESTIMATE (unified-memory correct, not the CUDA-pool math the
+# multi-surrogate configs use):
+#   SD3.5-medium pipeline, static weights, bf16, always resident:
+#     MMDiT-X (24 layers, dim 1536)         ~5.0 GB
+#     T5-XXL text encoder                   ~9.4 GB
+#     CLIP-G + CLIP-L text towers           ~1.6 GB
+#     VAE (16-ch)                           ~0.2 GB
+#     ---------------------------------------------
+#     Subtotal                             ~16.2 GB
+#   CLIP ViT-H-14 loss model (clip_loss)    ~2.0 GB
+#   NestedUNet + Adam state (~1.8M params)  <0.1 GB
+#   ---------------------------------------------------
+#   Static floor                           ~18.3 GB   (vs. ~47 GB for the
+#                                                       dual-surrogate config)
+#   Remaining headroom on a 32 GB machine  ~13-14 GB for activations, input
+#                                           tensors, and EoT augmentation
+#                                           buffers — this is the budget the
+#                                           curriculum's resolution stages
+#                                           (512->1088px) actually draw down.
+#   Whether attention activation memory at 1024/1088px stays inside that
+#   headroom depends on whether PyTorch's MPS SDPA backend uses a memory-
+#   efficient kernel there — unverified on real Apple Silicon per the
+#   project README. Profile stage-by-stage before trusting the full
+#   curriculum; drop to the 512px stage only if 1024/1088px OOMs.
+
+# -- Core Training --
+iter_num: 500
+learning_rate: 0.00001
+batch_size: 1    # dead once curriculum takes over (every stage sets its own); kept low for the non-curriculum fallback
+alpha: 4
+beta: 0.5
+
+# Denoising steps per attack forward pass.
+# 4 steps (with gradient_timestep_fraction=0.5) = 2 grad steps. Was 2 (1 grad
+# step); bumped to 4 because the masked/RePaint attack's iterative re-noise-
+# and-blend mechanism only actually executes across multiple steps — at 2
+# steps with strength up to 1.0 it degenerates to a single final-step
+# passthrough. Roughly doubles this surrogate's per-call compute cost.
+num_inference_steps: 4
+
+# -- Model --
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-v3-research-sd3only"
+
+# -- H6: NestedUNet filter counts (uncomment for larger model ablation) --
+# Default [32,64,128,256,512] ~1.8M params.  Larger variant adds ~5x capacity.
+# NOTE: incompatible with existing checkpoints — must train from scratch.
+# nb_filter: [64, 128, 256, 512, 1024]
+
+# -- Base resolution --
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]
+
+# -- Attack ensemble: SD3.5 only --
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.0
+
+sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
+sd3_probability: 1.0
+
+# FLUX left unconfigured (null link + zero probability) so it is never
+# constructed — see scripts/train.py:_build_surrogate_specs.
+flux_model_link: null
+flux_probability: 0.0
+
+# -- H2: Partial-timestep gradient settings --
+# gradient_timestep_fraction: fraction of denoising steps that receive gradients.
+# 0.5 = first 50% of steps (early high-sigma steps carry the most gradient signal).
+# Basis: "Distraction Is All You Need", CVPR 2024.
+sd3_attack:
+  gradient_timestep_fraction: 0.5
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
+  # Non-reentrant gradient checkpointing keeps Phase 7 hook captures live
+  # (verified by tests/test_attack_gradient_flow.py::test_a5). Leave true.
+  use_gradient_checkpointing: true
+  # H-mask: fraction of batches routed through masked/inpainting-style RePaint
+  # attack instead of full-image img2img, using this SAME resident pipeline
+  # (no second SD3.5 load — see sd3_attack.py's `mask` handling). Trains the
+  # perturbation network to generalize across both editing modalities. 0.5 =
+  # even split between the two threat models. 0.0 elsewhere preserves exact
+  # backward-compat behaviour for every config that doesn't set this.
+  masked_attack_probability: 0.5
+
+# -- H7: Noise target image for loss1 --
+# Replaces zero (black) target with random-sign (±1) noise pattern.
+# Basis: Mist (arXiv:2305.12683) target image selection insight.
+noise_target:
+  enabled: true
+
+# -- Phase 1: EoT Augmentation --
+eot:
+  enabled: true
+  jpeg_quality_range: [75, 95]
+  resize_range: [0.7, 1.5]   # Reduced from [0.5, 2.0] — OOM risk at high-res
+  blur_sigma_range: [0.0, 2.0]
+  noise_std_range: [0.0, 0.03]
+  p_jpeg: 0.8
+  p_resize: 0.5
+  p_blur: 0.3
+  p_noise: 0.3
+
+# -- H3: CLIP ViT-H/14 for DALL-E 3 coverage --
+# Basis: Glaze, DTIA, NL Adversarial — CLIP-H is DALL-E 3's shared semantic interface.
+clip_loss:
+  enabled: true
+  model: "ViT-H-14"
+  pretrained: "laion2b_s32b_b79k"
+  feature_weight: 1.0
+  semantic_weight: 0.5
+
+# -- H8: VAE latent-space disruption loss --
+# Maximises cosine distance between vae.encode(img_adv) and vae.encode(img_orig).
+# Basis: PhotoGuard encoder attack (Salman 2023) — latent-space attacks transfer better.
+# ~10x cheaper than full denoising pass; runs on every batch.
+latent_loss:
+  enabled: true
+  weight: 1.0
+
+# -- H5: Spectral frequency-domain perturbation concentration loss --
+# Penalises low-frequency (visible) energy in delta = img_adv - img_orig.
+# Basis: DDAP (arXiv:2407.20141), AdvAD (NeurIPS 2024).
+spectral_loss:
+  enabled: true
+  low_freq_radius: 0.1    # penalise central 10% of normalised frequency space
+  weight: 0.5             # multiplier applied by LossComposer
+
+# -- Phase 4: Multi-Resolution Curriculum (abridged for research runs) --
+curriculum:
+  enabled: true
+  resolution_jitter: 0.0
+  stages:
+    - resolution: 512
+      until_epoch: 300
+      batch_size: 1
+    - resolution: 768
+      until_epoch: 400
+      batch_size: 1
+    - resolution: 1024
+      until_epoch: 580
+      batch_size: 1
+    - resolution: 1088
+      until_epoch: 500
+      batch_size: 1
+
+# -- Phase 5: Adaptive Ensemble Weighting --
+# No-op with a single resident surrogate (nothing to reweight against) —
+# left disabled here rather than "enabled: true" to make that explicit,
+# unlike research_v3.yml where it's meaningful across SD3.5+FLUX.
+adaptive_ensemble:
+  enabled: false
+
+# -- Phase 6: Flat-Minima Regularization --
+flat_minima:
+  enabled: true
+  method: "grad_norm"
+  rho: 0.05
+  lambda_flat: 0.01
+
+# -- H1: Middle-block Cross-Attention Disruption --
+# Basis: DeContext (arXiv:2512.16625) — middle transformer blocks carry
+# the strongest context-propagation signal in MM-DiT models.
+attention_loss:
+  enabled: true
+  target_blocks: "middle"
+  num_hooks: 8
+  weight: 0.4
+  only_with_dit: true
+
+# -- Dataset --
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+image_prompt_json: "image_prompt_pairs_with_validation.json"
+
+load_existing: false
+
+# -- DataLoader --
+dataloader:
+  num_workers: 4
+  prefetch_factor: 4
+
+# -- HuggingFace Hub Checkpointing --
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 5000
+
+# -- Training Reporter --
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 5000

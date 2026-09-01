@@ -18,6 +18,7 @@ noise injection → MM-DiT denoising → 16-ch VAE decode → output.
 """
 
 import torch
+import torch.nn.functional as F
 from typing import Optional, Union, List
 
 from diffvax.attack_base import BaseAttack, suppress_full_backward_hook_kwarg_warning
@@ -157,6 +158,13 @@ class SD3Attack(BaseAttack):
         return False
 
     @property
+    def supports_masked_attack(self) -> bool:
+        # SD3.5 can additionally run a mask-conditioned RePaint-style blend
+        # (see attack()'s `mask` argument) while remaining a full-image model —
+        # is_inpainting stays False since it has no masked-ONLY requirement.
+        return True
+
+    @property
     def vae_channels(self) -> int:
         """SD3 uses a 16-channel VAE."""
         return 16
@@ -194,8 +202,23 @@ class SD3Attack(BaseAttack):
         Args:
             prompt:             Edit prompts (list of strings, length batch_size).
             image:              Adversarial image tensor (B, 3, H, W), in [-1, 1].
-            mask:               Not used; defaults to None. SD3 img2img edits
-                                the full image without a mask.
+                                Always the FULL image, even when mask is given —
+                                do not pre-zero the masked region (unlike the SD
+                                1.5 inpainting path); the RePaint blend below
+                                needs the true pixel values as its "known
+                                content" source.
+            mask:               Optional (B, 1, H, W) binary mask, same H×W as
+                                image, 1=region to regenerate/edit, 0=region to
+                                preserve. When None (default), SD3 img2img edits
+                                the full image with no masking. When given, runs
+                                a RePaint-style latent blend each denoising step
+                                (known region re-noised from the clean latent,
+                                masked region evolves via the model) plus a
+                                pixel-space paste-back on the decoded output, so
+                                the return value is always a realistic composite
+                                (unmasked region byte-identical to `image`).
+                                Caller is responsible for resizing mask to match
+                                `image`'s resolution before calling.
             height, width:      Output resolution. SD3 supports 512/768/1024.
             num_inference_steps:Number of rectified-flow denoising steps.
             batch_size:         Number of images in the batch.
@@ -286,6 +309,19 @@ class SD3Attack(BaseAttack):
         else:
             noisy_latents = latents
 
+        # H-mask: RePaint-style masked attack. Downsample the caller-provided
+        # mask to latent resolution once, derived from latents.shape (the
+        # actual VAE stride) rather than a manual height//8 calc, to avoid any
+        # off-by-one rounding mismatch. mask=1 → region to regenerate (evolves
+        # via the model each step); mask=0 → known/preserved region (re-noised
+        # from the clean `latents` toward each step's noise level below).
+        mask_latent = None
+        if mask is not None:
+            mask_latent = F.interpolate(
+                mask.to(device=device, dtype=dtype),
+                size=latents.shape[-2:], mode="nearest",
+            )
+
         guidance_scale = 7.0
 
         # H2: partial-timestep gradient — straight-through latent path.
@@ -369,10 +405,47 @@ class SD3Attack(BaseAttack):
                 noise_pred, t, noisy_latents, return_dict=False
             )[0]
 
+            # H-mask: RePaint blend. Must run with grad enabled every step —
+            # same reasoning as scheduler.step itself above: this is cheap
+            # elementwise arithmetic on 16-channel latents (negligible
+            # activation memory), and severing it from the graph would zero
+            # loss1's gradient exactly like a no_grad-wrapped scheduler.step
+            # would (see tests/test_gradient_flow.py::test_t1_* for the class
+            # of bug this guards against). No CFG doubling needed: noisy_latents
+            # stays at batch B throughout this loop (only the transient
+            # latent_input fed to the transformer above is doubled, then
+            # chunk()'d back down before scheduler.step), so mask_latent stays
+            # at batch B too.
+            if mask_latent is not None:
+                if step_idx < n_steps - 1:
+                    sigma_next = scheduler.sigmas[t_start + step_idx + 1].to(dtype)
+                    init_latents_proper = (
+                        (1.0 - sigma_next) * latents + sigma_next * noise
+                    )
+                else:
+                    # Final step: known content is the clean latent itself.
+                    init_latents_proper = latents
+                noisy_latents = (
+                    (1.0 - mask_latent) * init_latents_proper
+                    + mask_latent * noisy_latents
+                )
+
         # ------ 6. VAE decode ------
         latents_out = noisy_latents / vae_scaling_factor + vae_shift_factor
         output = vae.decode(latents_out.to(dtype), return_dict=False)[0]
 
         # Match whichever compute dtype the pipeline was loaded in (fp16 on
         # CUDA, bf16 on MPS, fp32 on CPU) rather than hardcoding fp16.
-        return output.to(dtype)
+        output = output.to(dtype)
+
+        # H-mask: pixel-space paste-back so the return value is always a
+        # realistic finished composite — generated content in the mask region,
+        # byte-identical input in the preserved region — matching what a real
+        # inpainting tool produces (it composites generated content back into
+        # the untouched original rather than trusting the decode to reproduce
+        # the known region exactly).
+        if mask is not None:
+            mask_px = mask.to(device=output.device, dtype=output.dtype)
+            output = mask_px * output + (1.0 - mask_px) * image_input.to(output.dtype)
+
+        return output

@@ -103,6 +103,20 @@ class ImmunizationDataset(torch.utils.data.Dataset):
         return len(self.entries)
 
 
+def _select_loss1_weight(attack_model, used_mask_this_batch, mask_batch, ones):
+    """loss1 should be weighted toward the mask region whenever a mask was
+    actually used to produce img_out this batch — either because the
+    surrogate is mask-ONLY (is_inpainting, e.g. SD 1.5) or because this
+    particular call opted into the masked/RePaint path (e.g. SD3.5). In both
+    cases img_out's unmasked region is a verbatim copy of img_adv, so an
+    unweighted loss1 would waste gradient budget "disrupting" pixels the
+    surrogate never touched.
+    """
+    if attack_model.loss_uses_mask_weighting or used_mask_this_batch:
+        return mask_batch
+    return ones
+
+
 class DiffVaxImmunization:
     def __init__(
         self,
@@ -341,6 +355,14 @@ class DiffVaxImmunization:
         )
         dit_model_names = {"sd3", "flux"}
         num_inference_steps = int(self._config.get("num_inference_steps", 4))
+        # Fraction of SD3(.5) batches routed through the masked/inpainting-
+        # style RePaint attack instead of full-image img2img, using the SAME
+        # resident pipeline (see SD3Attack.attack()'s `mask` handling). 0.0
+        # (default) preserves exact behaviour for every config that doesn't
+        # set this.
+        masked_attack_probability = float(
+            self._config.get("sd3_attack", {}).get("masked_attack_probability", 0.0)
+        )
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size,
@@ -505,6 +527,20 @@ class DiffVaxImmunization:
                 h, w = img_batch.shape[2], img_batch.shape[3]
                 actual_bs = img_batch.shape[0]
 
+                # H-mask: per-batch coin flip routing this SD3.5 call through
+                # the masked/RePaint attack instead of full-image img2img,
+                # using the SAME resident pipeline. mask_batch.sum() > 0 guards
+                # against a degenerate all-zero mask draw: loss1_weight_norm's
+                # sum would be exactly 0 in that case, producing a NaN loss
+                # that trips the NaN/Inf guard below and aborts the run — an
+                # empty mask just falls through to the ordinary full-image path.
+                use_masked_sd3 = (
+                    not attack_model.is_inpainting
+                    and getattr(attack_model, "supports_masked_attack", False)
+                    and mask_batch.sum() > 0
+                    and random.random() < masked_attack_probability
+                )
+
                 if attack_model.is_inpainting:
                     # Inpainting model: mask-conditioned, multi-resolution downsample.
                     # Apply mask on GPU: zero out inpaint region so the pipeline sees a
@@ -539,6 +575,47 @@ class DiffVaxImmunization:
                             prompt=cur_prompt,
                             image=img_adv_sd,
                             mask=attack_mask,
+                            height=h,
+                            width=w,
+                            num_inference_steps=num_inference_steps,
+                            batch_size=actual_bs,
+                            strength=strength,
+                        )
+                elif use_masked_sd3:
+                    # Masked/inpainting-style attack via the SAME SD3.5
+                    # pipeline instance (no second load). Unlike the
+                    # is_inpainting branch above, the FULL (never pre-zeroed)
+                    # image is passed through — attack() VAE-encodes it whole
+                    # as the RePaint "known content" source and blends in
+                    # latent space internally; the mask only needs to stay in
+                    # lockstep resolution with the image.
+                    native_res = attack_model.native_resolution
+                    if h > native_res:
+                        img_input = F.interpolate(
+                            img_adv_aug, (native_res, native_res),
+                            mode="bilinear", align_corners=False,
+                        )
+                        mask_input = F.interpolate(
+                            mask_batch, (native_res, native_res), mode="nearest"
+                        )
+                        img_out_native = attack_model.attack(
+                            prompt=cur_prompt,
+                            image=img_input,
+                            mask=mask_input,
+                            height=native_res,
+                            width=native_res,
+                            num_inference_steps=num_inference_steps,
+                            batch_size=actual_bs,
+                            strength=strength,
+                        )
+                        img_out = F.interpolate(
+                            img_out_native, (h, w), mode="bilinear", align_corners=False
+                        )
+                    else:
+                        img_out = attack_model.attack(
+                            prompt=cur_prompt,
+                            image=img_adv_aug,
+                            mask=mask_batch,
                             height=h,
                             width=w,
                             num_inference_steps=num_inference_steps,
@@ -603,10 +680,9 @@ class DiffVaxImmunization:
                 else:
                     target_image_t = torch.zeros_like(img_out)
 
-                if attack_model.loss_uses_mask_weighting:
-                    loss1_weight = mask_batch
-                else:
-                    loss1_weight = ones
+                loss1_weight = _select_loss1_weight(
+                    attack_model, use_masked_sd3, mask_batch, ones
+                )
 
                 loss1_weight_norm = loss1_weight / resolution
                 loss2_weight_norm = ones / resolution
@@ -749,7 +825,15 @@ class DiffVaxImmunization:
                     ]
                     if grad_vecs:
                         grad_vec = torch.cat(grad_vecs)
-                        self.attack_manager.record_gradient(model_name, grad_vec)
+                        # H-mask: distinct key so masked/unmasked SD3.5
+                        # gradient signals aren't EMA-blended together under
+                        # one name if adaptive_ensemble is ever enabled here.
+                        # record_gradient() already no-ops on an unrecognized
+                        # name, so this needs no AttackModelManager changes.
+                        record_model_name = (
+                            f"{model_name}_masked" if use_masked_sd3 else model_name
+                        )
+                        self.attack_manager.record_gradient(record_model_name, grad_vec)
 
                 # NaN/Inf check before stepping — abort and save before the
                 # poisoned update is applied to the model weights. A NaN on any

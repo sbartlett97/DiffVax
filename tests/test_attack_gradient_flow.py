@@ -16,6 +16,11 @@ Covered:
   A4: Mini learning test — a tiny NestedUNet trained through the real
       SD3Attack loop at gtf=0.5 must reduce loss1, demonstrating the training
       method produces a usable learning signal end to end.
+  A9: SD3Attack masked/RePaint attack — gradient still reaches img_adv when a
+      mask is supplied, mask=1 (all-regenerate) is a true no-op vs. mask=None,
+      mask=0 (all-preserve) is an exact pixel passthrough, and strength=1.0's
+      known zero-image-gradient result (see A1) does NOT hold in masked mode
+      because of the pixel paste-back's unconditional identity term.
 """
 
 import os
@@ -712,4 +717,136 @@ def test_a4_tiny_nested_unet_learns_through_sd3_attack():
     assert last < first, (
         f"loss1 did not decrease training through the real SD3Attack loop "
         f"(first5={first:.5f}, last5={last:.5f}) — no usable learning signal."
+    )
+
+
+# ---------------------------------------------------------------------------
+# A9: masked/RePaint attack path
+# ---------------------------------------------------------------------------
+#
+# No changes needed to FakeSD3Pipe/FakeVAE/FakeSD3Transformer/FakeFlowScheduler:
+# FakeVAE's real stride-8 Conv2d means a mask downsampled `nearest` to
+# latents.shape[-2:] works via ordinary F.interpolate; FakeFlowScheduler.sigmas
+# has length num_inference_steps+1, and the blend's max sigma index access
+# stays in bounds for every (num_inference_steps, strength) combination used
+# below. The mask never touches the transformer path (no CFG doubling), so the
+# fake transformer needs no changes either.
+
+def _make_center_mask(batch=1, h=64, w=64, frac=0.5):
+    mask = torch.zeros(batch, 1, h, w)
+    h0, h1 = int(h * (1 - frac) / 2), int(h * (1 + frac) / 2)
+    w0, w1 = int(w * (1 - frac) / 2), int(w * (1 + frac) / 2)
+    mask[:, :, h0:h1, w0:w1] = 1.0
+    return mask
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+@pytest.mark.parametrize("gtf", [0.25, 0.5, 1.0])
+def test_a9_sd3_attack_masked_gradient_reaches_input(gtf):
+    """Mirrors test_a1_sd3_attack_gradient_reaches_input with a mask supplied
+    and num_inference_steps=4/strength=0.9 (n_steps=3), so the multi-step
+    renoise branch of the RePaint blend actually executes, not just the
+    final-step passthrough."""
+    torch.manual_seed(0)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(gtf)
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, mask=_make_center_mask(),
+        height=64, width=64,
+        num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    loss1 = out.float().abs().mean()
+
+    assert loss1.requires_grad, (
+        f"Masked SD3Attack severed the gradient chain at gtf={gtf} — loss1 "
+        f"has no grad_fn."
+    )
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert torch.isfinite(grad).all()
+    assert grad.abs().sum() > 0, f"Zero gradient through masked SD3Attack at gtf={gtf}"
+
+
+def test_a9_sd3_attack_masked_output_shape():
+    torch.manual_seed(1)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(0.5)
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, mask=_make_center_mask(),
+        height=64, width=64, num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    assert out.shape == img_adv.shape
+
+
+def test_a9_sd3_attack_masked_all_ones_equals_unmasked():
+    """mask=1 everywhere means 'regenerate the whole image' — the RePaint
+    blend and the pixel paste-back should both reduce to a true no-op,
+    making this bit-for-bit equivalent to the unmasked (mask=None) path."""
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+    mask_all_ones = torch.ones(1, 1, 64, 64)
+
+    torch.manual_seed(42)
+    atk_unmasked = make_sd3_attack(0.5)
+    out_unmasked = atk_unmasked.attack(
+        prompt=["edit"], image=img_adv, mask=None,
+        height=64, width=64, num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+
+    torch.manual_seed(42)
+    atk_masked = make_sd3_attack(0.5)
+    out_masked = atk_masked.attack(
+        prompt=["edit"], image=img_adv, mask=mask_all_ones,
+        height=64, width=64, num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+
+    assert torch.allclose(out_masked, out_unmasked, atol=1e-6), (
+        "mask=1 (regenerate everywhere) should be numerically identical to "
+        "mask=None — the blend and paste-back should both be no-ops."
+    )
+
+
+def test_a9_sd3_attack_masked_zero_mask_is_exact_passthrough():
+    """mask=0 everywhere means 'preserve everything' — isolates and verifies
+    the pixel paste-back arithmetic alone (mask*decoded + (1-mask)*image_input
+    reduces to image_input regardless of what decoded produced)."""
+    torch.manual_seed(2)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+    mask_all_zero = torch.zeros(1, 1, 64, 64)
+
+    atk = make_sd3_attack(0.5)
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, mask=mask_all_zero,
+        height=64, width=64, num_inference_steps=4, batch_size=1, strength=0.9,
+    )
+    expected = img_adv.detach().to(dtype=out.dtype)
+    assert torch.allclose(out.detach(), expected, atol=1e-6), (
+        "mask=0 (preserve everywhere) should return the input image exactly."
+    )
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-path test")
+def test_a9_sd3_attack_masked_strength_one_still_has_nonzero_gradient():
+    """Documents an intentional divergence from
+    test_a1_full_strength_carries_no_image_signal: at strength=1.0 the
+    UNMASKED path has exactly zero image gradient (sigma_0=1.0 nulls the
+    initial noise mix). The MASKED path's pixel paste-back contains an
+    unconditional (1-mask)*image_input identity term that differentiates
+    directly and non-trivially w.r.t. img_adv regardless of the denoising
+    loop — this precondition requires mask to NOT be all-ones (see the
+    all-ones-equals-unmasked test above, where that term vanishes)."""
+    torch.manual_seed(7)
+    img_adv = torch.randn(1, 3, 64, 64, requires_grad=True)
+
+    atk = make_sd3_attack(1.0)
+    out = atk.attack(
+        prompt=["edit"], image=img_adv, mask=_make_center_mask(),
+        height=64, width=64, num_inference_steps=4, batch_size=1, strength=1.0,
+    )
+    loss1 = out.float().abs().mean()
+    (grad,) = torch.autograd.grad(loss1, img_adv)
+    assert grad.abs().sum() > 0, (
+        "Expected NONZERO image gradient at strength=1.0 in masked mode "
+        "(unlike the unmasked case) — the pixel paste-back's identity term "
+        "on the preserved region should carry gradient regardless of strength."
     )
