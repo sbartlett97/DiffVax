@@ -20,6 +20,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import os
+from PIL import Image
 from tqdm import tqdm
 
 from diffvax.model import NestedUNet
@@ -251,10 +252,26 @@ class DiffVaxImmunization:
             from diffvax.losses.attention_loss import AttentionDisruptionLoss
             self._attention_loss = AttentionDisruptionLoss(self._config)
 
-        # H7: fixed noise target — cached per output shape so the optimizer has a
-        # consistent direction. A per-batch random target has E[|x-t|]=1 for all x,
+        # H7: fixed target for loss1 — cached per output shape so the optimizer has a
+        # consistent direction. A per-batch RANDOM target has E[|x-t|]=1 for all x,
         # making loss1 a constant in expectation and its gradient pure noise.
+        #
+        # Two target sources, both cached identically by output shape:
+        #   - noise_target.image_path set: a fixed real image (e.g. an unrelated
+        #     photo). Chosen over a random ±1 noise pattern because comparing a
+        #     smooth, spatially-correlated generated image against independent
+        #     per-pixel random noise via mean L1 distance saturates near 1.0 for
+        #     virtually ANY image content (law of large numbers over ~10^5-10^6
+        #     pixels) — that objective can't distinguish a disrupted output from
+        #     an undisrupted one. A real photo has genuine spatial structure a
+        #     generated image can actually be pushed toward or away from.
+        #   - noise_target.image_path unset (default): the original random ±1
+        #     noise pattern, preserved for backward compatibility.
         self._fixed_noise_target: dict = {}  # shape -> tensor
+        self._target_image_source = None  # PIL.Image, loaded once if configured
+        _target_image_path = self._config.get("noise_target", {}).get("image_path")
+        if _target_image_path:
+            self._target_image_source = Image.open(_target_image_path).convert("RGB")
 
     # ------------------------------------------------------------------
     # Inference helper
@@ -269,6 +286,17 @@ class DiffVaxImmunization:
         unet_out = unet_out.to(dtype=img.dtype)
         img_adv = torch.clamp(img + unet_out, self.clamp_min, self.clamp_max)
         return img_adv, unet_out
+
+    def _load_target_image_tensor(self, shape, dtype, device):
+        """Resize the fixed H7 target image to match img_out's spatial shape
+        and normalize to [-1, 1] (same convention as utils.load_image), for
+        caching by shape identically to the random-noise target path."""
+        b, _, h, w = shape
+        img = self._target_image_source.resize((w, h), Image.BILINEAR)
+        arr = np.array(img, dtype=np.float32) / 127.5 - 1.0
+        t = torch.from_numpy(arr.transpose(2, 0, 1))  # (3, H, W)
+        t = t.unsqueeze(0).expand(b, -1, -1, -1).contiguous()
+        return t.to(device=device, dtype=dtype)
 
     # ------------------------------------------------------------------
     # Training
@@ -657,25 +685,36 @@ class DiffVaxImmunization:
 
                 # ---- Loss computation ----
                 resolution = h
-                # H7: fixed ±1 noise target (Mist insight, arXiv:2305.12683).
+                # H7: fixed target for loss1 (Mist insight, arXiv:2305.12683).
                 # Target is cached per shape so the optimizer has a consistent
-                # direction across batches — a per-batch random target has
+                # direction across batches — a per-batch RANDOM target has
                 # E[|x-t|]=1 for all x, making loss1 a constant in expectation.
+                # See __init__ for why a real image (noise_target.image_path)
+                # is preferred over random ±1 noise: comparing a smooth
+                # generated image against independent per-pixel noise via mean
+                # L1 distance saturates near 1.0 regardless of content.
                 if self._config.get("noise_target", {}).get("enabled", False):
                     shape_key = tuple(img_out.shape)
                     if shape_key not in self._fixed_noise_target:
-                        # torch.randint's generator= must match the output
-                        # tensor's device on CUDA; MPS generator support is
-                        # unreliable (see make_generator), so always sample
-                        # on CPU and move — cheap, one-time, cached by shape.
-                        g = torch.Generator(device="cpu").manual_seed(1234)
-                        self._fixed_noise_target[shape_key] = (
-                            torch.randint(
-                                0, 2, img_out.shape,
-                                generator=g, device="cpu",
-                                dtype=img_out.dtype,
-                            ) * 2 - 1
-                        ).to(img_out.device)
+                        if self._target_image_source is not None:
+                            self._fixed_noise_target[shape_key] = (
+                                self._load_target_image_tensor(
+                                    img_out.shape, img_out.dtype, img_out.device
+                                )
+                            )
+                        else:
+                            # torch.randint's generator= must match the output
+                            # tensor's device on CUDA; MPS generator support is
+                            # unreliable (see make_generator), so always sample
+                            # on CPU and move — cheap, one-time, cached by shape.
+                            g = torch.Generator(device="cpu").manual_seed(1234)
+                            self._fixed_noise_target[shape_key] = (
+                                torch.randint(
+                                    0, 2, img_out.shape,
+                                    generator=g, device="cpu",
+                                    dtype=img_out.dtype,
+                                ) * 2 - 1
+                            ).to(img_out.device)
                     target_image_t = self._fixed_noise_target[shape_key]
                 else:
                     target_image_t = torch.zeros_like(img_out)
