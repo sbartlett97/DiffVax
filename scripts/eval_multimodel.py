@@ -17,6 +17,9 @@ Usage:
     # Specific mask type and models
     python scripts/eval_multimodel.py --checkpoint ckpt.pth \
         --mask-type face --models "SD 1.5 Inpainting" "SDXL img2img"
+
+    # Checkpoint pushed to the Hugging Face Hub (e.g. via train.py's hub.enabled)
+    python scripts/eval_multimodel.py --checkpoint username/diffvax-run
 """
 
 import argparse
@@ -38,15 +41,15 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 
-from diffvax.model import NestedUNet
 from diffvax.utils import (
     set_seed_lib,
     recover_image,
-    prepare_mask_and_masked_image,
     resolve_device,
     resolve_dtype,
     empty_cache,
     make_generator,
+    load_perturbation_net,
+    immunize_image_pil,
 )
 from diffvax.metrics import MetricType, create_metric
 
@@ -61,6 +64,7 @@ class PipelineType(Enum):
     SD_INPAINTING = "sd_inpainting"
     SD_IMG2IMG = "sd_img2img"
     SDXL_IMG2IMG = "sdxl_img2img"
+    SD3_IMG2IMG = "sd3_img2img"
     FLUX_KLEIN = "flux_klein"
     FLUX_IMG2IMG = "flux_img2img"
 
@@ -110,6 +114,18 @@ DEFAULT_ZOO: list[ModelConfig] = [
         strength=0.75,
         uses_mask=False,
         prompt_key="flux_prompts",
+    ),
+    ModelConfig(
+        name="SD3.5 Medium",
+        model_id="stabilityai/stable-diffusion-3.5-medium",
+        pipeline_type=PipelineType.SD3_IMG2IMG,
+        # Matches SD3Attack.native_resolution in src/diffvax/sd3_attack.py.
+        native_resolution=1024,
+        # Same reasoning as SD 1.5 img2img above: strength=1.0 destroys the
+        # input image (pure noise); 0.75 lets the perturbation meaningfully
+        # condition the output.
+        strength=0.75,
+        uses_mask=False,
     ),
     ModelConfig(
         name="FLUX.2 Klein",
@@ -239,45 +255,10 @@ def load_eval_entries(
 # ---------------------------------------------------------------------------
 # Perturbation net loading & immunization
 # ---------------------------------------------------------------------------
-
-
-def load_perturbation_net(checkpoint_path: str) -> NestedUNet:
-    """Load the NestedUNet perturbation network from a checkpoint."""
-    net = NestedUNet(num_classes=3).to(resolve_device()).eval()
-    net.load_state_dict(torch.load(checkpoint_path, weights_only=True))
-    for param in net.parameters():
-        param.requires_grad = False
-    print(f"Loaded perturbation net from {checkpoint_path}")
-    return net
-
-
-def immunize_image(
-    perturbation_net: NestedUNet,
-    image_pil: Image.Image,
-    mask_pil: Image.Image,
-    resolution: int,
-) -> Image.Image:
-    """Immunize a single image using the perturbation network.
-
-    Returns the immunized PIL image at the original resolution.
-    """
-    device = resolve_device()
-    dtype = resolve_dtype(device)
-    mask_torch, _, image_torch = prepare_mask_and_masked_image(image_pil, mask_pil)
-    image_torch = image_torch.to(device=device, dtype=dtype)
-    mask_torch = mask_torch.to(device=device, dtype=dtype)
-
-    with torch.no_grad():
-        img_f = image_torch.float()
-        # Full-image perturbation, matching train semantics (no mask gating here).
-        unet_out = perturbation_net(img_f).to(dtype)
-
-    img_adv = torch.clamp(image_torch + unet_out, -1, 1)
-    # Convert [-1, 1] tensor to PIL
-    imm_pil = to_pil((img_adv / 2 + 0.5).clamp(0, 1)[0]).convert("RGB")
-    # Restore background outside mask from original
-    # imm_pil = recover_image(imm_pil, image_pil, mask_pil, background=True)
-    return imm_pil
+#
+# load_perturbation_net() and immunize_image_pil() now live in diffvax.utils
+# (shared with scripts/evaluate.py) — load_perturbation_net() also accepts a
+# Hugging Face Hub repo id in addition to a local .pth/save_pretrained() path.
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +288,12 @@ def create_pipeline(config: ModelConfig):
 
         pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
             config.model_id, torch_dtype=dtype, variant="fp16"
+        )
+    elif config.pipeline_type == PipelineType.SD3_IMG2IMG:
+        from diffusers import StableDiffusion3Img2ImgPipeline
+
+        pipe = StableDiffusion3Img2ImgPipeline.from_pretrained(
+            config.model_id, torch_dtype=dtype
         )
     elif config.pipeline_type == PipelineType.FLUX_KLEIN:
         from diffusers import Flux2KleinPipeline
@@ -379,6 +366,7 @@ def run_model(
     elif config.pipeline_type in (
         PipelineType.SD_IMG2IMG,
         PipelineType.SDXL_IMG2IMG,
+        PipelineType.SD3_IMG2IMG,
         PipelineType.FLUX_IMG2IMG,
     ):
         if config.strength is not None:
@@ -415,30 +403,27 @@ def create_metrics():
     }
 
 
-def extract_mask_region(image: Image.Image, mask: Image.Image) -> Image.Image:
-    """Extract the masked (edit) region from an image."""
-    return recover_image(image, image, mask, background=False)
-
-
 def compute_image_metrics(
     metrics: dict,
     original: Image.Image,
     immunized: Image.Image,
     edited_orig: Image.Image,
     edited_imm: Image.Image,
-    mask: Image.Image,
     prompt: str,
 ) -> dict:
     """Compute all metrics for one image-model pair.
 
-    Metrics are computed on the masked region for fair comparison.
+    Edit-quality metrics are computed over the WHOLE edited image, for every
+    model uniformly — including inpainting models, where run_model() has
+    already composited the generated hole back into the original background
+    before this function ever sees it. (A previous "extract mask region"
+    step here was a no-op — it called recover_image(image, image, mask, ...)
+    with the same image as both args, which returns that image unchanged
+    regardless of mask content — so this was already the effective behavior;
+    this makes it explicit instead of pretending to restrict to a region.)
     """
-    # Extract mask regions for edit comparison
-    edited_orig_region = extract_mask_region(edited_orig, mask)
-    edited_imm_region = extract_mask_region(edited_imm, mask)
-
-    edited_orig_np = np.array(edited_orig_region.convert("RGB"))
-    edited_imm_np = np.array(edited_imm_region.convert("RGB"))
+    edited_orig_np = np.array(edited_orig.convert("RGB"))
+    edited_imm_np = np.array(edited_imm.convert("RGB"))
 
     # Perturbation visibility (full image)
     orig_np = np.array(original.convert("RGB"))
@@ -448,7 +433,7 @@ def compute_image_metrics(
     result["orig_vs_imm_psnr"] = float(metrics["psnr"]([orig_np], [imm_np])[0])
     result["orig_vs_imm_ssim"] = float(metrics["ssim"]([orig_np], [imm_np])[0])
 
-    # Edit quality metrics (mask region)
+    # Edit quality metrics (whole image)
     result["edit_ssim"] = float(
         metrics["ssim"]([edited_orig_np], [edited_imm_np])[0]
     )
@@ -459,12 +444,12 @@ def compute_image_metrics(
         metrics["fsim"]([edited_orig_np], [edited_imm_np])[0]
     )
 
-    # CLIP scores (on masked region)
+    # CLIP scores (whole image)
     result["clip_no_defense"] = float(
-        metrics["clip"]([edited_orig_region], [prompt])[0]
+        metrics["clip"]([edited_orig], [prompt])[0]
     )
     result["clip_with_defense"] = float(
-        metrics["clip"]([edited_imm_region], [prompt])[0]
+        metrics["clip"]([edited_imm], [prompt])[0]
     )
     result["clip_delta"] = result["clip_no_defense"] - result["clip_with_defense"]
 
@@ -610,7 +595,11 @@ def main():
         description="Evaluate DiffVax checkpoint against a zoo of editing models"
     )
     parser.add_argument(
-        "--checkpoint", type=str, required=True, help="DiffVax .pth checkpoint"
+        "--checkpoint", type=str, required=True,
+        help=(
+            "Local .pth checkpoint, a local save_pretrained() directory, "
+            "or a Hugging Face Hub repo id (e.g. 'username/diffvax-run')"
+        ),
     )
     parser.add_argument(
         "--data-dir", type=str, default=os.path.join(_project_root, "data"),
@@ -685,8 +674,7 @@ def main():
     immunized_images = []
     for i, entry in enumerate(entries):
         image_pil = Image.open(entry.image_path).convert("RGB")
-        mask_pil = Image.open(entry.mask_path).convert("RGB")
-        imm_pil = immunize_image(perturbation_net, image_pil, mask_pil, resolution)
+        imm_pil = immunize_image_pil(perturbation_net, image_pil)
         immunized_images.append(imm_pil)
         if (i + 1) % 10 == 0 or (i + 1) == len(entries):
             print(f"  Immunized {i + 1}/{len(entries)}")
@@ -776,7 +764,7 @@ def main():
 
             # Compute metrics
             img_metrics = compute_image_metrics(
-                metrics, image_pil, imm_pil, edited_orig, edited_imm, mask_pil, prompt
+                metrics, image_pil, imm_pil, edited_orig, edited_imm, prompt
             )
             per_image_metrics[entry.name] = img_metrics
 

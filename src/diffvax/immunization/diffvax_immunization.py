@@ -118,6 +118,21 @@ def _select_loss1_weight(attack_model, used_mask_this_batch, mask_batch, ones):
     return ones
 
 
+def _weighted_l1(diff: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    """Mean absolute value of `diff` (B, C, H, W), weighted by `weight`
+    (B, 1, H, W broadcasting over channels).
+
+    `weight.sum()` counts spatial positions only (weight has 1 channel), but
+    `diff` has C channels — dividing by `weight.sum()` alone (as this used to)
+    summed the numerator over C times as many elements as the denominator
+    counted, inflating the result by exactly C (verified against the observed
+    loss1=3.000 plateau with a noise target: true mean abs diff ~=1.0, x3 bug
+    -> 3.000). Scale the normalizer by the channel count to fix.
+    """
+    channels = diff.shape[1]
+    return (diff * weight).norm(p=1) / (weight.sum() * channels)
+
+
 class DiffVaxImmunization:
     def __init__(
         self,
@@ -459,6 +474,12 @@ class DiffVaxImmunization:
         masked_attack_probability = float(
             self._config.get("sd3_attack", {}).get("masked_attack_probability", 0.0)
         )
+        # Confine the perturbation itself to the subject region (dataset mask
+        # convention: 1=background, 0=subject). False (default) preserves
+        # exact full-image behaviour for every config that doesn't set this.
+        perturbation_mask_gating = bool(
+            self._config.get("perturbation_mask_gating", False)
+        )
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size,
@@ -583,14 +604,36 @@ class DiffVaxImmunization:
                 # gradients; enabling it wastes memory tracking the input graph.
 
                 ones = torch.ones_like(mask_batch)
+                # Real face masks can be all-background (face detection found
+                # nothing, e.g. face_alexander-lunyov...png in the validation
+                # set) — 1.0 - mask_batch is then exactly zero, which would
+                # make loss2's weighted normalizer divide by zero (NaN, trips
+                # the NaN/Inf guard below and aborts the whole run). Same
+                # hazard class as the existing mask_batch.sum() > 0 guard for
+                # use_masked_sd3 — fall back to whole-image gating for this
+                # one batch rather than let a single bad mask kill the run.
+                subject_region = 1.0 - mask_batch
+                gate_to_subject = perturbation_mask_gating and subject_region.sum() > 0
 
-                # Perturbation: always full image (no mask gating)
+                # Perturbation: full image by default. When gate_to_subject,
+                # confine it to the subject region — dataset mask convention
+                # is 1=background, 0=subject, so subject_region selects the
+                # subject. Matches this repo's pre-"full image immunization"
+                # behavior (mask-gated perturbation), restored deliberately
+                # rather than left as an experiment: a perturbation the
+                # attacker's model can zero out entirely (background,
+                # discarded by inpainting-style masking) wastes budget that's
+                # better spent concentrated on the subject, which every
+                # attack path here treats as "known"/preserved content and
+                # therefore actually propagates.
                 img_f = img_batch.float()
                 # Call the module, not .forward(): DDP's gradient-sync hooks
                 # live in __call__, so calling .forward() directly would
                 # silently skip the all-reduce and let ranks diverge.
                 unet_out = self.unetmodel(img_f)
                 unet_out = unet_out.to(dtype=img_batch.dtype)
+                if gate_to_subject:
+                    unet_out = unet_out * subject_region
                 img_adv = torch.clamp(
                     img_batch + unet_out, self.clamp_min, self.clamp_max
                 )
@@ -792,17 +835,21 @@ class DiffVaxImmunization:
                 )
 
                 loss1_weight_norm = loss1_weight / resolution
-                loss2_weight_norm = ones / resolution
+                # When the perturbation is gated to the subject this batch,
+                # the imperceptibility penalty must be measured over that
+                # same region — otherwise it's diluted by background pixels
+                # that are guaranteed exactly zero, making alpha silently
+                # mean a much weaker per-visible-pixel budget than the config
+                # states. Uses the same gate_to_subject/subject_region as the
+                # perturbation itself so the two can never disagree (e.g. on
+                # the degenerate all-background-mask fallback above).
+                loss2_weight = subject_region if gate_to_subject else ones
+                loss2_weight_norm = loss2_weight / resolution
 
-                # Existing losses (unchanged)
-                loss1 = (
-                    ((img_out - target_image_t) * loss1_weight_norm).norm(p=1)
-                    / loss1_weight_norm.sum()
-                )
-                loss2 = (
-                    (alpha * (img_adv - img_batch) * loss2_weight_norm).norm(p=1)
-                    / loss2_weight_norm.sum()
-                )
+                # Existing losses (unchanged in intent; see _weighted_l1 for
+                # the channel-count fix to their normalization)
+                loss1 = _weighted_l1(img_out - target_image_t, loss1_weight_norm)
+                loss2 = _weighted_l1(alpha * (img_adv - img_batch), loss2_weight_norm)
 
                 # ---- Phase 2+: Extra losses (CLIP, spectral, …) ----
                 loss_clip_val = 0.0

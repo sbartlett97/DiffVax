@@ -167,6 +167,7 @@ def build_immunization_config(config: dict) -> dict:
         "num_inference_steps": config.get("num_inference_steps", 4),
         "sd3_attack": config.get("sd3_attack", {}),
         "flux_attack": config.get("flux_attack", {}),
+        "perturbation_mask_gating": config.get("perturbation_mask_gating", False),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
         "reporting": config.get("reporting", {}),

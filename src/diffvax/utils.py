@@ -6,6 +6,7 @@ import torch
 import torchvision.transforms as T
 import random
 import json
+import os
 from pathlib import Path
 from typing import Optional
 from transformers import set_seed
@@ -97,6 +98,75 @@ def make_generator(
     if seed is not None:
         generator.manual_seed(seed)
     return generator
+
+
+def load_perturbation_net(
+    checkpoint: str,
+    num_classes: int = 3,
+    nb_filter: Optional[list] = None,
+    device: Optional[torch.device] = None,
+):
+    """Load a trained NestedUNet perturbation network for inference/eval.
+
+    ``checkpoint`` may be:
+      - a local .pth file (raw state_dict, as saved by the training loop's
+        torch.save() checkpoints) — nb_filter must be passed explicitly if
+        the checkpoint used a non-default architecture (e.g. the H6 larger
+        variant), since a raw state_dict carries no architecture metadata.
+      - a local directory produced by NestedUNet.save_pretrained()
+      - a Hugging Face Hub repo id (e.g. "username/diffvax-run") — recovers
+        nb_filter automatically from the repo's config.json. Private repos
+        are picked up via the HF_TOKEN env var / cached `hf auth login`,
+        same as any gated diffusers pipeline download.
+
+    Returned network is frozen (requires_grad=False) and in eval() mode.
+    """
+    from diffvax.model import NestedUNet
+
+    device = device or resolve_device()
+    if os.path.isfile(checkpoint):
+        net = NestedUNet(num_classes=num_classes, nb_filter=nb_filter).to(device).eval()
+        net.load_state_dict(
+            torch.load(checkpoint, weights_only=True, map_location=device)
+        )
+        print(f"Loaded perturbation net from local checkpoint: {checkpoint}")
+    else:
+        # Not a local file (also transparently handles a local
+        # save_pretrained() directory) -> treat as a Hub repo id.
+        net = NestedUNet.from_pretrained(checkpoint).to(device).eval()
+        print(f"Loaded perturbation net from Hugging Face Hub: {checkpoint}")
+
+    for param in net.parameters():
+        param.requires_grad = False
+    return net
+
+
+def immunize_image_pil(
+    perturbation_net,
+    image_pil: Image.Image,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+) -> Image.Image:
+    """Apply a trained perturbation network to a PIL image.
+
+    Always full-image (no mask gating), matching training semantics — the
+    perturbation network itself never sees or uses a mask. Mirrors the
+    training loop's own float32-in/compute-dtype-out pattern: the NestedUNet
+    is always fp32 regardless of the active surrogate's compute dtype, so
+    the input is cast to fp32 for the forward pass and the output cast back.
+    """
+    device = device or resolve_device()
+    dtype = dtype or resolve_dtype(device)
+
+    image_np = np.array(image_pil.convert("RGB"))
+    image_t = torch.from_numpy(image_np[None].transpose(0, 3, 1, 2))
+    image_t = (image_t.to(dtype=torch.float32) / 127.5 - 1.0).to(device=device, dtype=dtype)
+
+    with torch.no_grad():
+        unet_out = perturbation_net(image_t.float()).to(dtype)
+    img_adv = torch.clamp(image_t + unet_out, -1, 1)
+
+    return topil(((img_adv / 2 + 0.5).clamp(0, 1)[0]).to(torch.float32).cpu())
 
 
 def empty_cache(device: Optional[torch.device] = None) -> None:
