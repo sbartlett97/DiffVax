@@ -134,39 +134,55 @@ def _build_attack_manager(config):
     )
 
 
-def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
-    iter_num = config["iter_num"]
-    immunization_model_name = config["immunization_model"]
-    alpha = config["alpha"]
-    batch_size = config["batch_size"]
-    train_all = config["train_all"]
-    resolution = config.get("resolution", 512)
-    adaptive_cfg = config.get("adaptive_ensemble", {})
-
-    attack_manager = _build_attack_manager(config)
-
-    immunization_config = {
-        "iter_num": iter_num,
+def build_immunization_config(config: dict) -> dict:
+    """Curate the subset of the full YAML config that DiffVaxImmunization
+    reads via self._config. Every key DiffVaxImmunization reads with
+    self._config.get(...) MUST be listed here, or it silently falls back to
+    that call's hardcoded default regardless of what the YAML says (bit us
+    once already: sd3_attack.masked_attack_probability and
+    num_inference_steps were both missing here and silently no-opped/
+    defaulted for every run until this was caught) — see
+    tests/test_train_config_passthrough.py, which cross-checks this dict's
+    keys against every self._config.get(...) call in diffvax_immunization.py
+    so a newly-added config read can't reintroduce the same gap unnoticed.
+    """
+    return {
+        "iter_num": config["iter_num"],
         "learning_rate": config["learning_rate"],
-        "immunization_model": immunization_model_name,
+        "immunization_model": config["immunization_model"],
         # Pass through all v2 phase configs so DiffVaxImmunization can read them
         "eot": config.get("eot", {}),
         "clip_loss": config.get("clip_loss", {}),
         "beta": config.get("beta", 0.5),
         "curriculum": config.get("curriculum", {}),
-        "resolution": resolution,
-        "batch_size": batch_size,
-        "adaptive_ensemble": adaptive_cfg,
+        "resolution": config.get("resolution", 512),
+        "batch_size": config["batch_size"],
+        "adaptive_ensemble": config.get("adaptive_ensemble", {}),
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
         "noise_target": config.get("noise_target", {}),
         "spectral_loss": config.get("spectral_loss", {}),
         "latent_loss": config.get("latent_loss", {}),
         "nb_filter": config.get("nb_filter"),
+        "num_inference_steps": config.get("num_inference_steps", 4),
+        "sd3_attack": config.get("sd3_attack", {}),
+        "flux_attack": config.get("flux_attack", {}),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
         "reporting": config.get("reporting", {}),
     }
+
+
+def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
+    iter_num = config["iter_num"]
+    alpha = config["alpha"]
+    batch_size = config["batch_size"]
+    train_all = config["train_all"]
+    resolution = config.get("resolution", 512)
+
+    attack_manager = _build_attack_manager(config)
+
+    immunization_config = build_immunization_config(config)
 
     load_existing = config.get("load_existing", False)
     load_path = config.get("load_path")
