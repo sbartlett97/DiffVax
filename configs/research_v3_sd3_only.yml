@@ -261,7 +261,7 @@ attention_loss:
   enabled: true
   target_blocks: "middle"
   num_hooks: 8
-  weight: 0.4
+  weight: 0.8
   only_with_dit: true
 
 # -- Dataset --
