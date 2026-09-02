@@ -143,7 +143,20 @@ def _weighted_l1(
     1/min_area_frac regardless of how small the real region is; it only
     engages for regions below that fraction, so normal-sized masks (a person
     filling >1% of frame — effectively all of them) are unaffected.
+
+    diff/weight are upcast to float32 for the reduction. fp16's max finite
+    value is 65504 — summing weight (0/1-valued) over a near-full-image
+    region already exceeds that (a 1088x1088 image alone has 1,183,744
+    positions), so weight.sum() overflows to literal inf in fp16 before any
+    of the above logic even runs, and inf/(anything) or (anything)/inf
+    produces the exact NaN/Inf-on-loss1-and-loss2-together abort seen on a
+    real run's very first batch. fp32's ~3.4e38 range has no such issue at
+    any realistic resolution. Mirrors the same upcast-for-reduction pattern
+    already used elsewhere in this codebase (spectral_loss.py's rfft2,
+    immunize_image_pil's NestedUNet forward) for the same underlying reason.
     """
+    diff = diff.float()
+    weight = weight.float()
     channels = diff.shape[1]
     total_area = weight.numel()
     floor = min_area_frac * total_area
@@ -857,12 +870,19 @@ class DiffVaxImmunization:
                     attack_model, use_masked_sd3, mask_batch, ones
                 )
 
-                # No /resolution scaling here (removed): it cancelled exactly
-                # in _weighted_l1's ratio either way, so it was a pure no-op
-                # on the loss VALUE — but it shrank the intermediate weight
-                # tensor by ~512-1088x for no benefit, needless fp16 dynamic-
-                # range pressure on top of the amplification _weighted_l1's
-                # floor now guards against. Pass raw 0/1 weights instead.
+                # No /resolution scaling here (removed): it cancels exactly
+                # in _weighted_l1's ratio either way, so it's a pure no-op on
+                # the loss VALUE. It used to also be *accidental* fp16-
+                # overflow protection for weight.sum() (dividing every
+                # element by ~512-1088 before summing kept the sum well
+                # under fp16's 65504 max) — removing it without also fixing
+                # that caused a real run to abort with NaN on loss1+loss2
+                # together on its very first batch (a 1088x1088 all-ones
+                # weight sums to 1,183,744, which is inf in fp16). This is
+                # safe now ONLY because _weighted_l1 upcasts to float32
+                # internally before summing — if that upcast is ever
+                # removed, this needs the /resolution scaling back, or some
+                # other overflow guard, or the same abort will recur.
                 loss1_weight_norm = loss1_weight
                 # When the perturbation is gated to the subject this batch,
                 # the imperceptibility penalty must be measured over that
