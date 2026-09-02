@@ -118,7 +118,9 @@ def _select_loss1_weight(attack_model, used_mask_this_batch, mask_batch, ones):
     return ones
 
 
-def _weighted_l1(diff: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+def _weighted_l1(
+    diff: torch.Tensor, weight: torch.Tensor, min_area_frac: float = 0.01,
+) -> torch.Tensor:
     """Mean absolute value of `diff` (B, C, H, W), weighted by `weight`
     (B, 1, H, W broadcasting over channels).
 
@@ -128,9 +130,25 @@ def _weighted_l1(diff: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     counted, inflating the result by exactly C (verified against the observed
     loss1=3.000 plateau with a noise target: true mean abs diff ~=1.0, x3 bug
     -> 3.000). Scale the normalizer by the channel count to fix.
+
+    `weight.sum()` is also floored at `min_area_frac` of the total element
+    count. Without this, a real but tiny mask region (measured on this
+    dataset's actual face masks: as small as 0.02% of the frame) makes
+    weight.sum() tiny, so 1/weight.sum() amplifies that region's per-pixel
+    gradient by up to ~5000x relative to full-image weighting — enough to
+    overflow fp16 on the backward pass and collapse GradScaler to ~0 for the
+    rest of the run (observed directly: a real training run's scale stuck at
+    0 from very early on after perturbation_mask_gating started producing
+    small-area weight tensors). The floor caps the amplification at
+    1/min_area_frac regardless of how small the real region is; it only
+    engages for regions below that fraction, so normal-sized masks (a person
+    filling >1% of frame — effectively all of them) are unaffected.
     """
     channels = diff.shape[1]
-    return (diff * weight).norm(p=1) / (weight.sum() * channels)
+    total_area = weight.numel()
+    floor = min_area_frac * total_area
+    denom = torch.clamp(weight.sum(), min=floor) * channels
+    return (diff * weight).norm(p=1) / denom
 
 
 class DiffVaxImmunization:
@@ -480,6 +498,12 @@ class DiffVaxImmunization:
         perturbation_mask_gating = bool(
             self._config.get("perturbation_mask_gating", False)
         )
+        # Gradient-norm cap applied every step, unconditionally (not opt-in)
+        # — a pure robustness backstop, not a behavior choice like the flags
+        # above. Default is generous enough not to interfere with normal
+        # gradients; it exists to catch genuine explosions (see
+        # scaler.unscale_ call site) before they reach the optimizer.
+        max_grad_norm = float(self._config.get("max_grad_norm", 5.0))
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size,
@@ -795,7 +819,6 @@ class DiffVaxImmunization:
                         )
 
                 # ---- Loss computation ----
-                resolution = h
                 # H7: fixed target for loss1 (Mist insight, arXiv:2305.12683).
                 # Target is cached per shape so the optimizer has a consistent
                 # direction across batches — a per-batch RANDOM target has
@@ -834,7 +857,13 @@ class DiffVaxImmunization:
                     attack_model, use_masked_sd3, mask_batch, ones
                 )
 
-                loss1_weight_norm = loss1_weight / resolution
+                # No /resolution scaling here (removed): it cancelled exactly
+                # in _weighted_l1's ratio either way, so it was a pure no-op
+                # on the loss VALUE — but it shrank the intermediate weight
+                # tensor by ~512-1088x for no benefit, needless fp16 dynamic-
+                # range pressure on top of the amplification _weighted_l1's
+                # floor now guards against. Pass raw 0/1 weights instead.
+                loss1_weight_norm = loss1_weight
                 # When the perturbation is gated to the subject this batch,
                 # the imperceptibility penalty must be measured over that
                 # same region — otherwise it's diluted by background pixels
@@ -843,11 +872,11 @@ class DiffVaxImmunization:
                 # states. Uses the same gate_to_subject/subject_region as the
                 # perturbation itself so the two can never disagree (e.g. on
                 # the degenerate all-background-mask fallback above).
-                loss2_weight = subject_region if gate_to_subject else ones
-                loss2_weight_norm = loss2_weight / resolution
+                loss2_weight_norm = subject_region if gate_to_subject else ones
 
                 # Existing losses (unchanged in intent; see _weighted_l1 for
-                # the channel-count fix to their normalization)
+                # the channel-count fix and small-region floor on their
+                # normalization)
                 loss1 = _weighted_l1(img_out - target_image_t, loss1_weight_norm)
                 loss2 = _weighted_l1(alpha * (img_adv - img_batch), loss2_weight_norm)
 
@@ -966,6 +995,21 @@ class DiffVaxImmunization:
                 # before scaler.step() (which calls unscale_ internally if not done).
                 scaler.unscale_(self.optimizer)
 
+                # Second line of defense against exploding gradients (see
+                # _weighted_l1's min_area_frac floor for the root cause this
+                # is a backstop for, not a replacement for). unscale_ above
+                # divides raw gradients by the scale factor first, so a
+                # gradient that only overflowed fp16 because of scaling can
+                # come back finite here — error_if_nonfinite=False so a
+                # genuine (unscaled) inf still passes through untouched for
+                # GradScaler's own found_inf check below to catch and skip,
+                # rather than this raising instead of that happening.
+                torch.nn.utils.clip_grad_norm_(
+                    self._unet_module.parameters(),
+                    max_norm=max_grad_norm,
+                    error_if_nonfinite=False,
+                )
+
                 # ---- Phase 6: Flat-minima regularization (post-backward) ----
                 # Applied after unscale_ so grad_norm reads true gradient magnitudes.
                 if self._flat_minima is not None:
@@ -1022,7 +1066,11 @@ class DiffVaxImmunization:
                 # S1: log scaler state periodically to surface silent step-skipping
                 if batch_iter_count % 100 == 0 and is_main_process():
                     tqdm.write(
-                        f"[Scaler] scale={scaler.get_scale():.0f} "
+                        # :.0f previously rounded anything below 0.5 to "0",
+                        # making a mild dip (0.49) and a true collapse
+                        # (1e-30) indistinguishable in the log — exactly the
+                        # ambiguity that stalled diagnosing a real collapse.
+                        f"[Scaler] scale={scaler.get_scale():.3e} "
                         f"batch={batch_iter_count}"
                     )
 

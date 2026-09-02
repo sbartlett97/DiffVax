@@ -168,6 +168,7 @@ def build_immunization_config(config: dict) -> dict:
         "sd3_attack": config.get("sd3_attack", {}),
         "flux_attack": config.get("flux_attack", {}),
         "perturbation_mask_gating": config.get("perturbation_mask_gating", False),
+        "max_grad_norm": config.get("max_grad_norm", 5.0),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
         "reporting": config.get("reporting", {}),

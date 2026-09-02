@@ -631,6 +631,14 @@ def main():
         "--skip-visual", action="store_true", help="Skip generating comparison PNG"
     )
     parser.add_argument(
+        "--mask-gate-perturbation", action="store_true",
+        help="Confine the applied perturbation to the subject region (mask==0; "
+        "dataset convention 1=background) instead of the whole image. Only use "
+        "this for checkpoints actually trained with perturbation_mask_gating: "
+        "true — for full-image-trained checkpoints it strips content the "
+        "network relied on rather than reflecting how it actually protects.",
+    )
+    parser.add_argument(
         "--split", type=str, default=None,
         help='Dataset split: "validation", "eval", or auto-detect',
     )
@@ -670,11 +678,17 @@ def main():
     print("\nLoading perturbation network...")
     perturbation_net = load_perturbation_net(args.checkpoint)
 
-    print("Immunizing images...")
+    print("Immunizing images..." + (
+        " (mask-gated to subject region)" if args.mask_gate_perturbation else ""
+    ))
     immunized_images = []
     for i, entry in enumerate(entries):
         image_pil = Image.open(entry.image_path).convert("RGB")
-        imm_pil = immunize_image_pil(perturbation_net, image_pil)
+        mask_pil = (
+            Image.open(entry.mask_path).convert("RGB")
+            if args.mask_gate_perturbation else None
+        )
+        imm_pil = immunize_image_pil(perturbation_net, image_pil, mask_pil=mask_pil)
         immunized_images.append(imm_pil)
         if (i + 1) % 10 == 0 or (i + 1) == len(entries):
             print(f"  Immunized {i + 1}/{len(entries)}")

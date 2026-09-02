@@ -186,6 +186,14 @@ def main():
         "--no-metric", action="store_true",
         help="Save edited images without computing metrics (faster smoke test)",
     )
+    parser.add_argument(
+        "--mask-gate-perturbation", action="store_true",
+        help="Confine the applied perturbation to the subject region (mask==0; "
+        "dataset convention 1=background) instead of the whole image. Only use "
+        "this for checkpoints actually trained with perturbation_mask_gating: "
+        "true — for full-image-trained checkpoints it strips content the "
+        "network relied on rather than reflecting how it actually protects.",
+    )
     args = parser.parse_args()
 
     set_seed_lib(args.seed)
@@ -239,7 +247,10 @@ def main():
             images_subdir="validation/images", masks_subdir="validation/masks",
             size=size, mask_type=mask_type,
         )
-        adv_image = immunize_image_pil(perturbation_net, orig_image, device=device)
+        adv_image = immunize_image_pil(
+            perturbation_net, orig_image, device=device,
+            mask_pil=image_mask if args.mask_gate_perturbation else None,
+        )
 
         noise_metrics, edit_metrics = calculate_metrics_for_image(
             orig_image, adv_image, image_mask, entry["prompts"], image_name,
