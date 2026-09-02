@@ -1046,17 +1046,32 @@ class DiffVaxImmunization:
                     if is_main_process():
                         torch.save(self.model.state_dict(), nan_path)
                     _origin = "this rank" if _nan_here else "another rank"
+                    # Per-term breakdown so the abort message actually says
+                    # WHICH term produced the NaN/Inf, rather than just that
+                    # the aggregate did — the individual scalars are already
+                    # in scope here, this is free.
+                    _term_values = {
+                        "loss1": loss1, "loss2": loss2, "loss_extra": loss_extra,
+                        "loss_latent": loss_latent, "loss_attn": loss_attn,
+                    }
+                    _bad_terms = [
+                        name for name, val in _term_values.items()
+                        if bool(torch.isnan(val) or torch.isinf(val))
+                    ] if _nan_here else ["(NaN was on another rank)"]
+                    _bad_terms_str = ", ".join(_bad_terms) or "(none individually — only the sum is)"
                     self.reporter.report_error(
                         "nan_loss",
                         f"NaN/Inf loss detected on {_origin} at epoch={epoch_i} "
-                        f"batch={i} (global iter={cur_iter}). "
+                        f"batch={i} (global iter={cur_iter}). Bad term(s): "
+                        f"{_bad_terms_str}. "
                         f"Emergency checkpoint saved: {nan_path}",
                         epoch=epoch_i,
                         batch=i,
                     )
                     tqdm.write(
                         f"[NaN] Loss is NaN/Inf on {_origin} at epoch={epoch_i} "
-                        f"batch={i} — aborting. Checkpoint: {nan_path}"
+                        f"batch={i} — bad term(s): {_bad_terms_str} — aborting. "
+                        f"Checkpoint: {nan_path}"
                     )
                     return
 

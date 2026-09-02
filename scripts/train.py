@@ -237,21 +237,32 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     strength_range = config.get("strength_range", [0.5, 1.0])
 
     try:
-        immunized_img, immunization_model_path = (
-            immunization_mdl.train_immunization_all_images_batch(
-                entries,
-                data_dir,
-                images_subdir,
-                masks_subdir,
-                size,
-                target_image=None,
-                alpha=alpha,
-                iter_num=iter_num,
-                batch_size=batch_size,
-                sd_target_resolutions=sd_target_resolutions,
-                strength_range=strength_range,
-            )
+        result = immunization_mdl.train_immunization_all_images_batch(
+            entries,
+            data_dir,
+            images_subdir,
+            masks_subdir,
+            size,
+            target_image=None,
+            alpha=alpha,
+            iter_num=iter_num,
+            batch_size=batch_size,
+            sd_target_resolutions=sd_target_resolutions,
+            strength_range=strength_range,
         )
+        # train_immunization_all_images_batch returns bare None on a NaN/Inf
+        # abort (see its early `return` in the NaN-guard block) rather than
+        # the usual (img_adv, path) tuple — unpacking that unconditionally
+        # raises an unrelated-looking TypeError that stomps the actually
+        # informative [NaN] message already printed above it.
+        if result is None:
+            raise RuntimeError(
+                "Training aborted before completing (NaN/Inf loss on some "
+                "batch) — see the [NaN] message above and training_log.json "
+                "for which loss term was at fault. An emergency checkpoint "
+                "was saved at the point of failure."
+            )
+        immunized_img, immunization_model_path = result
     except Exception as exc:
         tb_str = traceback.format_exc()
         immunization_mdl.reporter.report_error(
