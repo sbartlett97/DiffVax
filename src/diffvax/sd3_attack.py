@@ -133,13 +133,25 @@ class SD3Attack(BaseAttack):
         backward — already multiplied by GradScaler's scale factor (up to
         65536) — so an entirely ordinary raw gradient (~0.08/element) becomes
         large enough that its L2 norm over MM-DiT's wide hidden dim (1536 for
-        SD3.5) legitimately exceeds fp16's 65504 max on its own, independent
-        of any loss term. That single inf norm poisons mean_norm (shared
-        across every token via .mean()) and turns the whole hook's output to
-        NaN, which found_inf then blames on backward generally — this was
-        observed firing on ~85% of steps with ONLY loss1+loss2 enabled,
-        ruling out any specific loss term. Same upcast-for-reduction pattern
-        as _weighted_l1 in diffvax_immunization.py for the same reason.
+        SD3.5) can legitimately exceed fp16's 65504 max on its own,
+        independent of any loss term. That single inf norm would poison
+        mean_norm (shared across every token via .mean()) and turn the whole
+        hook's output to NaN. This is the LEADING candidate — not confirmed
+        — for a real run's GradScaler collapsing to 0.0 with found_inf on
+        ~85% of steps using ONLY loss1+loss2 (see research/findings.md
+        C-SCALER): that ablation rules out CLIP/spectral/latent/attention
+        but doesn't by itself prove TGR specifically, since
+        token_gradient_regularization was also enabled in every config
+        checked. Confirming this needs either that config's actual TGR
+        setting or a token_gradient_regularization=false run showing the
+        skip rate drop. Same upcast-for-reduction pattern as _weighted_l1 in
+        diffvax_immunization.py for the same reason. NOTE: the final
+        `.to(g.dtype)` cast below can still overflow if the true (correctly-
+        computed) mean_norm itself exceeds fp16 range — that residual case
+        is intentionally left to GradScaler's own found_inf/backoff, since a
+        gradient that genuinely doesn't fit in fp16 is a real overflow, not
+        an artifact of this hook's arithmetic. This fix reduces the skip
+        rate; it does not guarantee zero skips.
         """
         normed = []
         for g in grad_output:

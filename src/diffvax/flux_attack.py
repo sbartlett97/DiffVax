@@ -157,9 +157,10 @@ class FluxAttack(BaseAttack):
         (TGR, CVPR 2023, arXiv:2303.15754).
 
         Computed in float32 regardless of g's dtype — see
-        SD3Attack._tgr_backward_pre_hook's docstring for why: g is already
-        scaled by GradScaler when this fires, and a wide hidden dim's L2 norm
-        can exceed fp16 range from an entirely ordinary raw gradient.
+        SD3Attack._tgr_backward_pre_hook's docstring for the full mechanism,
+        why this is a leading (not confirmed) candidate for a real GradScaler
+        collapse, and the residual limitation of the final `.to(g.dtype)`
+        cast.
         """
         normed = []
         for g in grad_output:
