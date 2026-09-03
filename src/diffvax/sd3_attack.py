@@ -128,15 +128,28 @@ class SD3Attack(BaseAttack):
         variance that hurts adversarial transfer in high-token-count attention
         (TGR, CVPR 2023, arXiv:2303.15754) without changing the global
         gradient magnitude.
+
+        Computed in float32 regardless of g's dtype. g is grad_output DURING
+        backward — already multiplied by GradScaler's scale factor (up to
+        65536) — so an entirely ordinary raw gradient (~0.08/element) becomes
+        large enough that its L2 norm over MM-DiT's wide hidden dim (1536 for
+        SD3.5) legitimately exceeds fp16's 65504 max on its own, independent
+        of any loss term. That single inf norm poisons mean_norm (shared
+        across every token via .mean()) and turns the whole hook's output to
+        NaN, which found_inf then blames on backward generally — this was
+        observed firing on ~85% of steps with ONLY loss1+loss2 enabled,
+        ruling out any specific loss term. Same upcast-for-reduction pattern
+        as _weighted_l1 in diffvax_immunization.py for the same reason.
         """
         normed = []
         for g in grad_output:
             if g is None or g.ndim < 3:
                 normed.append(g)
                 continue
-            tok_norm = g.norm(dim=-1, keepdim=True)
+            g32 = g.float()
+            tok_norm = g32.norm(dim=-1, keepdim=True)
             mean_norm = tok_norm.mean(dim=1, keepdim=True)
-            normed.append(g / tok_norm.clamp(min=1e-8) * mean_norm)
+            normed.append((g32 / tok_norm.clamp(min=1e-8) * mean_norm).to(g.dtype))
         return tuple(normed)
 
     def _remove_tgr_hooks(self) -> None:

@@ -154,15 +154,22 @@ class FluxAttack(BaseAttack):
     @staticmethod
     def _tgr_backward_pre_hook(module, grad_output):
         """Equalize per-token gradient magnitude, preserving overall scale
-        (TGR, CVPR 2023, arXiv:2303.15754)."""
+        (TGR, CVPR 2023, arXiv:2303.15754).
+
+        Computed in float32 regardless of g's dtype — see
+        SD3Attack._tgr_backward_pre_hook's docstring for why: g is already
+        scaled by GradScaler when this fires, and a wide hidden dim's L2 norm
+        can exceed fp16 range from an entirely ordinary raw gradient.
+        """
         normed = []
         for g in grad_output:
             if g is None or g.ndim < 3:
                 normed.append(g)
                 continue
-            tok_norm = g.norm(dim=-1, keepdim=True)
+            g32 = g.float()
+            tok_norm = g32.norm(dim=-1, keepdim=True)
             mean_norm = tok_norm.mean(dim=1, keepdim=True)
-            normed.append(g / tok_norm.clamp(min=1e-8) * mean_norm)
+            normed.append((g32 / tok_norm.clamp(min=1e-8) * mean_norm).to(g.dtype))
         return tuple(normed)
 
     def _remove_tgr_hooks(self) -> None:
