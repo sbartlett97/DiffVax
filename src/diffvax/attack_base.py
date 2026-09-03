@@ -1,11 +1,37 @@
 """Abstract base class for differentiable attack models."""
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Union, List, Optional
 
 import torch
 from torch import Tensor
 from PIL import Image
+
+
+def suppress_full_backward_hook_kwarg_warning() -> None:
+    """Silence PyTorch's benign "no inputs require gradients" backward-hook
+    warning for callers that register register_full_backward_(pre_)hook on
+    modules invoked with all-keyword arguments (e.g. H4 TGR hooks on real
+    diffusers transformer blocks, called as
+    ``block(hidden_states=..., encoder_hidden_states=..., temb=...)``).
+
+    PyTorch's full-backward-hook input-tracking cannot see a gradient-
+    requiring tensor passed purely as a keyword argument (no positional
+    args at all) and defensively assumes none of the module's inputs
+    require grad — even though the module's output correctly does, and the
+    hook receives the correct grad_output regardless. Verified empirically:
+    the hook's captured grad_output matches the analytically expected value
+    and downstream .grad values are correct in both cases; see
+    tests/test_attack_gradient_flow.py (A6) for the gradient-correctness
+    regression tests this warning has no bearing on.
+    """
+    warnings.filterwarnings(
+        "ignore",
+        message="Full backward hook is firing when gradients are computed "
+        "with respect to module outputs",
+        category=UserWarning,
+    )
 
 
 class BaseAttack(ABC):
@@ -98,5 +124,16 @@ class BaseAttack(ABC):
         region. Full-image img2img models (SD3, FLUX) receive no mask.
 
         Default returns False. Override to True in inpainting subclasses.
+        """
+        return False
+
+    @property
+    def supports_masked_attack(self) -> bool:
+        """Whether this model can additionally run a mask-conditioned attack
+        while remaining fundamentally a full-image model (distinct from
+        is_inpainting, which means masked-ONLY, no full-image capability).
+
+        Default returns False. Override to True in subclasses that implement
+        optional mask-conditioned blending (e.g. SD3Attack's RePaint mode).
         """
         return False

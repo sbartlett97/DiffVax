@@ -6,7 +6,9 @@ import torch
 import torchvision.transforms as T
 import random
 import json
+import os
 from pathlib import Path
+from typing import Optional
 from transformers import set_seed
 from huggingface_hub import snapshot_download
 import shutil
@@ -54,11 +56,160 @@ def prepare_image_return_3d(image):
     return image
 
 
+def resolve_device() -> torch.device:
+    """Best available compute device: CUDA > MPS (Apple Silicon) > CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is not None and mps_backend.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def resolve_dtype(device: torch.device) -> torch.dtype:
+    """Preferred compute dtype for a given device.
+
+    fp16 has full kernel coverage on CUDA and is what the GradScaler path
+    expects. MPS has historically incomplete/unreliable fp16 kernel coverage
+    (attention, some reductions and FFT ops) — bf16 is the supported
+    reduced-precision type on Apple Silicon and, sharing fp32's exponent
+    range, needs no loss scaling. CPU always uses fp32.
+    """
+    if device.type == "cuda":
+        return torch.float16
+    if device.type == "mps":
+        return torch.bfloat16
+    return torch.float32
+
+
+def make_generator(
+    device: torch.device, seed: Optional[int] = None
+) -> torch.Generator:
+    """Construct a torch.Generator appropriate for the given device.
+
+    MPS is special-cased to a CPU generator: diffusers documents that
+    torch.Generator(device="mps") does not reproduce seeded results
+    consistently (a long-standing PyTorch/MPS limitation), and recommends
+    seeding on CPU even when the pipeline itself runs on MPS. CUDA and CPU
+    use their own device's generator as normal.
+    """
+    gen_device = "cpu" if device.type == "mps" else device
+    generator = torch.Generator(device=gen_device)
+    if seed is not None:
+        generator.manual_seed(seed)
+    return generator
+
+
+def load_perturbation_net(
+    checkpoint: str,
+    num_classes: int = 3,
+    nb_filter: Optional[list] = None,
+    device: Optional[torch.device] = None,
+):
+    """Load a trained NestedUNet perturbation network for inference/eval.
+
+    ``checkpoint`` may be:
+      - a local .pth file (raw state_dict, as saved by the training loop's
+        torch.save() checkpoints) — nb_filter must be passed explicitly if
+        the checkpoint used a non-default architecture (e.g. the H6 larger
+        variant), since a raw state_dict carries no architecture metadata.
+      - a local directory produced by NestedUNet.save_pretrained()
+      - a Hugging Face Hub repo id (e.g. "username/diffvax-run") — recovers
+        nb_filter automatically from the repo's config.json. Private repos
+        are picked up via the HF_TOKEN env var / cached `hf auth login`,
+        same as any gated diffusers pipeline download.
+
+    Returned network is frozen (requires_grad=False) and in eval() mode.
+    """
+    from diffvax.model import NestedUNet
+
+    device = device or resolve_device()
+    if os.path.isfile(checkpoint):
+        net = NestedUNet(num_classes=num_classes, nb_filter=nb_filter).to(device).eval()
+        net.load_state_dict(
+            torch.load(checkpoint, weights_only=True, map_location=device)
+        )
+        print(f"Loaded perturbation net from local checkpoint: {checkpoint}")
+    else:
+        # Not a local file (also transparently handles a local
+        # save_pretrained() directory) -> treat as a Hub repo id.
+        net = NestedUNet.from_pretrained(checkpoint).to(device).eval()
+        print(f"Loaded perturbation net from Hugging Face Hub: {checkpoint}")
+
+    for param in net.parameters():
+        param.requires_grad = False
+    return net
+
+
+def immunize_image_pil(
+    perturbation_net,
+    image_pil: Image.Image,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    mask_pil: Optional[Image.Image] = None,
+) -> Image.Image:
+    """Apply a trained perturbation network to a PIL image.
+
+    Full-image by default (no mask gating) — the perturbation network itself
+    never sees a mask either way. Pass ``mask_pil`` to confine the applied
+    perturbation to the subject region instead, mirroring the training
+    loop's ``perturbation_mask_gating`` (diffvax_immunization.py): dataset
+    mask convention is 1=background, 0=subject, so the perturbation is kept
+    where mask==0 and zeroed where mask==1. Only pass this for checkpoints
+    actually trained with that flag set — for full-image-trained checkpoints
+    it would zero out perturbation content the network relied on.
+    Mirrors the training loop's own float32-in/compute-dtype-out pattern:
+    the NestedUNet is always fp32 regardless of the active surrogate's
+    compute dtype, so the input is cast to fp32 for the forward pass and the
+    output cast back.
+    """
+    device = device or resolve_device()
+    dtype = dtype or resolve_dtype(device)
+
+    image_np = np.array(image_pil.convert("RGB"))
+    image_t = torch.from_numpy(image_np[None].transpose(0, 3, 1, 2))
+    image_t = (image_t.to(dtype=torch.float32) / 127.5 - 1.0).to(device=device, dtype=dtype)
+
+    with torch.no_grad():
+        unet_out = perturbation_net(image_t.float()).to(dtype)
+
+    if mask_pil is not None:
+        h, w = image_t.shape[-2:]
+        if mask_pil.size != (w, h):
+            mask_pil = mask_pil.resize((w, h), Image.NEAREST)
+        mask_np = np.array(mask_pil.convert("L"))
+        mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32))[None, None]
+        mask_t = mask_t.to(device=device, dtype=dtype)
+        unet_out = unet_out * (1.0 - mask_t)
+
+    img_adv = torch.clamp(image_t + unet_out, -1, 1)
+
+    return topil(((img_adv / 2 + 0.5).clamp(0, 1)[0]).to(torch.float32).cpu())
+
+
+def empty_cache(device: Optional[torch.device] = None) -> None:
+    """Free cached allocator memory for whichever accelerator backend is active.
+
+    A no-op on CPU. Centralizes the cuda/mps split so call sites don't need
+    their own per-backend branching.
+    """
+    if device is None:
+        device = resolve_device()
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+    elif device.type == "mps" and hasattr(torch, "mps"):
+        torch.mps.empty_cache()
+
+
 def set_seed_lib(seed):
-    """Set random seed for reproducibility."""
+    """Set random seed for reproducibility across CPU, CUDA, and MPS."""
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is not None and mps_backend.is_available() and hasattr(torch, "mps"):
+        torch.mps.manual_seed(seed)
     random.seed(seed)
     set_seed(seed)
 

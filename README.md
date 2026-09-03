@@ -17,6 +17,17 @@
 
 ![motivation](assets/diffvax_motivation.png)
 
+> **About this fork.** This repository extends the original DiffVax release with
+> a research track aimed at protecting images against modern hybrid
+> diffusion/transformer ("DiT") editors — SD3/SD3.5, FLUX.1/FLUX.2, and (via
+> proxy losses) closed-source tools like DALL·E 3 and Gemini image editing —
+> in addition to the original SD 1.5 inpainting target, and at scaling
+> training to higher resolutions. The core single-surrogate SD 1.5 pipeline
+> (`app.py`, `scripts/demo.py`, `configs/train.yml`) is unchanged from
+> upstream. The multi-surrogate / DiT-targeting features described below are
+> **implemented and unit-tested (CPU) but not yet validated on GPU** — see
+> [Project Status](#project-status) before relying on their protection claims.
+
 ## Abstract
 <b>TL; DR:</b> DiffVax is a scalable, lightweight, and optimization-free image immunization framework designed to protect images and videos from diffusion-based editing.
 
@@ -49,6 +60,22 @@ Or install as a package:
 pip install -e .
 ```
 
+`requirements.txt` includes the dependencies needed for the full v2/v3
+research pipeline: `kornia` (differentiable JPEG for EoT augmentation —
+required whenever a config sets `eot.p_jpeg > 0`, fails loudly if missing)
+and `open-clip-torch` (CLIP-based losses/metrics). For development:
+
+```bash
+pip install pytest
+python -m pytest tests/     # CPU-only; all but one GradScaler test run without a GPU
+```
+
+FLUX support requires a `diffusers` build with `Flux2KleinPipeline`; install
+from source (`pip install git+https://github.com/huggingface/diffusers.git`)
+if your installed release predates it. SD3.5 and FLUX.2 Klein are gated
+models on Hugging Face — accept the license on the model pages and set
+`HF_TOKEN` before training against them.
+
 ## Dataset
 
 The DiffVax dataset is hosted on Hugging Face: [`ozdentarikcan/DiffVaxDataset`](https://huggingface.co/datasets/ozdentarikcan/DiffVaxDataset)
@@ -79,13 +106,27 @@ The training and demo scripts will also auto-download the dataset on first run i
 
 ```
 DiffVax/
-├── app.py                              # Gradio web demo
+├── app.py                              # Gradio web demo (SD 1.5 only)
 ├── src/diffvax/                        # Main package
-│   ├── attack.py                       # Stable Diffusion inpainting wrapper
-│   ├── model.py                        # Nested U-Net (UNet++) architecture
+│   ├── model.py                        # NestedUNet (UNet++), GroupNorm, configurable filters (H6)
 │   ├── utils.py                        # Image I/O, data loading, seeding
+│   ├── attack_base.py                  # BaseAttack interface shared by all surrogates
+│   ├── attack.py                       # SD 1.5 inpainting surrogate (4-ch VAE, UNet)
+│   ├── sd3_attack.py                   # SD3 / SD3.5 surrogate (16-ch VAE, MM-DiT)
+│   ├── flux_attack.py                  # FLUX.2 Klein surrogate (16-ch VAE, single-stream DiT)
+│   ├── attack_manager.py               # Multi-surrogate selection + adaptive ensemble weighting
+│   ├── curriculum.py                   # Multi-resolution training curriculum (512→768→1024→1088)
+│   ├── distributed.py                  # Multi-GPU DDP helpers (one surrogate per rank)
+│   ├── eot.py                          # Differentiable EoT augmentation (JPEG/resize/blur/noise)
+│   ├── reporter.py                     # JSON training log + webhook notifications
+│   ├── losses/
+│   │   ├── clip_loss.py                # CLIP feature/semantic disruption (architecture-agnostic)
+│   │   ├── spectral_loss.py            # Frequency-domain perturbation concentration
+│   │   ├── latent_loss.py              # VAE latent-space disruption (16-ch VAE targets)
+│   │   ├── attention_loss.py           # Cross-attention entropy disruption for DiT models
+│   │   └── flat_minima.py              # Sharpness-aware gradient regularization
 │   ├── immunization/
-│   │   ├── diffvax_immunization.py     # DiffVax immunization (trained NestedUNet)
+│   │   ├── diffvax_immunization.py     # DiffVax training loop (multi-surrogate, all loss terms)
 │   │   ├── photoguard_immunization.py  # PhotoGuard baseline (PGD encoder attack)
 │   │   └── diffusionguard_immunization.py  # DiffusionGuard baseline (PGD noise maximization)
 │   └── metrics/                        # Image quality metrics
@@ -93,21 +134,46 @@ DiffVax/
 │       └── psnr.py, ssim.py, fsim.py, clip_score.py
 │
 ├── scripts/
-│   ├── train.py                        # Train the immunization model
+│   ├── train.py                        # Train the immunization model (single or multi-surrogate)
 │   ├── demo.py                         # End-to-end demo with comparison output
 │   ├── evaluate.py                     # Calculate image quality metrics
+│   ├── eval_multimodel.py              # Evaluate a checkpoint against a zoo of editing models
+│   ├── jpeg_robustness.py              # Measure protection retention under JPEG recompression
 │   ├── compare_baselines.py            # Multi-image baseline comparison figure
 │   └── download_dataset.py             # Download dataset from Hugging Face
+│
+├── tests/
+│   ├── test_gradient_flow.py           # Gradient-flow/loss-signal unit tests (stub denoising loop)
+│   ├── test_attack_gradient_flow.py    # Same properties through the REAL SD3/FLUX attack code
+│   ├── test_training_smoke.py          # Full training-loop smoke test on CPU
+│   ├── test_device_resolution.py       # CUDA>MPS>CPU device/dtype selection
+│   └── test_distributed.py             # 2-rank gloo DDP tests (gradient sync, collectives)
 │
 ├── notebooks/
 │   ├── diffvax_demo.ipynb              # Interactive demo notebook
 │   └── diffvax_comparison.ipynb        # Multi-method comparison notebook
 │
 ├── configs/
-│   └── train.yml                       # Training hyperparameters
+│   ├── train.yml                       # v2 baseline: SD 1.5 only, all new phases off (== v1)
+│   ├── sd_only.yml                     # Explicit v1-equivalent single-surrogate config
+│   ├── sd3_only.yml                    # SD3/SD3.5 surrogate only (ablation)
+│   ├── eot_clip.yml                    # SD 1.5 + EoT + CLIP loss (preprocessing robustness)
+│   ├── dual_surrogate.yml              # SD 1.5 + FLUX + adaptive ensemble weighting
+│   ├── full_v2.yml                     # All three surrogates + all seven v2 phases
+│   ├── research_v3.yml                 # v3 hypothesis bundle (H1–H8) at 512px — start here
+│   ├── train_1088_v3.yml               # v3 production config, 1024→1088px curriculum
+│   ├── train_multi.yml                 # Multi-surrogate 1088px fine-tuning (stage 2)
+│   └── resume_finetune.yml             # Resume/fine-tune an existing checkpoint at higher res
+│
+├── research/                           # Research log, hypotheses, findings, GPU validation plan
+│   ├── research-log.md
+│   ├── findings.md
+│   ├── research-state.yaml
+│   ├── gpu-validation-runbook.md
+│   └── experiments/H1..H8-*/protocol.md
 │
 ├── checkpoints/
-│   └── diffvax_trained.pth             # Pre-trained model weights
+│   └── diffvax_trained.pth             # Pre-trained model weights (v1, SD 1.5)
 │
 ├── requirements.txt
 ├── pyproject.toml
@@ -208,37 +274,244 @@ python scripts/train.py \
     --output-dir outputs
 ```
 
+`configs/train.yml` reproduces the original v1 behaviour exactly (SD 1.5
+only, all v2/v3 phases disabled). To resume from a checkpoint, pass
+`--checkpoint path/to/model.pth` (overrides `load_path` in the config).
+
+### Multi-surrogate training against SD3/FLUX
+
+To train against SD3.5 and/or FLUX.2 Klein in addition to (or instead of) SD
+1.5, use one of the multi-surrogate configs and set `sd3_model_link` /
+`flux_model_link` with nonzero probabilities that sum to 1.0 with
+`sd_probability`:
+
+```bash
+# Start here: all H1–H8 research hypotheses, 512px, fits a 24 GB GPU
+python scripts/train.py --config configs/research_v3.yml
+
+# Full three-surrogate config (needs ~40 GB for SD3.5 peak; see Requirements below)
+python scripts/train.py --config configs/full_v2.yml
+
+# Stage 2: fine-tune a 512px checkpoint up through 1024→1088px
+python scripts/train.py --config configs/train_1088_v3.yml \
+    --checkpoint outputs/models/1/..._final.pth
+```
+
+Only one attack surrogate is resident on GPU at a time — `AttackModelManager`
+swaps models in/out of VRAM as training randomly selects between them each
+batch, and offloads each surrogate's text encoder(s) to CPU during the
+backward pass, so peak VRAM is bounded by whichever single surrogate is
+currently active, not the sum of all configured surrogates.
+
+### Multi-GPU training (DDP, one surrogate per GPU)
+
+Launch under `torchrun` — no config changes needed, and the single-process
+invocation above is completely unaffected:
+
+```bash
+# 3 GPUs: one surrogate pinned per card
+torchrun --nproc_per_node=3 scripts/train.py --config configs/full_v2.yml
+```
+
+Each rank pins **one** frozen surrogate for the whole run (assigned
+round-robin by rank) and holds its own replica of the NestedUNet under DDP.
+Only the ~9M-parameter NestedUNet's gradients are all-reduced — about 36 MB
+per step, which is comfortable over plain PCIe and needs no NVLink. The
+perturbation network therefore learns from the **whole ensemble every step**,
+rather than from one randomly-sampled surrogate per batch as in the
+single-process path.
+
+The one hard requirement is that the **largest single surrogate fits on one
+card** (~13–16 GB for SD3.5 at 1088px with `gradient_timestep_fraction: 0.5`),
+so 24 GB cards are the sweet spot. This is why a multi-card box of smaller
+GPUs can be substantially cheaper than one large-memory card.
+
+Notes:
+
+- **Rank→surrogate mapping is logged at startup.** With more ranks than
+  surrogates, several ranks share a surrogate type (plain data parallelism
+  within it). With fewer ranks than surrogates, the surplus surrogates are
+  **unused** and a warning is printed — launch at least as many ranks as you
+  have surrogates to train against all of them.
+- **`adaptive_ensemble` and the per-surrogate probabilities are ignored**
+  under DDP: the effective mixture is set by how many ranks are assigned to
+  each surrogate, not by sampling.
+- **Stragglers gate each step.** DDP syncs every step, so the slowest
+  surrogate (SD3.5) sets the pace and a rank running SD 1.5 will idle. If
+  that bothers you, give faster ranks more work via uneven per-stage batch
+  sizes.
+- **Sharding a single surrogate across cards** (tensor/pipeline parallelism)
+  is deliberately *not* implemented. FSDP/ZeRO shard optimizer state and
+  parameters of the model being trained — here that model is ~9M params, so
+  they buy nothing; the memory goes to a *frozen* surrogate and its
+  activations. Splitting the transformer itself would put the gradient path
+  across device boundaries, which is the one thing in this codebase that has
+  repeatedly broken silently. See `src/diffvax/distributed.py` for the full
+  rationale.
+- Rank 0 alone writes checkpoints, Hub uploads, and the JSON training log;
+  other ranks write a rank-suffixed log and no webhook.
+
 ## Configuration
 
-Training hyperparameters are set in `configs/train.yml`:
+Every config in `configs/` is a full standalone training run; see the header
+comment in each file for its intended use case and VRAM estimate. Core keys:
 
-| Parameter | Default | Description |
+| Parameter | Default (`train.yml`) | Description |
 |-----------|---------|-------------|
 | `iter_num` | 1000000 | Number of training epochs |
 | `learning_rate` | 0.00001 | Adam optimizer learning rate |
 | `batch_size` | 5 | Training batch size |
-| `alpha` | 4 | Weight for perturbation imperceptibility loss |
-| `attack_model_link` | `runwayml/stable-diffusion-inpainting` | Diffusion model to defend against |
+| `alpha` | 4 | Weight for perturbation imperceptibility loss (`loss2`) |
+| `attack_model_link` | `runwayml/stable-diffusion-inpainting` | SD 1.5 surrogate; set `sd_probability: 0` to disable |
+| `sd3_model_link` / `sd3_probability` | `null` / `0.0` | SD3/SD3.5 surrogate (16-ch VAE, MM-DiT) |
+| `flux_model_link` / `flux_probability` | `null` / `0.0` | FLUX.2 Klein surrogate (16-ch VAE, single-stream DiT) |
 | `train_all` | true | Train on all images (false = use `image_index_list`) |
+
+Every research phase below is opt-in via an `enabled: true/false` flag in its
+own config section; leaving all of them `false` reproduces v1 behaviour
+identically:
+
+| Section | Purpose |
+|---|---|
+| `eot` | Differentiable JPEG/resize/blur/noise augmentation so the perturbation survives real-world recompression pipelines. `p_jpeg > 0` requires `kornia`. |
+| `clip_loss` | CLIP feature + prompt-alignment disruption — the one representation shared across virtually all image generators, including closed-source tools. |
+| `spectral_loss` | Penalizes low-frequency perturbation energy, concentrating the perturbation in less-visible frequency bands. |
+| `latent_loss` | Pushes the adversarial image's VAE latent away from the clean image's latent — a direct attack on 16-ch VAE (SD3/FLUX) models. |
+| `attention_loss` | Maximizes attention entropy in DiT transformer blocks to disrupt cross-attention context propagation (targets `target_blocks: "middle"` per DeContext). |
+| `flat_minima` | Gradient-norm/SAM-style sharpness penalty intended to improve cross-model transfer. |
+| `curriculum` | Multi-stage resolution schedule (e.g. 512→768→1024→1088px) with per-stage batch size. |
+| `adaptive_ensemble` | Reweights surrogate-selection probability by gradient disparity instead of a fixed random draw. |
+| `sd3_attack` / `flux_attack` | Per-surrogate `gradient_timestep_fraction` (partial-timestep backprop for VRAM reduction), `token_gradient_regularization` (TGR), and `use_gradient_checkpointing`. |
 
 ## Architecture
 
 **NestedUNet (UNet++)** — a hierarchical encoder-decoder with dense nested skip connections:
 
-- **Input**: 3-channel RGB image (512 x 512)
-- **Encoder**: 5 levels with filter depths [32, 64, 128, 256, 512]
-- **Decoder**: dense skip connections at every level (not just symmetric pairs)
+- **Input**: 3-channel RGB image, any resolution that's a multiple of 16
+- **Encoder**: 5 levels, configurable filter depths (`nb_filter`), default `[32, 64, 128, 256, 512]`
+- **Decoder**: dense skip connections at every level (not just symmetric pairs), GroupNorm (batch-size-independent, safe at `batch_size=1`)
 - **Output**: 3-channel perturbation map, applied additively to the input image
-- **Parameters**: ~9.2M
+- **Parameters**: ~9M (default filters); ~37M with the larger `[64,128,256,512,1024]` variant
 
-The perturbation is applied additively only outside the edit region (masked area), and the resulting image is clamped to the valid pixel range.
+The perturbation is applied additively (full image for the multi-surrogate
+pipeline; masked-region-aware for the original SD 1.5 inpainting path), and
+the resulting image is clamped to the valid pixel range.
+
+**Attack surrogates** (`src/diffvax/attack_base.py::BaseAttack` implementations):
+
+| Surrogate | VAE | Backbone | Native resolution |
+|---|---|---|---|
+| `Attack` (SD 1.5 inpainting) | 4-channel | UNet | 512px |
+| `SD3Attack` (SD3 / SD3.5) | 16-channel | MM-DiT (joint bidirectional attention) | 1024px |
+| `FluxAttack` (FLUX.2 Klein) | 16-channel | Single-stream DiT | 1024px |
+
+Each surrogate's `attack()` is fully differentiable end to end (VAE encode →
+denoising loop → VAE decode) so gradients flow from the loss back through
+the frozen diffusion model to the perturbation network. `gradient_timestep_fraction`
+runs only a fraction of denoising steps' transformer forward with gradients
+enabled (the rest run the transformer under `no_grad`) while the scheduler's
+additive integration step always stays differentiable, trading VRAM for
+signal from later timesteps without severing the gradient chain.
+
+## Evaluation
+
+```bash
+# Standard image-quality + protection metrics against SD 1.5
+python scripts/evaluate.py --checkpoint outputs/models/1/..._final.pth
+
+# Evaluate a checkpoint against a zoo of editing models (SD 1.5, SD3.5, FLUX, ...)
+python scripts/eval_multimodel.py --checkpoint ckpt.pth
+python scripts/eval_multimodel.py --checkpoint ckpt.pth --models "SD 1.5 Inpainting" --max-images 2
+
+# Measure protection retention under JPEG recompression (EoT robustness check)
+python scripts/jpeg_robustness.py --checkpoint ckpt.pth --images data/validation/images
+```
+
+`eval_multimodel.py` reports, per model, PSNR/SSIM/FSIM between original and
+immunized images, plus `clip_delta` (CLIP-prompt alignment on the unprotected
+edit minus the protected edit) — positive `clip_delta` indicates the edit was
+disrupted.
+
+## Testing
+
+The training-signal correctness of the multi-surrogate pipeline is covered by
+a CPU-only pytest suite (no GPU required, real attack code paths driven by
+lightweight fake diffusers pipelines — see `research/findings.md` for what
+this does and doesn't prove):
+
+```bash
+pip install pytest
+python -m pytest tests/
+```
 
 ## Requirements
 
 - Python 3.9+
 - PyTorch 2.0+
-- CUDA-capable GPU with 8 GB+ VRAM (16 GB+ recommended for training)
-- ~5 GB disk space for the Stable Diffusion Inpainting model (downloaded automatically)
+- CUDA-capable GPU with 8 GB+ VRAM for the original SD 1.5-only pipeline
+  (16 GB+ recommended for training)
+- For multi-surrogate SD3/FLUX training: a 24 GB GPU covers `research_v3.yml`
+  and `train_1088_v3.yml` (design estimates, not yet measured on real
+  hardware — see [Project Status](#project-status)); `full_v2.yml` with all
+  three surrogates recommends 40 GB for SD3.5's peak. Budget ~64 GB system
+  RAM — offloaded text encoders (SD3.5's T5-XXL, FLUX's Qwen3) and inactive
+  surrogates live in host memory between batches.
+- Multi-GPU is supported via DDP with one surrogate pinned per card (see
+  [Multi-GPU training](#multi-gpu-training-ddp-one-surrogate-per-gpu)). A box
+  of several 24 GB cards is generally cheaper than one large-memory card and
+  needs no NVLink, since only ~36 MB is all-reduced per step. The distributed
+  wiring is tested on gloo/CPU only — no multi-GPU hardware was available.
+- ~5 GB disk space for the Stable Diffusion Inpainting model, more for
+  SD3.5/FLUX.2 Klein weights if those surrogates are enabled (downloaded
+  automatically; SD3.5 and FLUX.2 Klein require accepting their gated
+  license and an `HF_TOKEN`)
+
+### Apple Silicon (MPS)
+
+Every entry point (`app.py`, `scripts/demo.py`, `scripts/train.py`,
+`scripts/eval_multimodel.py`, `scripts/compare_baselines.py`) picks its
+device automatically — CUDA if present, otherwise MPS on Apple Silicon,
+otherwise CPU — via `diffvax.utils.resolve_device()`. No flags or code
+changes are needed to run on a Mac. A few backend-specific choices follow
+from that:
+
+- **Compute dtype** defaults to bf16 on MPS instead of the fp16 used on CUDA
+  (`resolve_dtype()`), since fp16 has historically incomplete/unreliable
+  MPS kernel coverage. bf16 shares fp32's exponent range, so `GradScaler`
+  is a deliberate no-op on MPS/CPU — it's an fp16-underflow mitigation that
+  bf16 doesn't need, not a missing feature.
+- **Seeded generation** on MPS always uses a CPU `torch.Generator`
+  (`make_generator()`) per diffusers' own guidance — `torch.Generator(device="mps")`
+  does not reproduce seeded results reliably.
+- **`bitsandbytes`/`optimum-quanto`** in `requirements.txt` are unused by any
+  code path — safe to skip installing on Mac (they're CUDA-only quantization
+  backends left over from exploratory work).
+
+What this pass has **not** been able to verify on real Apple Silicon
+hardware (this project has only ever been tested on CUDA and CPU): kornia's
+differentiable JPEG codec (`eot.py`, used when `eot.p_jpeg > 0`), `torch.fft`
+coverage for `spectral_loss.py`, and attention-backward correctness/speed for
+the SD3/FLUX transformer blocks under MPS's Metal SDPA kernel. Treat MPS
+training as "runs without crashing" rather than "performance-validated" until
+someone confirms on a real machine — see
+[research/findings.md](research/findings.md) for the equivalent CUDA-side
+verification status.
+
+## Project Status
+
+The multi-surrogate / DiT-targeting extensions in this repository (SD3/FLUX
+support, EoT, CLIP/spectral/latent/attention losses, curriculum, TGR) have
+been audited end to end: gradient-path integrity, loss sign conventions, and
+end-to-end learning are all verified by the CPU test suite in `tests/`
+against the real attack code. What remains is empirical GPU validation —
+actual protection rates, ablations of each loss term, and 1088px production
+training. See `research/findings.md` for the full verification writeup and
+`research/gpu-validation-runbook.md` for the staged validation plan. Until
+that validation runs, treat protection-rate claims for SD3/FLUX/closed-source
+models as unverified; the original SD 1.5 pipeline (`app.py`,
+`scripts/demo.py`, `configs/train.yml`, the pretrained
+`checkpoints/diffvax_trained.pth`) reflects the published, evaluated paper
+result and is unaffected by this research track.
 
 ## Notebooks
 

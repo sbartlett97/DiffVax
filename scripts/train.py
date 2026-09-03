@@ -14,6 +14,10 @@ sys.path.insert(0, os.path.join(_project_root, "src"))
 
 from diffvax.attack import Attack
 from diffvax.attack_manager import AttackModelManager
+from diffvax.distributed import (
+    barrier, cleanup_distributed, get_rank, get_world_size, init_distributed,
+    is_distributed, is_main_process,
+)
 from diffvax.immunization import DiffVaxImmunization
 from diffvax.utils import (
     get_train_val_image_prompt_list,
@@ -21,94 +25,166 @@ from diffvax.utils import (
 )
 
 
-def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
-    iter_num = config["iter_num"]
-    immunization_model_name = config["immunization_model"]
-    alpha = config["alpha"]
-    batch_size = config["batch_size"]
-    train_all = config["train_all"]
-    attack_model_link = config["attack_model_link"]
-    resolution = config.get("resolution", 512)
+def _build_surrogate_specs(config):
+    """Enumerate the enabled surrogates as (name, probability, builder) triples.
 
-    # Build attack models and manager
-    models = {}
-    probabilities = {}
+    Builders are deferred so that under DDP each rank constructs ONLY the one
+    surrogate it owns — instantiating all of them on every rank would defeat
+    the entire point (and OOM immediately).
+    """
+    specs = []
 
-    # SD attack (always created if probability > 0)
     sd_prob = config.get("sd_probability", 1.0)
     if sd_prob > 0:
-        sd_attack = Attack(attack_model_link)
-        models["sd"] = sd_attack
-        probabilities["sd"] = sd_prob
+        attack_model_link = config["attack_model_link"]
+        specs.append(("sd", sd_prob, lambda: Attack(attack_model_link)))
 
-    # FLUX attack (optional)
     flux_model_link = config.get("flux_model_link")
     flux_prob = config.get("flux_probability", 0.0)
     if flux_model_link and flux_prob > 0:
-        from diffvax.flux_attack import FluxAttack
         flux_cfg = config.get("flux_attack", {})
-        flux_attack = FluxAttack(
-            flux_model_link,
-            gradient_timestep_fraction=flux_cfg.get("gradient_timestep_fraction", 1.0),
-            token_gradient_regularization=flux_cfg.get("token_gradient_regularization", False),
-        )
-        models["flux"] = flux_attack
-        probabilities["flux"] = flux_prob
 
-    # SD3 / SD3.5 attack (Phase 3)
+        def _build_flux():
+            from diffvax.flux_attack import FluxAttack
+            return FluxAttack(
+                flux_model_link,
+                gradient_timestep_fraction=flux_cfg.get("gradient_timestep_fraction", 1.0),
+                token_gradient_regularization=flux_cfg.get("token_gradient_regularization", False),
+                use_gradient_checkpointing=flux_cfg.get("use_gradient_checkpointing", True),
+            )
+
+        specs.append(("flux", flux_prob, _build_flux))
+
     sd3_model_link = config.get("sd3_model_link")
     sd3_prob = config.get("sd3_probability", 0.0)
     if sd3_model_link and sd3_prob > 0:
-        from diffvax.sd3_attack import SD3Attack
         sd3_cfg = config.get("sd3_attack", {})
-        sd3_attack = SD3Attack(
-            sd3_model_link,
-            gradient_timestep_fraction=sd3_cfg.get("gradient_timestep_fraction", 1.0),
-            token_gradient_regularization=sd3_cfg.get("token_gradient_regularization", False),
-        )
-        models["sd3"] = sd3_attack
-        probabilities["sd3"] = sd3_prob
 
-    # Validate that at least one model is configured
-    if not models:
+        def _build_sd3():
+            from diffvax.sd3_attack import SD3Attack
+            return SD3Attack(
+                sd3_model_link,
+                gradient_timestep_fraction=sd3_cfg.get("gradient_timestep_fraction", 1.0),
+                token_gradient_regularization=sd3_cfg.get("token_gradient_regularization", False),
+                use_gradient_checkpointing=sd3_cfg.get("use_gradient_checkpointing", True),
+                offload_text_encoders=sd3_cfg.get("offload_text_encoders", True),
+            )
+
+        specs.append(("sd3", sd3_prob, _build_sd3))
+
+    if not specs:
         raise ValueError(
             "No attack models configured. Set sd_probability > 0 or provide "
             "flux_model_link/sd3_model_link with their probabilities."
         )
+    return specs
 
-    # Phase 5: adaptive ensemble weighting
+
+def _build_attack_manager(config):
+    """Construct the AttackModelManager for this process.
+
+    Single-process: builds every enabled surrogate and samples between them
+    per batch, weighted by the configured probabilities (original behaviour).
+
+    Distributed: each rank builds exactly ONE surrogate, assigned round-robin
+    by rank, and keeps it resident for the whole run. The configured
+    probabilities are ignored in this mode — the effective ensemble mixture is
+    set by how many ranks are assigned to each surrogate. With a single model
+    the manager's swap logic is inherently a no-op, so no model is ever moved
+    off its device mid-run.
+    """
+    specs = _build_surrogate_specs(config)
     adaptive_cfg = config.get("adaptive_ensemble", {})
     adaptive_enabled = adaptive_cfg.get("enabled", False)
 
-    attack_manager = AttackModelManager(
-        models,
-        probabilities,
-        adaptive=adaptive_enabled,
-        adaptive_cfg=adaptive_cfg,
+    if not is_distributed():
+        models = {name: build() for name, _, build in specs}
+        probabilities = {name: prob for name, prob, _ in specs}
+        return AttackModelManager(
+            models,
+            probabilities,
+            adaptive=adaptive_enabled,
+            adaptive_cfg=adaptive_cfg,
+        )
+
+    rank, world_size = get_rank(), get_world_size()
+    name, _, build = specs[rank % len(specs)]
+
+    if rank == 0:
+        assignment = {
+            r: specs[r % len(specs)][0] for r in range(world_size)
+        }
+        print(f"[DDP] Surrogate assignment by rank: {assignment}")
+        if world_size < len(specs):
+            unused = [s[0] for s in specs[world_size:]]
+            print(
+                f"[DDP] WARNING: world_size={world_size} < {len(specs)} configured "
+                f"surrogates; these are UNUSED this run: {unused}. "
+                f"Launch with at least {len(specs)} ranks to train against all."
+            )
+    print(f"[DDP] rank {rank}/{world_size} loading surrogate '{name}'")
+
+    # Adaptive ensemble weighting is a *sampling* strategy over multiple
+    # resident surrogates; with one surrogate per rank there is nothing to
+    # sample, so it is disabled regardless of config.
+    return AttackModelManager(
+        {name: build()},
+        {name: 1.0},
+        adaptive=False,
     )
 
-    immunization_config = {
-        "iter_num": iter_num,
+
+def build_immunization_config(config: dict) -> dict:
+    """Curate the subset of the full YAML config that DiffVaxImmunization
+    reads via self._config. Every key DiffVaxImmunization reads with
+    self._config.get(...) MUST be listed here, or it silently falls back to
+    that call's hardcoded default regardless of what the YAML says (bit us
+    once already: sd3_attack.masked_attack_probability and
+    num_inference_steps were both missing here and silently no-opped/
+    defaulted for every run until this was caught) — see
+    tests/test_train_config_passthrough.py, which cross-checks this dict's
+    keys against every self._config.get(...) call in diffvax_immunization.py
+    so a newly-added config read can't reintroduce the same gap unnoticed.
+    """
+    return {
+        "iter_num": config["iter_num"],
         "learning_rate": config["learning_rate"],
-        "immunization_model": immunization_model_name,
+        "immunization_model": config["immunization_model"],
         # Pass through all v2 phase configs so DiffVaxImmunization can read them
         "eot": config.get("eot", {}),
         "clip_loss": config.get("clip_loss", {}),
         "beta": config.get("beta", 0.5),
         "curriculum": config.get("curriculum", {}),
-        "resolution": resolution,
-        "batch_size": batch_size,
-        "adaptive_ensemble": adaptive_cfg,
+        "resolution": config.get("resolution", 512),
+        "batch_size": config["batch_size"],
+        "adaptive_ensemble": config.get("adaptive_ensemble", {}),
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
         "noise_target": config.get("noise_target", {}),
         "spectral_loss": config.get("spectral_loss", {}),
         "latent_loss": config.get("latent_loss", {}),
         "nb_filter": config.get("nb_filter"),
+        "num_inference_steps": config.get("num_inference_steps", 4),
+        "sd3_attack": config.get("sd3_attack", {}),
+        "flux_attack": config.get("flux_attack", {}),
+        "perturbation_mask_gating": config.get("perturbation_mask_gating", False),
+        "max_grad_norm": config.get("max_grad_norm", 5.0),
         "dataloader": config.get("dataloader", {}),
         "hub": config.get("hub", {}),
         "reporting": config.get("reporting", {}),
     }
+
+
+def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
+    iter_num = config["iter_num"]
+    alpha = config["alpha"]
+    batch_size = config["batch_size"]
+    train_all = config["train_all"]
+    resolution = config.get("resolution", 512)
+
+    attack_manager = _build_attack_manager(config)
+
+    immunization_config = build_immunization_config(config)
 
     load_existing = config.get("load_existing", False)
     load_path = config.get("load_path")
@@ -161,21 +237,32 @@ def immunize_image_list(image_prompt_list, config, data_dir, output_dir):
     strength_range = config.get("strength_range", [0.5, 1.0])
 
     try:
-        immunized_img, immunization_model_path = (
-            immunization_mdl.train_immunization_all_images_batch(
-                entries,
-                data_dir,
-                images_subdir,
-                masks_subdir,
-                size,
-                target_image=None,
-                alpha=alpha,
-                iter_num=iter_num,
-                batch_size=batch_size,
-                sd_target_resolutions=sd_target_resolutions,
-                strength_range=strength_range,
-            )
+        result = immunization_mdl.train_immunization_all_images_batch(
+            entries,
+            data_dir,
+            images_subdir,
+            masks_subdir,
+            size,
+            target_image=None,
+            alpha=alpha,
+            iter_num=iter_num,
+            batch_size=batch_size,
+            sd_target_resolutions=sd_target_resolutions,
+            strength_range=strength_range,
         )
+        # train_immunization_all_images_batch returns bare None on a NaN/Inf
+        # abort (see its early `return` in the NaN-guard block) rather than
+        # the usual (img_adv, path) tuple — unpacking that unconditionally
+        # raises an unrelated-looking TypeError that stomps the actually
+        # informative [NaN] message already printed above it.
+        if result is None:
+            raise RuntimeError(
+                "Training aborted before completing (NaN/Inf loss on some "
+                "batch) — see the [NaN] message above and training_log.json "
+                "for which loss term was at fault. An emergency checkpoint "
+                "was saved at the point of failure."
+            )
+        immunized_img, immunization_model_path = result
     except Exception as exc:
         tb_str = traceback.format_exc()
         immunization_mdl.reporter.report_error(
@@ -215,30 +302,50 @@ def main():
     )
     args = parser.parse_args()
 
-    with open(args.config, "r") as file:
-        config = yaml.safe_load(file)
+    # Multi-GPU: no-ops unless launched under torchrun, so the single-process
+    # invocation is completely unchanged.
+    #   torchrun --nproc_per_node=3 scripts/train.py --config configs/full_v2.yml
+    # Each rank pins one surrogate; only the NestedUNet gradients are
+    # all-reduced. See src/diffvax/distributed.py.
+    init_distributed()
+    try:
+        with open(args.config, "r") as file:
+            config = yaml.safe_load(file)
 
-    config["data_dir"] = args.data_dir
-    config["output_dir"] = args.output_dir
+        config["data_dir"] = args.data_dir
+        config["output_dir"] = args.output_dir
 
-    # CLI --checkpoint overrides config file values
-    if args.checkpoint is not None:
-        config["load_existing"] = True
-        config["load_path"] = args.checkpoint
+        # CLI --checkpoint overrides config file values
+        if args.checkpoint is not None:
+            config["load_existing"] = True
+            config["load_path"] = args.checkpoint
 
-    data_dir = config["data_dir"]
+        data_dir = config["data_dir"]
 
-    data_dir = ensure_dataset_in_data_dir(
-        repo_id="ozdentarikcan/DiffVaxDataset",
-        data_dir=data_dir,
-    )
+        # Only rank 0 downloads the dataset; the others wait, then read the
+        # already-populated directory. Concurrent snapshot_download calls into
+        # the same target would race.
+        if is_main_process():
+            data_dir = ensure_dataset_in_data_dir(
+                repo_id="ozdentarikcan/DiffVaxDataset",
+                data_dir=data_dir,
+            )
+        barrier()
+        if not is_main_process():
+            data_dir = ensure_dataset_in_data_dir(
+                repo_id="ozdentarikcan/DiffVaxDataset",
+                data_dir=data_dir,
+            )
 
-    train_list, val_list = get_train_val_image_prompt_list(data_dir)
+        train_list, val_list = get_train_val_image_prompt_list(data_dir)
 
-    immunization_model_path = immunize_image_list(
-        train_list, config, data_dir, config["output_dir"]
-    )
-    print(f"Training complete. Model saved to: {immunization_model_path}")
+        immunization_model_path = immunize_image_list(
+            train_list, config, data_dir, config["output_dir"]
+        )
+        if is_main_process():
+            print(f"Training complete. Model saved to: {immunization_model_path}")
+    finally:
+        cleanup_distributed()
 
 
 if __name__ == "__main__":

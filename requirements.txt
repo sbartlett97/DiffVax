@@ -10,6 +10,8 @@ PyYAML
 tqdm
 hf-xet
 opencv-python
+scikit-image              # src/diffvax/metrics/psnr.py, ssim.py
+phasepack                 # src/diffvax/metrics/fsim.py
 scipy
 matplotlib
 optimum

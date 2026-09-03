@@ -1,6 +1,6 @@
 project: DiffVax High-Resolution Image Immunization
 date_started: "2026-03-26"
-last_updated: "2026-03-27"
+last_updated: "2026-07-05"
 
 research_question: >
   How can the DiffVax image immunization framework be adapted to operate effectively
@@ -8,14 +8,23 @@ research_question: >
   (DALL-E 3, Flux 1.x, SD3, SD3.5), given that the current system is only proven
   at 512×512 against UNet-based diffusers?
 
-status: inner_loop  # bootstrap | inner_loop | outer_loop | conclude
+status: outer_loop  # bootstrap | inner_loop | outer_loop | conclude — code verification done, awaiting GPU runs
 
 # ============================
 # CURRENT DIRECTION: INNER LOOP
 # ============================
 current_direction: inner_loop
-current_hypothesis: "H5 spectral loss — implemented 2026-03-27, awaiting training validation"
-next_hypothesis: "H6 (larger NestedUNet [64,128,256,512,1024]) or multi-scale gradient aggregation"
+current_hypothesis: >
+  Cycles 3-5 (2026-07-05) complete: training-signal audit fixed C7 (H8 sign
+  inversion) and C8 (severed gtf<1.0 gradient path, straight-through fix);
+  Phase 7 verified live under non-reentrant checkpointing; H4 TGR re-enabled
+  with full_backward_pre_hook; full loss-path + metrics audit clean; real
+  training loop proven to learn end-to-end on CPU (35-test suite).
+  CODE-LEVEL VERIFICATION COMPLETE — see findings.md confidence assessment.
+next_hypothesis: >
+  Tier 2: GPU validation per research/gpu-validation-runbook.md (signal
+  sanity run, protection eval, ablations, 1088px). Tier 3: black-box
+  transfer probe against closed models.
 
 # ============================
 # HYPOTHESES

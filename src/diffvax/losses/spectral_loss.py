@@ -72,11 +72,23 @@ class SpectralLoss:
         if key in self._mask_cache:
             return self._mask_cache[key]
 
-        freq_h = H
         freq_w = W // 2 + 1
 
-        fy = torch.arange(freq_h, device=device).float() / freq_h
-        fx = torch.arange(freq_w, device=device).float() / freq_w
+        # Normalise BOTH axes against their true Nyquist-relative range so
+        # dist is comparable across axes and low_freq_radius means what it
+        # says. fy correctly divides by H (the full row-axis FFT length, so
+        # bins span the full [0,1) circle before folding). fx must divide by
+        # W (the original width), NOT freq_w = W//2+1 — dividing by freq_w
+        # was a bug: it stretched fx to span ~[0,1) instead of the correct
+        # [0,0.5] (rfft2's column axis only ever holds non-negative
+        # frequencies 0..W//2, i.e. bin k is frequency k/W of the sampling
+        # rate, capping at (W//2)/W ≈ 0.5, not 1). The bug inflated fx by
+        # ~2x, shrinking the effective captured region to roughly half the
+        # configured radius. Verified via tests/test_spectral_loss_mask.py:
+        # for W=100, radius=0.1, the correct boundary is bin 9 (last bin
+        # with k/100 < 0.1); the buggy version put it at bin 5.
+        fy = torch.arange(H, device=device).float() / H
+        fx = torch.arange(freq_w, device=device).float() / W
 
         # Fold fy: negative-frequency rows are symmetric with positive ones.
         fy_centered = torch.min(fy, 1.0 - fy)

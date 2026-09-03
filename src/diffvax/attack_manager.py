@@ -19,6 +19,7 @@ import torch
 from torch import Tensor
 
 from diffvax.attack_base import BaseAttack
+from diffvax.utils import empty_cache, resolve_device
 
 # Suppress diffusers warnings about CPU device transfers during model offloading
 logging.getLogger("diffusers").setLevel(logging.ERROR)
@@ -104,9 +105,12 @@ class AttackModelManager:
             # Offload the model that was previously on GPU
             if self._current_gpu_model is not None:
                 self.models[self._current_gpu_model].to_cpu()
-                torch.cuda.empty_cache()
-            # Load the newly selected model to GPU
-            self.models[selected_name].to_device("cuda")
+                empty_cache()
+            # Load the newly selected model onto the best available
+            # accelerator: CUDA > MPS > CPU (e.g. stub attacks in the CPU
+            # smoke test fall through to "cpu").
+            _device = resolve_device()
+            self.models[selected_name].to_device(str(_device))
             self._current_gpu_model = selected_name
 
         return selected_name, self.models[selected_name]

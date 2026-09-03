@@ -4,6 +4,59 @@ import torch
 from torch import nn
 from huggingface_hub import PyTorchModelHubMixin
 
+# Jinja2 template rendered by push_to_hub()/save_pretrained() into README.md.
+# {{ card_data }} is the YAML frontmatter auto-built from this class's
+# library_name/license/tags/pipeline_tag kwargs below — leave it as-is.
+# Every other {{ }} variable is filled per-checkpoint via model_card_kwargs
+# at each push_to_hub() call site in DiffVaxImmunization (see
+# _model_card_kwargs()); defaults below only apply if a training script calls
+# push_to_hub() directly without going through that helper.
+_MODEL_CARD_TEMPLATE = """---
+{{ card_data }}
+---
+
+# {{ model_name | default("DiffVax NestedUNet", true) }}
+
+A [DiffVax](https://github.com/sbartlett97/DiffVax) perturbation-generator
+checkpoint: a small trained NestedUNet (UNet++) that produces an additive,
+imperceptible perturbation disrupting diffusion-based image editing in a
+single forward pass — optimization-free, unlike PhotoGuard/DiffusionGuard.
+
+## Training configuration
+
+- **Attack surrogate(s):** {{ surrogates | default("[not recorded]", true) }}
+- **Resolution:** {{ resolution_info | default("[not recorded]", true) }}
+- **Loss terms enabled:** {{ loss_terms | default("[not recorded]", true) }}
+- **Core hyperparameters:** {{ hyperparams | default("[not recorded]", true) }}
+
+## Training result
+
+- **Checkpoint type:** {{ checkpoint_type | default("[not recorded]", true) }}
+- **Epoch:** {{ epoch | default("[not recorded]", true) }}
+- **Loss:** {{ loss_value | default("[not recorded]", true) }}
+
+## Intended use & limitations
+
+Research artifact for adversarial image-immunization research (defensive
+security / academic use). Not all surrogate/target combinations this
+checkpoint may have trained against have been validated end-to-end on GPU —
+protection-rate claims for SD3/FLUX/closed-source editing targets should be
+independently verified before relying on them; see the training repository's
+README ("Project Status" section) for the current verification status at the
+time this checkpoint was produced.
+
+## Citation
+
+```
+@inproceedings{ozden2026diffvax,
+  title={DiffVax: Optimization-Free Image Immunization Against Diffusion-Based Editing},
+  author={Ozden, Tarik Can and Kara, Ozgur and Akcin, Oguzhan and Zaman, Kerem and Srivastava, Shashank and Chinchali, Sandeep P and Rehg, James M},
+  booktitle={The Fourteenth International Conference on Learning Representations},
+  year={2026},
+}
+```
+"""
+
 
 def _group_norm(num_channels: int) -> nn.GroupNorm:
     """GroupNorm with up to 8 groups — batch-size-independent, safe at bs=1."""
@@ -73,7 +126,16 @@ class UNet(nn.Module):
         return output
 
 
-class NestedUNet(nn.Module, PyTorchModelHubMixin):
+class NestedUNet(
+    nn.Module,
+    PyTorchModelHubMixin,
+    library_name="diffvax",
+    repo_url="https://github.com/sbartlett97/DiffVax",
+    license="mit",
+    tags=["image-to-image", "adversarial-robustness", "diffusion", "image-immunization"],
+    pipeline_tag="image-to-image",
+    model_card_template=_MODEL_CARD_TEMPLATE,
+):
     """Nested U-Net (UNet++) perturbation generator.
 
     Inherits ``PyTorchModelHubMixin`` to enable ``save_pretrained()`` /

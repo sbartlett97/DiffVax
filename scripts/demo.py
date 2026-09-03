@@ -37,6 +37,8 @@ from diffvax.utils import (
     save_image,
     prepare_mask_and_masked_image,
     recover_image,
+    resolve_device,
+    resolve_dtype,
 )
 
 to_pil = T.ToPILImage()
@@ -270,6 +272,9 @@ Examples:
     print("[2/5] Loading diffusion model and DiffVax checkpoint...")
     t0 = time.time()
     attack_model = Attack(args.attack_model)
+    # Attack() only loads the pipeline (defaults to CPU); explicitly move it
+    # to the best available accelerator for edit_image() calls below.
+    attack_model.to_device(str(resolve_device()))
     immunization_mdl = DiffVaxImmunization(
         attack_model,
         config={"learning_rate": 3.0},
@@ -287,8 +292,10 @@ Examples:
     image = load_image_from_path(img_path)
     image_mask = load_image_from_path(mask_path)
     mask_torch, image_torch, _ = prepare_mask_and_masked_image(image, image_mask)
-    image_torch = image_torch.half().cuda()
-    mask_torch = mask_torch.half().cuda()
+    device = resolve_device()
+    dtype = resolve_dtype(device)
+    image_torch = image_torch.to(device=device, dtype=dtype)
+    mask_torch = mask_torch.to(device=device, dtype=dtype)
 
     set_seed_lib(args.seed)
     immunized_img, _ = immunization_mdl.immunize_img(image_torch, mask_torch)

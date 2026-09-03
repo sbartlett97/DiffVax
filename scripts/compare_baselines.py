@@ -40,6 +40,9 @@ from diffvax.utils import (
     load_image_from_path,
     prepare_mask_and_masked_image,
     recover_image,
+    resolve_device,
+    resolve_dtype,
+    empty_cache,
 )
 
 to_pil = T.ToPILImage()
@@ -65,7 +68,7 @@ def immunize_and_edit(immunizer, image_torch, mask_torch, image_pil, mask_pil, p
     set_seed_lib(seed)
     edited = immunizer.edit_image(prompt, imm_pil, mask_pil)[0]
     edited_recovered = recover_image(edited, imm_pil, mask_pil, background=False)
-    torch.cuda.empty_cache()
+    empty_cache()
     return edited_recovered
 
 
@@ -80,8 +83,10 @@ def run_one_image(
     image_pil = load_image_from_path(img_path)
     mask_pil = load_image_from_path(mask_path)
     mask_torch, image_torch, _ = prepare_mask_and_masked_image(image_pil, mask_pil)
-    image_torch = image_torch.half().cuda()
-    mask_torch = mask_torch.half().cuda()
+    device = resolve_device()
+    dtype = resolve_dtype(device)
+    image_torch = image_torch.to(device=device, dtype=dtype)
+    mask_torch = mask_torch.to(device=device, dtype=dtype)
 
     results = {"original": image_pil, "mask": mask_pil}
 
@@ -193,6 +198,9 @@ def main():
     print("Loading models...")
     t0 = time.time()
     attack_model = Attack(args.attack_model)
+    # Attack() only loads the pipeline (defaults to CPU); explicitly move it
+    # to the best available accelerator for edit_image() calls below.
+    attack_model.to_device(str(resolve_device()))
     diffvax_model = DiffVaxImmunization(
         attack_model, config={"learning_rate": 3.0},
         load_existing=True, load_path=args.checkpoint,

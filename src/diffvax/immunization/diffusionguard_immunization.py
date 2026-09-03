@@ -17,6 +17,8 @@ import cv2
 from scipy.ndimage import gaussian_filter
 import gc
 
+from diffvax.utils import empty_cache, make_generator
+
 
 class DiffusionGuardImmunization:
     def __init__(
@@ -127,16 +129,19 @@ class DiffusionGuardImmunization:
         """Apply DiffusionGuard noise-maximization attack to protect image.
 
         Args:
-            img: image tensor in [-1,1], shape (1, 3, H, W), half precision on CUDA.
+            img: image tensor in [-1,1], shape (1, 3, H, W), in the attack
+                model's compute dtype (fp16 on CUDA, bf16 on MPS, fp32 on CPU).
             img_mask: mask tensor, shape (1, 1, H, W). 1 = edit region.
 
         Returns:
-            (immunized_tensor, perturbation) both in [-1,1] half precision.
+            (immunized_tensor, perturbation) both in [-1,1], attack model's
+            compute dtype.
         """
         pipe = self.attack_model.model
         vae = pipe.vae
         unet = pipe.unet
         scheduler = pipe.scheduler
+        _vae_dtype = next(vae.parameters()).dtype
 
         img_f = img.float()
         mask_f = img_mask.float()
@@ -172,14 +177,14 @@ class DiffusionGuardImmunization:
 
                 # Encode perturbed image through VAE
                 perturbed_latents = vae.encode(
-                    perturbed.half()
+                    perturbed.to(_vae_dtype)
                 ).latent_dist.sample().float()
                 perturbed_latents = 0.18215 * perturbed_latents
 
                 # Prepare masked image latents
                 masked_image = perturbed * (aug_mask < 0.5).float()
                 masked_image_latents = vae.encode(
-                    masked_image.half()
+                    masked_image.to(_vae_dtype)
                 ).latent_dist.sample().float()
                 masked_image_latents = 0.18215 * masked_image_latents
 
@@ -202,7 +207,7 @@ class DiffusionGuardImmunization:
                 # UNet forward — use only conditional embeddings (no CFG for efficiency)
                 cond_embeddings = text_embeddings[1:2]  # conditional only
                 noise_pred = unet(
-                    latent_model_input.half(),
+                    latent_model_input.to(_vae_dtype),
                     max_timestep,
                     encoder_hidden_states=cond_embeddings,
                 ).sample.float()
@@ -235,20 +240,20 @@ class DiffusionGuardImmunization:
                 ) - img_f
 
             if step % 25 == 0:
-                torch.cuda.empty_cache()
+                empty_cache()
 
         immunized = torch.clamp(img_f + delta.detach(), self.clamp_min, self.clamp_max)
         perturbation = (immunized - img_f) * (1 - mask_f)
 
         del delta, total_grad, text_embeddings
-        torch.cuda.empty_cache()
+        empty_cache()
         gc.collect()
 
-        return immunized.half(), perturbation.half()
+        return immunized.to(_vae_dtype), perturbation.to(_vae_dtype)
 
     def edit_image(self, prompt, img, img_mask, num_inf=30, SEED=5):
         """Edit image using the diffusion inpainting pipeline."""
-        generator = torch.Generator(device="cuda").manual_seed(SEED)
+        generator = make_generator(self.attack_model.model.device, SEED)
         edited_image = self.attack_model.model(
             prompt=prompt,
             image=img,

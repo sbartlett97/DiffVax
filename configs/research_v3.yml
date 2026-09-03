@@ -21,7 +21,7 @@
 # then use full curriculum (train_1088_v3.yml) for production training.
 
 # -- Core Training --
-iter_num: 50000
+iter_num: 500
 learning_rate: 0.00001
 batch_size: 4
 alpha: 4
@@ -49,13 +49,13 @@ strength_range: [0.5, 1.0]
 
 # -- Attack ensemble: SD 1.5 + SD3.5 + FLUX --
 attack_model_link: "runwayml/stable-diffusion-inpainting"
-sd_probability: 0.40
+sd_probability: 0.0
 
 sd3_model_link: "stabilityai/stable-diffusion-3.5-medium"
-sd3_probability: 0.35
+sd3_probability: 0.65
 
-flux_model_link: "black-forest-labs/FLUX.2-klein"
-flux_probability: 0.25
+flux_model_link: "black-forest-labs/FLUX.2-klein-9B"
+flux_probability: 0.35
 
 # -- H2: Partial-timestep gradient settings per attack model --
 # gradient_timestep_fraction: fraction of denoising steps that receive gradients.
@@ -63,11 +63,15 @@ flux_probability: 0.25
 # Basis: "Distraction Is All You Need", CVPR 2024.
 sd3_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true  # H4
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
+  # Non-reentrant gradient checkpointing keeps Phase 7 hook captures live
+  # (verified by tests/test_attack_gradient_flow.py::test_a5). Leave true.
+  use_gradient_checkpointing: true
 
 flux_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true  # H4
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
+  use_gradient_checkpointing: true
 
 # -- H7: Noise target image for loss1 --
 # Replaces zero (black) target with random-sign (±1) noise pattern.
@@ -120,16 +124,16 @@ curriculum:
   resolution_jitter: 0.0
   stages:
     - resolution: 512
-      until_epoch: 30000
-      batch_size: 4
+      until_epoch: 300
+      batch_size: 1
     - resolution: 768
-      until_epoch: 40000
-      batch_size: 2
+      until_epoch: 400
+      batch_size: 1
     - resolution: 1024
-      until_epoch: 48000
+      until_epoch: 580
       batch_size: 1
     - resolution: 1088
-      until_epoch: 50000
+      until_epoch: 500
       batch_size: 1
 
 # -- Phase 5: Adaptive Ensemble Weighting --
