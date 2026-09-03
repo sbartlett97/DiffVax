@@ -587,6 +587,17 @@ class DiffVaxImmunization:
         epoch_avg_loss = float("inf")  # updated each epoch for use after the loop
 
         batch_iter_count = 0  # global batch counter for adaptive weight updates
+        # S2: GradScaler has no floor — repeated found_inf events on
+        # gradients (loss can be perfectly finite; only backward overflows)
+        # halve the scale with NO abort or log line, while recovery needs
+        # growth_interval (2000 default) CONSECUTIVE clean steps. If bad
+        # steps recur more often than that, scale can only trend downward
+        # until it underflows to exactly 0.0 — a terminal, unrecoverable
+        # state (unscale_ then divides by 0, turning even a zero gradient
+        # into 0*inf=NaN, so found_inf trips forever after). Track skips so
+        # this shows up in the periodic log instead of looking identical to
+        # healthy training (forward loss values are scale-independent).
+        scaler_skip_count = 0
 
         for epoch_i in range(iter_num):
             # ---- Phase 4: curriculum resolution + batch-size update ----
@@ -668,11 +679,39 @@ class DiffVaxImmunization:
                 # live in __call__, so calling .forward() directly would
                 # silently skip the all-reduce and let ranks diverge.
                 unet_out = self.unetmodel(img_f)
-                unet_out = unet_out.to(dtype=img_batch.dtype)
+                # img_adv is kept in float32 (NOT downcast to img_batch's
+                # dtype, fp16 on CUDA) because it is the single shared tensor
+                # every enabled loss term's backward pass flows through
+                # (loss1/loss2 via img_out and directly, CLIP, spectral,
+                # latent, attention). A fp16 img_adv forces the SUM of all
+                # those terms' gradients through fp16's ~65504 max — while
+                # each surrogate/loss consumer already casts its OWN input to
+                # its required working dtype internally (sd3_attack.py /
+                # flux_attack.py's `image.to(device=device, dtype=dtype)`,
+                # clip_loss.py's `x.to(self._dtype)`, latent_loss.py's
+                # `img_adv.to(dtype=dtype)`), so this upstream cast was
+                # redundant for every consumer except the original SD1.5
+                # attack() path (now given the same defensive cast — see
+                # attack.py). Legacy from the original single-surrogate v1
+                # loop (`unet_out.half().cuda()`), predating every extra loss
+                # term; harmless there since loss1+loss2 were the only
+                # backward paths and fp16 was the surrogate's native dtype
+                # anyway. With six terms now summing into one shared buffer,
+                # this fp16 funnel is a plausible (unverified without a GPU
+                # run — see research/findings.md) driver of a real observed
+                # collapse: GradScaler's scale reaching exactly 0 and staying
+                # there (unscale_ then computes 1/0=inf, so even a zero
+                # gradient becomes 0*inf=NaN — found_inf trips forever after,
+                # silently, since forward loss values are scale-independent
+                # and print as if nothing were wrong). This removes ONE
+                # accumulation point; gradients still traverse fp16 inside
+                # each surrogate's own subgraph, so overflow can still recur
+                # — the abort guard below is the backstop for that, not a
+                # guarantee this can't happen again.
                 if gate_to_subject:
                     unet_out = unet_out * subject_region
                 img_adv = torch.clamp(
-                    img_batch + unet_out, self.clamp_min, self.clamp_max
+                    img_f + unet_out, self.clamp_min, self.clamp_max
                 )
 
                 # ---- Phase 1: EoT augmentation ----
@@ -1095,8 +1134,18 @@ class DiffVaxImmunization:
                     )
                     return
 
+                _scale_before_step = scaler.get_scale()
                 scaler.step(self.optimizer)
                 scaler.update()
+                _scale_after_step = scaler.get_scale()
+
+                # S2: a decrease means found_inf tripped THIS step (backward
+                # overflowed even though the forward loss printed above is
+                # perfectly finite) and the optimizer step was skipped
+                # entirely — the only visible trace of a skip is this delta,
+                # there is no separate warning from GradScaler itself.
+                if _scale_after_step < _scale_before_step:
+                    scaler_skip_count += 1
 
                 # S1: log scaler state periodically to surface silent step-skipping
                 if batch_iter_count % 100 == 0 and is_main_process():
@@ -1106,8 +1155,50 @@ class DiffVaxImmunization:
                         # (1e-30) indistinguishable in the log — exactly the
                         # ambiguity that stalled diagnosing a real collapse.
                         f"[Scaler] scale={scaler.get_scale():.3e} "
-                        f"batch={batch_iter_count}"
+                        f"batch={batch_iter_count} "
+                        f"skips_this_window={scaler_skip_count}"
                     )
+                # Reset outside the is_main_process() guard — every rank
+                # increments this counter on its own found_inf events (each
+                # has its own GradScaler and surrogate), so only resetting
+                # on the rank that logs would leave every other rank's
+                # counter growing unbounded and never reflected anywhere.
+                if batch_iter_count % 100 == 0:
+                    scaler_skip_count = 0
+
+                # S2: scale==0 is not a low point to recover from — it's
+                # terminal. unscale_ next step computes 1/0=inf, so even an
+                # all-zero gradient becomes 0*inf=NaN, found_inf trips again,
+                # and update() computes 0*backoff_factor=0 forever. Every
+                # step from here on trains on nothing while looking
+                # identical to healthy training in the loss printout (loss
+                # VALUES are scale-independent — only backward is scaled).
+                # Abort loudly now rather than silently burning GPU hours,
+                # mirroring the NaN/Inf guard above (checkpoint + report +
+                # collective abort so no rank strands its peers).
+                _scale_dead = _scale_after_step == 0.0
+                if any_rank_true(_scale_dead, self.device):
+                    if self._attention_loss is not None:
+                        self._attention_loss.remove_hooks()
+                    scaler_dead_path = path_of_models + f"iter_{cur_iter}_scaler_dead.pth"
+                    if is_main_process():
+                        torch.save(self.model.state_dict(), scaler_dead_path)
+                    _origin = "this rank" if _scale_dead else "another rank"
+                    self.reporter.report_error(
+                        "scaler_collapsed",
+                        f"GradScaler scale hit exactly 0.0 on {_origin} at "
+                        f"epoch={epoch_i} batch={i} (global iter={cur_iter}) "
+                        f"— unrecoverable, optimizer steps are now no-ops. "
+                        f"Emergency checkpoint saved: {scaler_dead_path}",
+                        epoch=epoch_i,
+                        batch=i,
+                    )
+                    tqdm.write(
+                        f"[Scaler] scale collapsed to 0.0 on {_origin} at "
+                        f"epoch={epoch_i} batch={i} — aborting. "
+                        f"Checkpoint: {scaler_dead_path}"
+                    )
+                    return
 
                 batch_iter_count += 1
 

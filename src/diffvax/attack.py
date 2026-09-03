@@ -65,6 +65,17 @@ class Attack(BaseAttack):
         diffusion_model = self.model
         device = diffusion_model.device
         dtype = next(diffusion_model.unet.parameters()).dtype
+        # Defensive dtype cast matching sd3_attack.py/flux_attack.py's own
+        # input cast — a no-op for the original single-surrogate pipeline
+        # (image is already fp16 there) but required now that the
+        # multi-surrogate training loop keeps img_adv in float32 (see
+        # diffvax_immunization.py's img_adv comment) and mixes this
+        # surrogate in via sd_probability. dtype only, not device: `image`
+        # already arrives on the caller's device, and `diffusion_model.device`
+        # is unreliable once text encoders are offloaded elsewhere (see the
+        # same hazard sd3_attack.py's `attack()` documents for why it reads
+        # the VAE's own device rather than `self.pipe.device`).
+        image = image.to(dtype=dtype)
 
         text_embeddings = self.tokenize_prompt(
             diffusion_model, prompt, batch_size=batch_size
