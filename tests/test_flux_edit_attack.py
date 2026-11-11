@@ -311,3 +311,24 @@ def test_reference_resize_matches_real_flux2_image_processor():
     mine = atk._prepare_reference_image(t)
     assert mine.shape == ref.shape, (mine.shape, ref.shape)
     assert (mine - ref).abs().mean() < 0.01
+
+
+@pytest.mark.parametrize("objective", ["encoder", "e2e"])
+def test_pgd_respects_budget_and_lowers_objective(objective):
+    from diffvax.pgd import make_objective, pgd
+    pipe, _, _ = _tiny_pipe(True)
+    atk = _attack(pipe, gtf=0.5, gs=1.0)
+    _, img = _pil_and_tensor(64)
+    obj = make_objective(atk, objective, num_inference_steps=2)
+    torch.manual_seed(0)
+    with torch.no_grad():
+        before = obj(img, ["x"]).item() if objective == "encoder" else None
+    hist = []
+    adv = pgd(img, obj, ["x"], eps_pixels=16, steps=8, log=lambda i, l: hist.append(l))
+    assert (adv - img).abs().max().item() <= 2 * 16 / 255 + 1e-6
+    assert adv.min() >= -1 and adv.max() <= 1
+    if objective == "encoder":
+        with torch.no_grad():
+            assert obj(adv, ["x"]).item() < before        # deterministic: must strictly improve
+    else:
+        assert min(hist[-3:]) <= hist[0] + 1e-6           # stochastic (random noise each step)
