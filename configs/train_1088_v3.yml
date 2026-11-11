@@ -26,9 +26,9 @@ resolution: 1024
 sd_target_resolutions: [512, 1024]
 strength_range: [0.5, 1.0]
 
-# Load v3 512px checkpoint
-load_existing: true
-load_path: "checkpoints/diffvax_v3_512_best.pth"
+# Warm start: pass a 512px checkpoint with --checkpoint (that flag sets
+# load_existing/load_path). The old hardcoded path did not exist.
+load_existing: false
 
 # -- Attack ensemble --
 attack_model_link: "runwayml/stable-diffusion-inpainting"

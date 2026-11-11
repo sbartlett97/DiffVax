@@ -508,7 +508,30 @@ actual protection rates, ablations of each loss term, and 1088px production
 training. See `research/findings.md` for the full verification writeup and
 `research/gpu-validation-runbook.md` for the staged validation plan. Until
 that validation runs, treat protection-rate claims for SD3/FLUX/closed-source
-models as unverified; the original SD 1.5 pipeline (`app.py`,
+models as unverified.
+
+**2026-11 update.** Evaluation reports from the earlier img2img surrogates
+showed no measurable protection against SD3.5, FLUX.2 Klein or SDXL
+(`research/evaluation-2026-11-11.md`). The cause is structural: real editors
+condition on the *clean reference image as context tokens*, which the img2img
+surrogates did not model. The new `FluxKleinEditAttack`
+(`src/diffvax/flux_edit_attack.py`, parity-tested against the real
+`Flux2KleinPipeline`), a hard `epsilon` budget (16/255 in the new configs),
+and a controlled evaluation (`scripts/eval_protocol.py`: social-media
+transform, noise controls, bootstrap CIs) are implemented and CPU-tested, but
+**not yet run on a GPU, so no protection claim is made for any model.** The
+configs to start from are `configs/klein_edit_512.yml` and
+`configs/klein_edit_1088.yml`; the procedure is
+`research/gpu-validation-runbook.md`.
+
+**Closed models (Nano Banana / Gemini image editing, DALL-E, Midjourney).**
+There is no gradient access and no known matching architecture, so nothing
+here is trained against them and none of the results above should be read as
+protection against them. The only honest measurement is black-box: protected
+vs clean images through the service, scored with the same protocol. That has
+not been run.
+
+Earlier statement, kept for context: the original SD 1.5 pipeline (`app.py`,
 `scripts/demo.py`, `configs/train.yml`, the pretrained
 `checkpoints/diffvax_trained.pth`) reflects the published, evaluated paper
 result and is unaffected by this research track.

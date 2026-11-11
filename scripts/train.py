@@ -45,6 +45,18 @@ def _build_surrogate_specs(config):
         flux_cfg = config.get("flux_attack", {})
 
         def _build_flux():
+            if flux_cfg.get("mode", "img2img") == "edit":
+                # Reference-token edit mode: mirrors Flux2KleinPipeline (the
+                # mechanism real editors use). See flux_edit_attack.py.
+                from diffvax.flux_edit_attack import FluxKleinEditAttack
+                return FluxKleinEditAttack(
+                    flux_model_link,
+                    gradient_timestep_fraction=flux_cfg.get("gradient_timestep_fraction", 1.0),
+                    use_gradient_checkpointing=flux_cfg.get("use_gradient_checkpointing", True),
+                    guidance_scale=flux_cfg.get("guidance_scale", 4.0),
+                    max_reference_area=flux_cfg.get("max_reference_area", 1024 * 1024),
+                    offload_text_encoder=flux_cfg.get("offload_text_encoder", False),
+                )
             from diffvax.flux_attack import FluxAttack
             return FluxAttack(
                 flux_model_link,
@@ -105,6 +117,7 @@ def _build_attack_manager(config):
             probabilities,
             adaptive=adaptive_enabled,
             adaptive_cfg=adaptive_cfg,
+            hold_batches=config.get("hold_batches", 1),
         )
 
     rank, world_size = get_rank(), get_world_size()
@@ -160,10 +173,12 @@ def build_immunization_config(config: dict) -> dict:
         "adaptive_ensemble": config.get("adaptive_ensemble", {}),
         "flat_minima": config.get("flat_minima", {}),
         "attention_loss": config.get("attention_loss", {}),
+        "hidden_state_loss": config.get("hidden_state_loss", {}),
         "noise_target": config.get("noise_target", {}),
         "spectral_loss": config.get("spectral_loss", {}),
         "latent_loss": config.get("latent_loss", {}),
         "nb_filter": config.get("nb_filter"),
+        "epsilon": config.get("epsilon"),
         "num_inference_steps": config.get("num_inference_steps", 4),
         "sd3_attack": config.get("sd3_attack", {}),
         "flux_attack": config.get("flux_attack", {}),
@@ -327,13 +342,13 @@ def main():
         # the same target would race.
         if is_main_process():
             data_dir = ensure_dataset_in_data_dir(
-                repo_id="ozdentarikcan/DiffVaxDataset",
+                repo_id=config.get("dataset_repo", "ozdentarikcan/DiffVaxDataset"),
                 data_dir=data_dir,
             )
         barrier()
         if not is_main_process():
             data_dir = ensure_dataset_in_data_dir(
-                repo_id="ozdentarikcan/DiffVaxDataset",
+                repo_id=config.get("dataset_repo", "ozdentarikcan/DiffVaxDataset"),
                 data_dir=data_dir,
             )
 

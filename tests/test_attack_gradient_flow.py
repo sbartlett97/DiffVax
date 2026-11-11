@@ -188,6 +188,16 @@ class FakeFluxPipe:
         return embeds, text_ids
 
 
+@pytest.fixture(autouse=True)
+def _cpu_resolved_device(monkeypatch):
+    """These tests drive fake CPU pipelines. FluxAttack refuses a CPU pipeline
+    when an accelerator exists (a real misconfiguration guard), so pin the
+    resolver to CPU here instead of weakening the guard — otherwise the suite
+    fails on any MPS host."""
+    import diffvax.flux_attack as _fa
+    monkeypatch.setattr(_fa, "resolve_device", lambda: torch.device("cpu"))
+
+
 def make_sd3_attack(gtf: float, use_grad_ckpt: bool = True,
                     tgr: bool = False, offload_text_encoders: bool = True) -> SD3Attack:
     atk = SD3Attack.__new__(SD3Attack)
@@ -580,6 +590,43 @@ def test_a6_tgr_pre_hook_equalizes_token_gradients():
         f"TGR did not equalize token gradient norms: {tok_norms.tolist()}"
     )
     assert tok_norms[0].item() > 0
+
+
+@pytest.mark.parametrize(
+    "tgr_hook", [SD3Attack._tgr_backward_pre_hook, FluxAttack._tgr_backward_pre_hook]
+)
+def test_a6_tgr_pre_hook_does_not_overflow_fp16_with_wide_hidden_dim(tgr_hook):
+    """A token's TRUE gradient norm can exceed fp16's 65504 max purely from
+    a wide hidden dimension (1536 for SD3.5's MM-DiT), from an entirely
+    ordinary raw gradient (~0.08/element) once GradScaler's scale factor (up
+    to 65536) is applied — independent of any loss term. This hook fires on
+    every block, every grad-enabled step: computing the per-token norm in
+    fp16 lets one overflowing token's inf poison mean_norm (shared via
+    .mean() across every token in the sequence) into inf, turning the whole
+    hook's output to NaN regardless of what the other tokens' gradients
+    looked like. This is the leading (not yet GPU-confirmed) candidate for a
+    real run's GradScaler collapse — a loss1+loss2-only ablation reproduced
+    the same ~85% found_inf rate, ruling out CLIP/spectral/latent/attention,
+    but doesn't by itself prove TGR specifically since it was enabled
+    throughout. See research/findings.md C-SCALER for what's confirmed vs.
+    still pending.
+    """
+    torch.manual_seed(0)
+    # g itself stays fp16-representable (max ~65504), but a few tokens'
+    # L2 norm over 1536 dims does not: ~5000 * sqrt(1536) ≈ 196,000.
+    g = (torch.randn(1, 20, 1536) * 5.0).half()
+    g[:, :3, :] *= 1000.0  # a handful of dominant tokens, as CFG + partial
+                           # timesteps produce in practice
+    assert not torch.isinf(g).any(), "premise: g itself must stay finite"
+    assert torch.isinf(g.norm(dim=-1)).any(), (
+        "premise: this token's true fp16 norm must overflow on its own"
+    )
+
+    out = tgr_hook(None, (g,))[0]
+
+    assert torch.isfinite(out).all(), (
+        f"TGR hook produced non-finite output from an ordinary gradient: {out}"
+    )
 
 
 def test_a6_tgr_pre_hook_fires_through_checkpoint():

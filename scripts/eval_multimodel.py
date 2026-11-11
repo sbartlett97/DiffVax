@@ -67,6 +67,8 @@ class PipelineType(Enum):
     SD3_IMG2IMG = "sd3_img2img"
     FLUX_KLEIN = "flux_klein"
     FLUX_IMG2IMG = "flux_img2img"
+    FLUX_KONTEXT = "flux_kontext"      # reference-token instruction editor
+    QWEN_IMAGE_EDIT = "qwen_image_edit"  # reference-token instruction editor
 
 
 @dataclass
@@ -132,6 +134,10 @@ DEFAULT_ZOO: list[ModelConfig] = [
         model_id="black-forest-labs/FLUX.2-klein-4B",
         pipeline_type=PipelineType.FLUX_KLEIN,
         native_resolution=1088,
+        # Klein-4B is a 4-step distilled model; the pipeline default (50) is
+        # for the non-distilled base variants and ignores guidance here.
+        num_inference_steps=4,
+        guidance_scale=1.0,
         uses_mask=False,
         prompt_key="flux_prompts",
     ),
@@ -143,6 +149,29 @@ DEFAULT_ZOO: list[ModelConfig] = [
         strength=0.75,
         uses_mask=False,
         prompt_key="flux_prompts",
+    ),
+    # Unseen-at-training editors that use the SAME reference-conditioning
+    # mechanism as the Klein surrogate. Gated/huge: opt in with --models.
+    ModelConfig(
+        name="FLUX.1 Kontext",
+        model_id="black-forest-labs/FLUX.1-Kontext-dev",
+        pipeline_type=PipelineType.FLUX_KONTEXT,
+        native_resolution=1024,
+        num_inference_steps=28,
+        guidance_scale=2.5,
+        uses_mask=False,
+        prompt_key="flux_prompts",
+        enabled=False,
+    ),
+    ModelConfig(
+        name="Qwen-Image-Edit",
+        model_id="Qwen/Qwen-Image-Edit-2509",
+        pipeline_type=PipelineType.QWEN_IMAGE_EDIT,
+        native_resolution=1024,
+        num_inference_steps=30,
+        uses_mask=False,
+        prompt_key="flux_prompts",
+        enabled=False,
     ),
     ModelConfig(
         name="FLUX.2 Dev",
@@ -284,10 +313,24 @@ def create_pipeline(config: ModelConfig):
             config.model_id, torch_dtype=dtype, safety_checker=None
         )
     elif config.pipeline_type == PipelineType.SDXL_IMG2IMG:
-        from diffusers import StableDiffusionXLImg2ImgPipeline
+        from diffusers import AutoencoderKL, StableDiffusionXLImg2ImgPipeline
 
         pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
             config.model_id, torch_dtype=dtype, variant="fp16"
+        )
+        # The base SDXL VAE overflows to NaN outside float32. diffusers'
+        # built-in upcast-on-decode safety net only fires for literal
+        # torch.float16 (`needs_upcasting = self.vae.dtype == torch.float16
+        # and force_upcast`), and on MPS a separate compat shim then casts
+        # the VAE right back down to the latents' dtype before decode
+        # regardless of what we set beforehand — so the safety net never
+        # engages for bf16 on MPS, and decode silently produces all-NaN
+        # (black, after the float->uint8 cast) images. Swap in the
+        # community fp16-fix VAE, which was retrained to stay numerically
+        # stable at reduced precision, instead of fighting the pipeline's
+        # dtype logic.
+        pipe.vae = AutoencoderKL.from_pretrained(
+            "madebyollin/sdxl-vae-fp16-fix", torch_dtype=dtype
         )
     elif config.pipeline_type == PipelineType.SD3_IMG2IMG:
         from diffusers import StableDiffusion3Img2ImgPipeline
@@ -295,6 +338,14 @@ def create_pipeline(config: ModelConfig):
         pipe = StableDiffusion3Img2ImgPipeline.from_pretrained(
             config.model_id, torch_dtype=dtype
         )
+    elif config.pipeline_type == PipelineType.FLUX_KONTEXT:
+        result = pipe(**kwargs).images[0]
+
+    elif config.pipeline_type == PipelineType.QWEN_IMAGE_EDIT:
+        kwargs["true_cfg_scale"] = 4.0
+        kwargs["negative_prompt"] = " "
+        result = pipe(**kwargs).images[0]
+
     elif config.pipeline_type == PipelineType.FLUX_KLEIN:
         from diffusers import Flux2KleinPipeline
 
@@ -307,16 +358,54 @@ def create_pipeline(config: ModelConfig):
         pipe = FluxImg2ImgPipeline.from_pretrained(
             config.model_id, torch_dtype=dtype
         )
+    elif config.pipeline_type == PipelineType.FLUX_KONTEXT:
+        from diffusers import FluxKontextPipeline
+
+        pipe = FluxKontextPipeline.from_pretrained(
+            config.model_id, torch_dtype=dtype
+        )
+    elif config.pipeline_type == PipelineType.QWEN_IMAGE_EDIT:
+        from diffusers import QwenImageEditPlusPipeline
+
+        pipe = QwenImageEditPlusPipeline.from_pretrained(
+            config.model_id, torch_dtype=dtype
+        )
     else:
         raise ValueError(f"Unknown pipeline type: {config.pipeline_type}")
 
     pipe = pipe.to(device)
+
+    # Reduce peak activation memory. Matters most on MPS, where the GPU
+    # shares unified memory with the rest of the OS — a single 1024px+
+    # SDXL/SD3.5/FLUX pipeline without slicing can pressure the whole
+    # system even though only one model is ever resident at a time.
+    if hasattr(pipe, "enable_attention_slicing"):
+        pipe.enable_attention_slicing()
+    if hasattr(pipe, "enable_vae_slicing"):
+        pipe.enable_vae_slicing()
+    elif hasattr(pipe, "vae") and hasattr(pipe.vae, "enable_slicing"):
+        # Some pipelines (e.g. Flux2KleinPipeline) don't expose the
+        # pipeline-level enable_vae_slicing() wrapper but still hold a
+        # standard AutoencoderKL that supports it directly.
+        pipe.vae.enable_slicing()
+    if hasattr(pipe, "enable_vae_tiling"):
+        pipe.enable_vae_tiling()
+    elif hasattr(pipe, "vae") and hasattr(pipe.vae, "enable_tiling"):
+        pipe.vae.enable_tiling()
+
     return pipe
 
 
 def unload_pipeline(pipe):
     """Move pipeline off the accelerator and free memory."""
     pipe.to("cpu")
+    # Drop references to the large submodules explicitly — HF pipelines
+    # hold internal reference cycles that can delay real deallocation by
+    # a gc.collect() pass or two, which on MPS shows up as memory still
+    # held when the next pipeline starts loading.
+    for attr in ("unet", "transformer", "vae", "text_encoder", "text_encoder_2", "text_encoder_3"):
+        if hasattr(pipe, attr):
+            setattr(pipe, attr, None)
     del pipe
     empty_cache()
     gc.collect()

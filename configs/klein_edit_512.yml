@@ -1,0 +1,108 @@
+# =======================================================
+# DiffVax — FLUX.2 Klein EDIT-MODE signal run (plan phase P3.1)
+# =======================================================
+# One surrogate: FLUX.2 Klein 4B in reference-token edit mode (the mechanism
+# real editors use; see src/diffvax/flux_edit_attack.py). 512px, hard budget
+# 16/255, no EoT yet (prove the signal first; EoT is ablated in P3.2).
+#
+# Hardware: one 80 GB GPU (RunPod A100/H100 80GB). Klein 4B is NOT gated
+# (Apache-2.0); no HF_TOKEN needed for this config.
+# Expected go/no-go: loss1 down >= 10% vs its step-200 average, HS term
+# falling, no NaN; then evaluate with scripts/eval_protocol.py.
+#
+# Loss terms ON: loss1 (edit output -> zeros), loss2 (L1 perturbation),
+# spectral (low-frequency penalty), latent L2, reference hidden-state cosine.
+# OFF (earned back only by ablation): CLIP-H, attention entropy, flat-minima,
+# noise-target, TGR, adaptive ensemble.
+
+# -- Core training ------------------------------------------------------
+iter_num: 30                # epochs; ~344 steps/epoch at batch 1 => ~10k steps
+learning_rate: 0.00005
+batch_size: 1
+alpha: 1                    # soft L1 weight; the HARD bound is `epsilon`
+beta: 0.5
+epsilon: 16                 # L-inf budget in PIXEL units (16/255)
+num_inference_steps: 4      # Klein-4B is a 4-step distilled model
+hold_batches: 1             # single surrogate => irrelevant
+
+immunization_model: "diffvax"
+train_all: true
+project_name: "diffvax-klein-edit-512"
+
+resolution: 512
+sd_target_resolutions: [512]
+strength_range: [0.5, 1.0]   # ignored by edit mode (kept for the loop)
+
+# -- Surrogates: Klein edit mode only ------------------------------------
+attack_model_link: "runwayml/stable-diffusion-inpainting"
+sd_probability: 0.0
+sd3_model_link: null
+sd3_probability: 0.0
+flux_model_link: "black-forest-labs/FLUX.2-klein-4B"
+flux_probability: 1.0
+
+flux_attack:
+  mode: "edit"
+  gradient_timestep_fraction: 0.5   # first 2 of 4 steps keep transformer grads
+  use_gradient_checkpointing: true
+  guidance_scale: 4.0               # only used by non-distilled (base) checkpoints
+  max_reference_area: 1048576       # the pipeline shrinks refs above 1024*1024
+  offload_text_encoder: false       # 80 GB: keep resident
+
+# -- Loss terms ------------------------------------------------------------
+noise_target:
+  enabled: false                    # zeros target (the paper's objective)
+
+eot:
+  enabled: false
+
+clip_loss:
+  enabled: false
+spectral_loss:
+  enabled: true
+  low_freq_radius: 0.1
+  weight: 0.5
+latent_loss:
+  enabled: true
+  mode: "l2"                        # bounded -d/(1+d); cosine barely moves
+  weight: 0.5                       # retune from gradient norms (runbook step 2)
+hidden_state_loss:
+  enabled: true
+  weight: 0.5
+  group: "single"
+  target_blocks: "middle"
+  num_hooks: 4
+  sigma: 1.0
+attention_loss:
+  enabled: false
+flat_minima:
+  enabled: false
+adaptive_ensemble:
+  enabled: false
+curriculum:
+  enabled: false
+
+perturbation_mask_gating: false     # protect the whole image
+max_grad_norm: 5.0
+
+# -- Dataset -----------------------------------------------------------------
+# 1088px person-mask dataset (PRIVATE: the pod needs HF_TOKEN with read
+# access). Without this key train.py would fetch the original 512px dataset.
+dataset_repo: "sbartlett97/diffvax-high-res"
+images_subdir: "train/images"
+masks_subdir: "train/masks"
+
+dataloader:
+  num_workers: 4
+  prefetch_factor: 2
+
+hub:
+  enabled: false
+  repo_id: null
+  private: true
+  token: null
+  upload_every_n_epochs: 10
+
+reporting:
+  webhook_url: null
+  checkpoint_every_n_epochs: 5

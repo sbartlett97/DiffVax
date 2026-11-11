@@ -19,4 +19,4 @@ optimum-quanto
 bitsandbytes
 # DiffVax v2 additions
 kornia>=0.7.0             # Phase 1: differentiable JPEG for EoT augmentation
-open-clip-torch>=2.20.0   # Phase 2: CLIP-based architecture-agnostic loss
+open-clip-torch>=2.20.0   # Phase 2: CLIP-based architecture-agnostic losslpips                     # scripts/eval_protocol.py: edit-divergence metric

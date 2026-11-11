@@ -18,7 +18,9 @@ import torch.nn.functional as F
 from torch import Tensor
 
 
-def latent_disruption_loss(vae, img_orig: Tensor, img_adv: Tensor) -> Tensor:
+def latent_disruption_loss(
+    vae, img_orig: Tensor, img_adv: Tensor, mode: str = "cosine"
+) -> Tensor:
     """Cosine similarity between VAE latents of the original and adversarial image.
 
     Args:
@@ -29,8 +31,11 @@ def latent_disruption_loss(vae, img_orig: Tensor, img_adv: Tensor) -> Tensor:
         img_adv:  Adversarial image batch, same shape. Gradient flows through
                   this branch back to the perturbation network.
 
+    mode: "cosine" (legacy default; returns mean cosine similarity) or "l2"
+        (returns -d/(1+d), d = normalised squared latent distance).
+
     Returns:
-        Scalar tensor: mean cosine similarity over the batch. Add it to the
+        Scalar tensor: mean cosine similarity over the batch (mode="cosine"). Add it to the
         minimized training loss (optionally weighted) to push adversarial
         latents away from the clean latents.
     """
@@ -38,6 +43,19 @@ def latent_disruption_loss(vae, img_orig: Tensor, img_adv: Tensor) -> Tensor:
     with torch.no_grad():
         lat_orig = vae.encode(img_orig.to(dtype=dtype)).latent_dist.mode().detach()
     lat_adv = vae.encode(img_adv.to(dtype=dtype)).latent_dist.mode()
+    lat_orig, lat_adv = lat_orig.float(), lat_adv.float()
+    if mode == "l2":
+        # Normalised squared distance d = ||z_adv - z||^2 / ||z||^2 mapped to
+        # d/(1+d) in [0, 1) and NEGATED so minimising the loss maximises the
+        # distance. Cosine on ~300k-dim latents barely moves under a small
+        # pixel budget (observed 0.97-0.99); a relative-distance term has a
+        # usable gradient scale and saturates smoothly instead of unbounded.
+        num = (lat_adv - lat_orig).flatten(1).pow(2).sum(dim=1)
+        den = lat_orig.flatten(1).pow(2).sum(dim=1).clamp(min=1e-8)
+        d = num / den
+        return -(d / (1.0 + d)).mean()
+    if mode != "cosine":
+        raise ValueError(f"latent_loss.mode must be 'cosine' or 'l2', got {mode!r}")
     return F.cosine_similarity(
         lat_orig.flatten(1), lat_adv.flatten(1), dim=1
     ).mean()

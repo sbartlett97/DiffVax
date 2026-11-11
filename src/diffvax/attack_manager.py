@@ -48,8 +48,15 @@ class AttackModelManager:
         probabilities: Dict[str, float],
         adaptive: bool = False,
         adaptive_cfg: Optional[Dict] = None,
+        hold_batches: int = 1,
     ):
         self.models = models
+        # Keep the selected surrogate for this many consecutive batches before
+        # re-sampling. Each swap moves several GB of weights host<->device, so
+        # re-sampling every batch makes swap time dominate with 3 surrogates.
+        # 1 (default) = original per-batch sampling.
+        self.hold_batches = max(1, int(hold_batches))
+        self._held_batches = 0
         self.probabilities = dict(probabilities)  # mutable copy
         self.adaptive = adaptive
         adaptive_cfg = adaptive_cfg or {}
@@ -93,6 +100,13 @@ class AttackModelManager:
         Returns:
             Tuple of (model_name, attack_model).
         """
+        if (
+            self._current_gpu_model is not None
+            and self._held_batches < self.hold_batches
+        ):
+            self._held_batches += 1
+            return self._current_gpu_model, self.models[self._current_gpu_model]
+
         names = list(self.probabilities.keys())
         weights = [self.probabilities[n] for n in names]
         if not all(math.isfinite(w) for w in weights):
@@ -100,6 +114,7 @@ class AttackModelManager:
             weights = [1.0 / len(names)] * len(names)
             self.probabilities = dict(zip(names, weights))
         selected_name = random.choices(names, weights=weights, k=1)[0]
+        self._held_batches = 1
 
         if selected_name != self._current_gpu_model:
             # Offload the model that was previously on GPU

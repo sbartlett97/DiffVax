@@ -148,6 +148,8 @@ class NestedUNet(
         input_channels:   Number of input channels (default 3).
         deep_supervision: If True, return intermediate outputs from each
                           decoder level for deep-supervision training.
+        epsilon:          Optional hard L-inf output bound in pixel units
+                          (e.g. 16 for 16/255). None (default) = unbounded.
         nb_filter:        Filter counts at each of the 5 encoder levels.
                           Default ``[32, 64, 128, 256, 512]`` (~1.8 M params).
                           Use ``[64, 128, 256, 512, 1024]`` for the H6 larger
@@ -162,9 +164,17 @@ class NestedUNet(
         input_channels: int = 3,
         deep_supervision: bool = False,
         nb_filter: list | None = None,
+        epsilon: float | None = None,
         **kwargs,
     ):
         super().__init__()
+
+        # Hard L-inf budget in PIXEL units (0-255 scale), e.g. 16 for
+        # "16/255". None = unbounded (legacy checkpoints, incl. the published
+        # diffvax_trained.pth, must keep producing identical output).
+        self.epsilon = epsilon
+        # Image tensors live in [-1, 1], so a pixel budget e maps to 2*e/255.
+        self._eps_t = None if epsilon is None else 2.0 * float(epsilon) / 255.0
 
         if nb_filter is None:
             nb_filter = list(self._DEFAULT_NB_FILTER)
@@ -228,8 +238,19 @@ class NestedUNet(
             output2 = self.final2(x0_2)
             output3 = self.final3(x0_3)
             output4 = self.final4(x0_4)
-            return [output1, output2, output3, output4]
+            return [self._bound(o) for o in (output1, output2, output3, output4)]
 
         else:
             output = self.final(x0_4)
-            return output
+            return self._bound(output)
+
+    def _bound(self, x):
+        """Soft-clip to the hard budget: eps * tanh(x / eps).
+
+        Near-identity for |x| << eps (so warm-starting and early learning are
+        unaffected) and saturating at exactly +/-eps. (eps * tanh(x) would
+        instead shrink everything by ~eps and slow learning.)
+        """
+        if self._eps_t is None:
+            return x
+        return self._eps_t * torch.tanh(x / self._eps_t)

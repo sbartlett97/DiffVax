@@ -501,3 +501,38 @@ def test_s2_groupnorm_consistent_in_train_mode():
         "NestedUNet produces different output in train vs eval mode. "
         "This indicates BatchNorm is still present (S2 regression)."
     )
+
+
+def test_latent_l2_mode_sign_bounds_and_gradient():
+    """latent_loss mode='l2': identical latents -> 0, farther -> more negative,
+    bounded below by -1, and minimising it moves adv latents AWAY from clean."""
+    import torch.nn as nn
+    from diffvax.losses.latent_loss import latent_disruption_loss
+
+    class _Dist:
+        def __init__(self, z): self._z = z
+        def mode(self): return self._z
+
+    class _Out:
+        def __init__(self, z): self.latent_dist = _Dist(z)
+
+    class _Vae(nn.Module):
+        def __init__(self):
+            super().__init__(); self.c = nn.Conv2d(3, 4, 3, padding=1)
+        def encode(self, x): return _Out(self.c(x))
+
+    torch.manual_seed(0)
+    vae = _Vae().requires_grad_(False)
+    x = torch.randn(1, 3, 16, 16)
+    same = latent_disruption_loss(vae, x, x.clone(), mode="l2")
+    assert abs(same.item()) < 1e-6
+    adv = (x + 0.5 * torch.randn_like(x)).requires_grad_(True)
+    loss = latent_disruption_loss(vae, x, adv, mode="l2")
+    assert -1.0 < loss.item() < 0.0
+    far = latent_disruption_loss(vae, x, x + 5 * torch.randn_like(x), mode="l2")
+    assert far.item() < loss.item() >= -1.0
+    (g,) = torch.autograd.grad(loss, adv)
+    d_before = (vae.encode(adv).latent_dist.mode() - vae.encode(x).latent_dist.mode()).pow(2).sum()
+    adv2 = (adv - 0.5 * g / g.norm()).detach()
+    d_after = (vae.encode(adv2).latent_dist.mode() - vae.encode(x).latent_dist.mode()).pow(2).sum()
+    assert d_after > d_before

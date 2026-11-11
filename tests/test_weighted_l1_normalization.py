@@ -40,6 +40,26 @@ def test_weighted_l1_restricts_to_weighted_region():
     assert torch.isclose(_weighted_l1(diff, weight), torch.tensor(4.0))
 
 
+def test_weighted_l1_does_not_overflow_fp16_on_a_large_full_image_weight():
+    """A real training run hit NaN/Inf on loss1 AND loss2 together on its
+    very first batch at 1088x1088 resolution. Root cause: weight.sum() over
+    a near-full-image (or even full-image) 0/1 weight tensor in fp16
+    overflows fp16's 65504 max (1088*1088 = 1,183,744 positions alone), so
+    weight.sum() itself becomes inf before any flooring/clamping logic runs,
+    and inf/inf (or finite/inf) is NaN. _weighted_l1 must upcast internally
+    so this can't happen regardless of what dtype the caller passes in.
+    """
+    diff = torch.full((1, 3, 1088, 1088), 0.1, dtype=torch.float16)
+    weight = torch.ones(1, 1, 1088, 1088, dtype=torch.float16)
+
+    # Confirm the premise: fp16 itself really does overflow here.
+    assert torch.isinf(weight.sum())
+
+    result = _weighted_l1(diff, weight)
+    assert torch.isfinite(result), f"_weighted_l1 produced non-finite output: {result}"
+    assert torch.isclose(result, torch.tensor(0.1), atol=1e-3)
+
+
 def test_weighted_l1_floors_a_tiny_weighted_region():
     """A real face mask can be as small as ~0.02% of the frame. Without a
     floor, weight.sum() shrinks with the region and 1/weight.sum() amplifies
@@ -65,3 +85,19 @@ def test_weighted_l1_floors_a_tiny_weighted_region():
     # And it must be far smaller than what the unfloored formula would give
     # (the whole point: capping the amplification, not just reducing it).
     assert result < unfloored / 50
+
+
+def test_weighted_l1_floors_a_tiny_fp16_region_at_full_frame_size():
+    """The combination a real batch actually hits: a tiny (sub-1%) region,
+    fp16 dtype, at a large real resolution (1088x1088) where the frame size
+    alone is enough to overflow fp16 (see the full-image overflow test) even
+    though the WEIGHTED region here is tiny. Both the floor and the fp32
+    upcast must hold together, not just individually.
+    """
+    diff = torch.full((1, 3, 1088, 1088), 0.1, dtype=torch.float16)
+    weight = torch.zeros(1, 1, 1088, 1088, dtype=torch.float16)
+    weight.view(-1)[:5] = 1.0  # 5 pixels out of ~1.18M
+
+    result = _weighted_l1(diff, weight, min_area_frac=0.01)
+    assert torch.isfinite(result), f"_weighted_l1 produced non-finite output: {result}"
+    assert result > 0

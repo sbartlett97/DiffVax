@@ -1,6 +1,6 @@
 # DiffVax Research Findings
 
-**Last updated:** 2026-03-27
+**Last updated:** 2026-11-11 (see the section below; earlier sections predate it)
 **Status:** Inner loop cycle 2 complete — all 7 hypotheses implemented, awaiting training validation
 
 ---
@@ -98,6 +98,54 @@ Literature (Hönig et al. ICLR2025):
 5. **[Experiment H-FREQ]** Does spectral/frequency-domain perturbation penalty improve SSIM at same epsilon budget?
 6. **[Experiment H2]** Does scaling NestedUNet to [64,128,256,512,1024] improve protection rate at 1088px?
 7. **[Threat model]** What is the minimum number of images needed to break DiffVax with robust mimicry?
+8. **[C-SCALER, from real runs' logs — UPDATED]** A live GPU run
+   (research_v3.yml-class mixture, `[sd3]` selected, ~180 epochs / ~10,440
+   steps in) showed `[Scaler] scale=0.000e+00` holding for 400+ consecutive
+   batches while loss values stayed superficially normal (4.03-4.31, no
+   trend). A subsequent abort-guard-equipped run collapsed within 3 epochs
+   instead (see research-log.md 2026-09-03), giving much earlier evidence:
+   `found_inf` fired on ~85% of steps by batch 100, on a freshly-initialized,
+   in-distribution first batch — ruling out training dynamics or perturbation
+   magnitude as the driver.
+   - **Confirmed by ablation**: a loss1+loss2-only run (every optional term
+     — CLIP/spectral/latent/attention — disabled) reproduced the identical
+     ~85% found_inf rate and collapse timing. Since loss2 never touches the
+     surrogate, this rules out all four optional terms and narrows the cause
+     to loss1's gradient path through SD3Attack itself.
+   - **img_adv fp32 fix (first fix)**: removed a real, redundant fp16
+     downcast that forced all six loss terms' backward gradients through one
+     shared fp16 buffer. Correct to keep, but the ablation above shows it
+     was NOT the primary collapse driver (loss1+loss2 alone, which never
+     touches that shared buffer meaningfully, collapsed identically) — demote
+     this from "the funnel" to "one redundant accumulation point removed."
+   - **TGR fp16 norm overflow (leading candidate, second fix)**: found by
+     code trace + CPU reproduction (not GPU) that
+     `_tgr_backward_pre_hook` (sd3_attack.py / flux_attack.py) computes each
+     token's gradient norm in fp16. Proven on CPU: an entirely ordinary raw
+     gradient, once multiplied by GradScaler's scale and reduced over
+     MM-DiT's wide hidden dim (1536), can produce a norm that legitimately
+     exceeds fp16's 65504 max, which poisons `mean_norm` (shared across
+     every token) into inf/NaN. Fixed with the same float32-upcast pattern
+     as `_weighted_l1`. **Not yet confirmed as THE cause**: TGR was enabled
+     (`token_gradient_regularization: true`) in every config file inspected,
+     but the actual config path used by the real runs was never confirmed,
+     and no `token_gradient_regularization: false` run has been done. That
+     run is the decisive test — if disabling TGR alone drops the skip rate
+     to ~0, this is confirmed; if skips persist, something else is also
+     contributing and this investigation continues.
+9. **[Loss-term saturation, same log window]** In that same run, `Attn`
+   held at -6.9277±0.0005 (≈ -ln(1024), the max-entropy ceiling for a
+   32x32-token map) across batches where `Loss1` swung 0.55-1.08 — i.e.
+   near-zero sensitivity to input/attack content, possibly because
+   `attention_loss.py`'s token-importance proxy (`attn_out.abs().mean(dim=-1)`)
+   is close to uniform by construction after LayerNorm, pinning the softmax
+   near-uniform regardless of any attack. `Lat` (latent cosine similarity)
+   sat at 0.97-0.99, i.e. adversarial ≈ clean latents — the term is not
+   achieving separation either. Both observations are from a window where
+   the scaler had already collapsed (see #8) — every weight update in that
+   window was a no-op, so this could just as easily be measuring a frozen
+   model as measuring a genuinely saturated loss term. Re-check after a
+   clean (non-collapsed) run before treating either as a real finding.
 
 ---
 
@@ -225,6 +273,31 @@ models (FLUX, SD3.5, nano-banana-class editors)?*
   (ablations); whether gtf=0.5 matches gtf=1.0 quality at half VRAM.
 - JPEG/resize robustness in practice (EoT path is differentiable and
   fail-loud, but robustness magnitude is empirical).
+- **GradScaler collapse fix (2026-09-03)**: `img_adv` (and everything
+  computed from it — loss1, loss2, CLIP, spectral, latent, attention) is now
+  kept in float32 through the whole loss graph instead of being downcast to
+  the dataset's native load dtype (fp16 on CUDA) right after the
+  perturbation network. That downcast dates to the original single-surrogate
+  v1 loop (`unet_out.half().cuda()`, predating every extra loss term) and
+  was redundant for every current consumer — sd3_attack.py, flux_attack.py,
+  clip_loss.py, and latent_loss.py all already cast their own input to
+  their required working dtype internally — except the original SD1.5
+  `attack.py` path, which is now given the same defensive cast so
+  `sd_probability > 0` configs (train_1088_v3.yml) don't break. Mechanism:
+  with img_adv in fp16, all six loss terms' backward gradients summed
+  through one shared fp16 buffer, well within reach of fp16's ~65504 max;
+  removing that downcast removes one accumulation point. A `scale==0.0`
+  abort guard (mirroring the existing NaN/Inf guard) was also added since
+  GradScaler has no floor and no log line for found_inf skips — the fix
+  removes one fp16 accumulation point but gradients still traverse fp16
+  inside each surrogate's own subgraph, so this is a backstop, not a
+  guarantee against recurrence. Verified: `test_img_adv_stays_float32_...`
+  and `test_scaler_collapse_aborts_and_reports` in test_training_smoke.py
+  (CPU/MPS, no GPU). **Not yet verified**: that this actually prevents the
+  collapse recurring on a real GPU run of the config that produced it — no
+  pre-collapse `[Scaler]` log was available to confirm gradual-bleed vs.
+  cliff, so the causal link to *this specific run's* collapse is inference
+  from code, not a reproduced-and-fixed bug.
 
 ### Tier 3 — Unprovable from this repo (external/closed models)
 
@@ -247,3 +320,32 @@ SD3.5, SD1.5) is high pending one GPU validation run. Confidence for
 closed-model transfer (nano-banana et al.) is necessarily lower and capped
 until black-box evals are run — this is a property of the threat model, not
 of the code.
+
+
+---
+
+## 2026-11-11 Update: the img2img surrogates were the wrong mechanism
+
+**Observed (outputs/*/eval_report.json, 1088px, n=1-3):** `clip_delta` within
+noise of zero and sign-flipping for SD3.5, FLUX.2 Klein and SDXL, for both Hub
+checkpoints. No DiT protection has been demonstrated. Several runs with a low
+edit SSIM also had a visible perturbation (PSNR 22-25 dB); with no noise control
+that proves nothing.
+
+**Mechanism (verified in the installed diffusers 0.39 source):** the editors
+(Flux2Klein, and by construction Kontext / Qwen-Image-Edit) feed the CLEAN
+reference as extra tokens at every denoising step and generate from pure noise.
+The img2img surrogates noised the protected latent instead. The SD 1.5
+inpainting result in the original paper uses the same clean-conditioning path.
+
+**Status of earlier claims:** H1-H8 above were "implemented", never shown to
+help. Of the loss terms, attention-entropy (saturates at ln N by construction),
+latent cosine (0.97-0.99, no-op at weight 1.0), CLIP-H (224px downsample of a
+1088px perturbation) and flat-minima (a gradient rescale) have no evidence of
+doing what their docstrings claim; they are off in the new configs.
+
+**New (CPU-verified only):** `FluxKleinEditAttack` (parity with the real
+pipeline), reference hidden-state loss, latent L2, hard epsilon, controlled
+evaluation protocol. **Tier 2 is still entirely open**: see
+`research/gpu-validation-runbook.md`. **Tier 3 (Nano Banana etc.) is
+unchanged: black-box measurement only.**

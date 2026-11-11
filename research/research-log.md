@@ -638,3 +638,206 @@ so an SD 1.5 rank will idle waiting for SD3.5) are all unmeasured.
 Deliberately not implemented: tensor/pipeline parallelism *inside* a
 surrogate — that puts the gradient path across device boundaries, the exact
 failure mode that produced C1/C7/C8/C10 this session.
+
+## 2026-09-03 — C-SCALER: GradScaler collapsed to exactly 0.0 on a real run
+
+A live GPU run (research_v3.yml-class config, `[sd3]` selected) reported
+`[Scaler] scale=0.000e+00` holding across 400+ consecutive batches around
+epoch 180 (~10,440 steps), with loss values printing as if training were
+healthy (4.03-4.31, no trend — forward loss VALUES are scale-independent, so
+nothing in the log looked wrong). No pre-collapse `[Scaler]` lines were
+available (not redirected to a file), so gradual-bleed-vs-cliff couldn't be
+distinguished from the log directly.
+
+**Mechanism (confirmed by code, not by reproducing on GPU)**: `unscale_`
+computes `1/scale`; once scale hits exactly 0.0 that's `inf`, so even an
+all-zero gradient becomes `0*inf=NaN` — `found_inf` trips on every
+subsequent step forever, `update()` computes `0*backoff_factor=0` forever.
+This is a one-way, terminal lock, not a dip GradScaler can recover from
+(recovery needs `growth_interval`=2000 CONSECUTIVE clean steps to double the
+scale; any single bad step anywhere in that streak resets the counter, so if
+bad steps recur more often than roughly once per 2000 steps the scale can
+only trend toward 0 over enough steps).
+
+**Root cause (traced, not reproduced)**: `diffvax_immunization.py` cast
+`unet_out` (and therefore `img_adv`, the single tensor loss1/loss2/CLIP/
+spectral/latent/attention ALL backward through) down to the dataset's native
+load dtype (fp16 on CUDA) immediately after the perturbation network, before
+any loss was computed. That cast traces back to the original v1 pipeline's
+`unet_out.half().cuda()`, from before any of the extra loss terms existed —
+harmless then (loss1+loss2 only, fp16 was the one surrogate's native dtype
+anyway), but with six terms now summing their backward contributions through
+one shared fp16 buffer, that's well within reach of fp16's ~65504 max.
+Checked every downstream consumer before removing the cast: sd3_attack.py,
+flux_attack.py, clip_loss.py, and latent_loss.py already cast their OWN
+input to their required dtype internally, making the upstream cast
+redundant for them — except the original SD1.5 `attack.py`, which had no
+such cast and would have hard-crashed on a dtype mismatch once img_adv
+became float32 (train_1088_v3.yml runs SD1.5 40% of the time via
+`sd_probability`). Added the same defensive `image.to(dtype=dtype)` there.
+
+**Fix**: keep `img_adv` in float32 through the whole loss graph; each
+surrogate/loss consumer still gets its own required dtype at its own call
+boundary. Also added a `scale==0.0` abort guard (checkpoint + report_error +
+collective `any_rank_true` abort, mirroring the existing NaN/Inf guard) —
+GradScaler has no floor and logs nothing when found_inf trips, so without
+this a future collapse would again burn GPU hours silently before anyone
+noticed the loss curve had gone flat for the wrong reason.
+
+**Tests**: `test_img_adv_stays_float32_regardless_of_dataset_load_dtype` and
+`test_scaler_collapse_aborts_and_reports` in test_training_smoke.py (CPU/MPS
+— GradScaler is a passthrough off CUDA, so neither the collapse mechanism
+nor the fix's real-world effect is exercised by these; the second test
+monkeypatches the module-level `scaler` to force `get_scale()==0.0` to
+verify the abort path specifically).
+
+**Not verified**: this removes ONE fp16 gradient-accumulation point;
+gradients still traverse fp16 inside each surrogate's own subgraph (VAE/DiT
+forward+backward), so overflow — and scale decay — can still occur. Whether
+this fix actually prevents recurrence on the exact config/resolution that
+produced the original collapse is a Tier 2 (GPU-required) open question; the
+abort guard exists specifically because that couldn't be confirmed here.
+Two loss-term observations from the same (collapsed, so frozen-weights) log
+window — `attention_loss` pinned near its max-entropy ceiling, `latent_loss`
+cosine similarity at 0.97-0.99 — are noted as open questions in findings.md
+rather than findings, since a frozen model produces the same numbers as a
+saturated loss term.
+
+## 2026-09-03 (continued) — C-SCALER: ablation narrows it to SD3Attack's own
+## backward; TGR is the leading (unconfirmed) candidate
+
+With the abort guard from the entry above in place, a fresh run collapsed
+within 3 epochs instead of 180 — much earlier evidence than the first
+report. `found_inf` fired on ~85% of steps by batch 100, and a skip had
+already occurred by batch 0 on a freshly-initialized, in-distribution first
+batch. That rules out training dynamics and perturbation magnitude (`alpha`)
+as drivers: nothing about what the perturbation net has learned can explain
+an overflow before it's learned anything.
+
+**Decisive ablation**: re-ran with every optional loss term disabled
+(`clip_loss`, `spectral_loss`, `latent_loss`, `attention_loss`,
+`flat_minima` all `enabled: false` — CLAUDE.md confirms this reproduces v1
+loss1+loss2 exactly). Result: identical ~85% found_inf rate, identical
+collapse timing (epoch 3, batch ~6-7 both times). Since loss2 is pure
+pixel-space L1 between img_adv and img_batch and never touches the
+surrogate, this is conclusive: **the overflow is in loss1's gradient path
+through SD3Attack itself**, not in any optional loss term. This also
+retroactively demotes the img_adv float32 fix (previous entry) from "the
+funnel" to "a real, correct, but not primary fix" — that shared fp16
+buffer isn't meaningfully exercised by loss1+loss2 alone, yet they
+collapsed identically.
+
+**Code trace, then CPU reproduction**: `_tgr_backward_pre_hook` in both
+sd3_attack.py and flux_attack.py (identical duplicated implementation)
+computes `tok_norm = g.norm(dim=-1, keepdim=True)` on `g` = grad_output
+DURING backward — already multiplied by GradScaler's scale factor (up to
+65536) at that point. Reproduced on CPU (no GPU needed — the hook is a pure
+static function, callable directly with a synthetic tensor): an entirely
+ordinary raw gradient (~0.08/element) becomes, after scaling, large enough
+that its L2 norm over MM-DiT's wide hidden dim (1536 for SD3.5) legitimately
+exceeds fp16's 65504 max — confirmed by first showing `torch.norm` does NOT
+naively overflow at moderate magnitudes (it's numerically stable internally)
+before finding the magnitude where the TRUE norm value itself doesn't fit in
+fp16 regardless of computation precision. That single inf `tok_norm` poisons
+`mean_norm` (an average across every token in the sequence via `.mean()`)
+into inf, and the whole hook's output becomes NaN — for every token, not
+just the one that overflowed. This hook fires on every transformer block,
+every grad-enabled denoising step (`gradient_timestep_fraction=0.5`), every
+batch — consistent with an ~85% per-batch skip rate in a way no single loss
+term plausibly is.
+
+**Fix**: same float32-upcast-for-reduction pattern as `_weighted_l1` —
+compute `tok_norm`/`mean_norm`/the division in float32, cast the result back
+to `g`'s original dtype at the end. Verified non-vacuously: a new CPU test
+(`test_a6_tgr_pre_hook_does_not_overflow_fp16_with_wide_hidden_dim`,
+parametrized over both SD3Attack and FluxAttack) constructs exactly this
+scenario and confirms it produces whole-tensor NaN/inf on the un-fixed hook
+and finite output after the fix.
+
+**What this is NOT yet**: confirmed as the actual cause of the real
+collapse. `token_gradient_regularization: true` is set in every config file
+checked (research_v3.yml, research_v3_sd3_only.yml, train_1088_v3.yml), but
+the actual config path the real runs used was never confirmed — asked twice,
+not yet answered. The decisive next step is a `token_gradient_regularization:
+false` run: if the skip rate drops to ~0, this is confirmed as the (or a)
+cause; if skips persist near 85%, something else is contributing and this
+investigation isn't done. Also worth writing down as a known limit rather
+than a loose end: the fix's final cast back to `g`'s dtype can still overflow
+if the TRUE (correctly-computed) `mean_norm` itself exceeds fp16 range —
+that residual case is intentionally left to GradScaler's own
+found_inf/backoff, since a gradient that genuinely doesn't fit in fp16 is a
+real overflow, not an artifact of this hook's arithmetic. This fix lowers
+the skip rate; it does not guarantee zero skips.
+
+## 2026-11-11 — Goal-level evaluation: 1088px protection against DiT editors
+
+Full write-up: `research/evaluation-2026-11-11.md`; checklist: `tasks/todo.md`.
+
+Headline: the `outputs/*/eval_report.json` results (2026-09-02/03, n=1-3,
+1088px) show `clip_delta` within noise of zero and sign-flipping across runs
+for SD3.5, FLUX.2 Klein and SDXL, for both Hub checkpoints. No DiT protection
+exists yet. Root cause is structural: `flux_attack.py`/`sd3_attack.py` run
+img2img (noise the protected latent, denoise), but the real editors — and the
+eval's own `Flux2KleinPipeline` call — condition on the CLEAN reference image
+as context tokens at every step (`cat([latents, image_latents], dim=1)`,
+T-coordinate 10, never noised). The SD 1.5 inpainting success in the paper
+uses the same clean-conditioning mechanism. Train/eval and train/threat are
+mismatched. Plan: new `FluxKleinEditAttack` surrogate, hidden-state distance
+loss in place of the saturated attention-entropy term, normalised-L2 latent
+term, bf16 on CUDA (retires the C-SCALER class), hard epsilon, a real eval
+protocol with noise/PhotoGuard controls and a social-media transform, then
+staged GPU validation. Nano Banana: black-box measurement only.
+
+Also recorded: CPU suite on this MPS host is 98 pass / 7 fail (5 FLUX
+accelerator-guard, 2 DDP spawn); green on CUDA/CPU hosts per prior entries.
+
+## 2026-11-11 (later) — P0/P1/P2 implemented (CPU-verified, GPU pending)
+
+Decisions from the user: 80 GB RunPod GPU; dead loss terms off by default;
+Nano Banana is an evaluation target only; epsilon 16/255.
+
+**Implemented** (138 tests pass, 1 CUDA-only skip, on the MPS dev host):
+- bf16 on CUDA (`resolve_dtype`), GradScaler enabled only for fp16. NOTE this
+  also changes the SD 1.5 app/demo/eval compute dtype on CUDA from fp16 to bf16.
+- Hard budget: `NestedUNet(epsilon=px)` -> `eps_t*tanh(x/eps_t)`, `eps_t=2*px/255`
+  (tensors are [-1,1], so a literal 16/255 on the tensor would be only 8/255 in
+  pixels). Opt-in; unset reproduces legacy output bit-for-bit (tested).
+- `FluxKleinEditAttack`: reference-token edit path, parity-tested against the
+  real `Flux2KleinPipeline` built from tiny random components (distilled and
+  CFG) to atol 1e-4. Includes the pipeline's >1024*1024 area shrink and
+  floor-to-16. Real-weight parity not run.
+- `hidden_state_loss` (reference-token cosine at middle blocks), `latent_loss`
+  `mode: l2` (-d/(1+d)), `AttackModelManager(hold_batches)`.
+- `scripts/eval_protocol.py` + `diffvax/protocol.py`: social-media transform,
+  matched-PSNR and same-L-inf controls, LPIPS divergence, cluster bootstrap.
+- Configs `klein_edit_512.yml`, `klein_edit_1088.yml`; `requirements-pod.txt`,
+  `scripts/runpod_setup.sh`; runbook rewritten; Kontext/Qwen-Image-Edit added
+  to the eval zoo (opt-in); Klein eval now uses its 4 distilled steps.
+- Fixed host-specific test failures: DDP under gloo now forces CPU (gloo has no
+  MPS collectives); FLUX tests pin the resolver to CPU instead of weakening the
+  accelerator guard.
+
+**Bugs the new tests exposed (all fixed):**
+1. `immunize_image_pil` truncated on export and ran in bf16/fp16: a 16/255
+   budget measured 17 levels in the saved file. Now float32 and rounded.
+2. The training dataset returned images in the compute dtype (bf16 on CUDA/
+   MPS), quantising pixels by up to ~1 level near +/-1 and corrupting loss2's
+   reference. Images are now float32 end to end; surrogates cast at their own
+   boundary.
+
+**Advisor-review follow-ups (same day):** hidden-state loss now receives the
+UN-augmented protected image (comparing it augmented vs a clean un-augmented
+image rewarded JPEG/blur-induced separation; test mutation-checked); protocol
+verdict now headlines the matched-PSNR control with the same-L-inf control as a
+secondary and measures L-inf per image for unbounded legacy checkpoints; added
+`--no-transform`, a legacy-checkpoint sanity stage, and a real-weight parity
+script; the PSNR>=36 dB gate was unreachable at a full 16/255 budget (~24 dB)
+and is replaced by LPIPS<=0.05 / SSIM>=0.97. Verified from the Hub: Klein-4B is
+`is_distilled: true`, 4 steps, guidance 1.0; pinned package versions exist on
+PyPI; lpips path executed once (CLI smoke).
+
+**Open / not verified:** everything on CUDA; real Klein VRAM and step time;
+whether any protection exists; LPIPS (`lpips` not installed locally, the CLI
+smoke test used `--divergence l1`); the 1088 image reaches Klein shrunk to
+~1008-1024px by the editor's own area cap (reproduced, bicubic vs the
+pipeline's LANCZOS).

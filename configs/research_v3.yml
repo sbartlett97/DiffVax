@@ -123,14 +123,16 @@ curriculum:
   enabled: true
   resolution_jitter: 0.0
   stages:
+    # Boundaries are cumulative and monotonic; the last stage ends at iter_num
+    # (it used to read 300/400/580/500, so the 1088px stage never ran).
     - resolution: 512
-      until_epoch: 300
+      until_epoch: 150
       batch_size: 1
     - resolution: 768
-      until_epoch: 400
+      until_epoch: 250
       batch_size: 1
     - resolution: 1024
-      until_epoch: 580
+      until_epoch: 400
       batch_size: 1
     - resolution: 1088
       until_epoch: 500

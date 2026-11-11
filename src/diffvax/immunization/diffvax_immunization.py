@@ -39,10 +39,16 @@ from diffvax.utils import (
 # and only needed for fp16 (loss scaling prevents fp16 underflow); bf16
 # (MPS) and fp32 (CPU) share fp32's exponent range and need no scaling, so
 # it is disabled there deliberately, not merely because CUDA is absent.
+# Enabled only when the CUDA compute dtype is actually fp16 (pre-Ampere GPUs);
+# on bf16-capable cards resolve_dtype() picks bf16 and the scaler is a no-op.
+_SCALER_ENABLED = (
+    torch.cuda.is_available()
+    and resolve_dtype(torch.device("cuda")) == torch.float16
+)
 try:
-    scaler = torch.amp.GradScaler("cuda", enabled=torch.cuda.is_available())
+    scaler = torch.amp.GradScaler("cuda", enabled=_SCALER_ENABLED)
 except (AttributeError, TypeError):  # torch < 2.3
-    scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+    scaler = torch.cuda.amp.GradScaler(enabled=_SCALER_ENABLED)
 
 
 class ImmunizationDataset(torch.utils.data.Dataset):
@@ -93,8 +99,12 @@ class ImmunizationDataset(torch.utils.data.Dataset):
         img_t = torch.from_numpy(img_np.transpose(2, 0, 1)) / 127.5 - 1.0
         mask_np = np.array(image_mask.convert("L"), dtype=np.uint8)
         mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32)[None])
+        # Image stays float32: the NestedUNet runs in fp32 and every
+        # surrogate/loss casts its own input at its boundary. Loading in
+        # bf16 (the CUDA/MPS compute dtype) would quantise pixels to ~0.5-1
+        # level near +/-1 and corrupt the loss2 reference at a 16/255 budget.
         return (
-            img_t.to(self._dtype),
+            img_t,
             mask_t.to(self._dtype),
             entry["prompt"],
             entry["flux_prompt"],
@@ -177,7 +187,8 @@ class DiffVaxImmunization:
     ):
         self.model_name = "DiffVaxImmunization"
         self.step_size = 1
-        self.eps = 32 / 255
+        # Hard budget lives in NestedUNet(epsilon=...) (pixel units).
+        self.eps = None
         self.clamp_min = -1
         self.clamp_max = 1
         self.output_dir = output_dir or "outputs"
@@ -213,6 +224,12 @@ class DiffVaxImmunization:
         if self.is_distributed and self.device.type == "cuda":
             self.device = torch.device(f"cuda:{get_local_rank()}")
             torch.cuda.set_device(self.device)
+        elif self.is_distributed:
+            # gloo (the non-NCCL backend) cannot run collectives on MPS
+            # tensors ("c10d::allgather_ not implemented for MPS"), and DDP
+            # needs them at construction. Without CUDA, distributed runs are
+            # CPU-only by design (they exist for tests and debugging).
+            self.device = torch.device("cpu")
 
         # Non-main ranks must not contend for the same log file or fire
         # duplicate webhooks; give them a rank-suffixed log and no webhook.
@@ -224,7 +241,9 @@ class DiffVaxImmunization:
         # H6: configurable filter counts — default [32,64,128,256,512] (~1.8M params);
         # set nb_filter: [64,128,256,512,1024] in config for the larger ~7M variant.
         _nb_filter = config.get("nb_filter") or None
-        unetmodel = NestedUNet(num_classes=3, nb_filter=_nb_filter)
+        _epsilon = config.get("epsilon") or None
+        self.eps = None if _epsilon is None else float(_epsilon) / 255.0
+        unetmodel = NestedUNet(num_classes=3, nb_filter=_nb_filter, epsilon=_epsilon)
         unetmodel = unetmodel.to(self.device)
 
         self.load_existing = load_existing
@@ -373,6 +392,7 @@ class DiffVaxImmunization:
             ("spectral_loss", "Spectral concentration"),
             ("latent_loss", "Latent-space disruption"),
             ("attention_loss", "Attention disruption"),
+            ("hidden_state_loss", "Reference hidden-state disruption"),
             ("flat_minima", "Flat-minima regularization"),
             ("adaptive_ensemble", "Adaptive ensemble weighting"),
             ("noise_target", "Fixed target for loss1"),
@@ -386,6 +406,7 @@ class DiffVaxImmunization:
 
         hyperparams = (
             f"alpha={cfg.get('alpha')}, beta={cfg.get('beta')}, "
+            f"epsilon={cfg.get('epsilon')}/255, "
             f"learning_rate={cfg.get('learning_rate')}, "
             f"num_inference_steps={cfg.get('num_inference_steps')}"
         )
@@ -970,8 +991,32 @@ class DiffVaxImmunization:
                     if _vae is not None:
                         from diffvax.losses.latent_loss import latent_disruption_loss
                         loss_latent = latent_disruption_loss(
-                            _vae, img_batch, img_adv
+                            _vae, img_batch, img_adv,
+                            mode=self._config.get("latent_loss", {}).get("mode", "cosine"),
                         )
+
+                # ---- Hidden-state disruption (edit-mode surrogates only) ----
+                # Cosine similarity of clean vs protected REFERENCE-token
+                # hidden states at middle DiT blocks. Bounded [-1, 1];
+                # minimising it pushes the editor's internal representation of
+                # the reference away from the clean one. No-op for surrogates
+                # that don't expose hidden_state_loss.
+                loss_hs = torch.tensor(0.0, device=self.device)
+                hs_cfg = self._config.get("hidden_state_loss", {})
+                hs_weight = float(hs_cfg.get("weight", 0.5))
+                if hs_cfg.get("enabled", False) and hasattr(attack_model, "hidden_state_loss"):
+                    # Un-augmented img_adv (like the latent loss): the clean
+                    # image gets no EoT, so comparing it to an AUGMENTED
+                    # protected image would reward JPEG/blur/noise-induced
+                    # separation instead of the perturbation. Robustness to
+                    # the transform is trained through loss1 (img_adv_aug).
+                    loss_hs = attack_model.hidden_state_loss(
+                        img_batch, img_adv, cur_prompt,
+                        sigma=float(hs_cfg.get("sigma", 1.0)),
+                        group=hs_cfg.get("group", "single"),
+                        target_blocks=hs_cfg.get("target_blocks", "middle"),
+                        num_hooks=int(hs_cfg.get("num_hooks", 4)),
+                    ).float()
 
                 # ---- Phase 7: Attention disruption loss ----
                 loss_attn = torch.tensor(0.0, device=self.device)
@@ -989,6 +1034,7 @@ class DiffVaxImmunization:
                     + loss_extra
                     + attn_weight * loss_attn
                     + latent_loss_weight * loss_latent
+                    + hs_weight * loss_hs
                 )
 
                 # Log scalar values (after building the full computation graph)
@@ -996,6 +1042,7 @@ class DiffVaxImmunization:
                 loss2_val = loss2.item()
                 loss_latent_val = loss_latent.item()
                 loss_attn_val = loss_attn.item()
+                loss_hs_val = loss_hs.item()
 
                 losses.append(loss.item())
                 losses1.append(loss1_val)
@@ -1112,6 +1159,7 @@ class DiffVaxImmunization:
                     _term_values = {
                         "loss1": loss1, "loss2": loss2, "loss_extra": loss_extra,
                         "loss_latent": loss_latent, "loss_attn": loss_attn,
+                        "loss_hs": loss_hs,
                     }
                     _bad_terms = [
                         name for name, val in _term_values.items()
@@ -1220,6 +1268,7 @@ class DiffVaxImmunization:
                     + (f" Spec: {loss_spectral_val:.5f}" if loss_spectral_val else "")
                     + (f" Lat: {loss_latent_val:.5f}" if loss_latent_val else "")
                     + (f" Attn: {loss_attn_val:.5f}" if loss_attn_val else "")
+                    + (f" HS: {loss_hs_val:.5f}" if loss_hs_val else "")
                 )
                 pbar.update(1)
 

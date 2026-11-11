@@ -69,14 +69,17 @@ def resolve_device() -> torch.device:
 def resolve_dtype(device: torch.device) -> torch.dtype:
     """Preferred compute dtype for a given device.
 
-    fp16 has full kernel coverage on CUDA and is what the GradScaler path
-    expects. MPS has historically incomplete/unreliable fp16 kernel coverage
+    CUDA prefers bf16 (see below), falling back to fp16 on cards without bf16
+    support; fp16 is what the GradScaler path expects. MPS has historically incomplete/unreliable fp16 kernel coverage
     (attention, some reductions and FFT ops) — bf16 is the supported
     reduced-precision type on Apple Silicon and, sharing fp32's exponent
     range, needs no loss scaling. CPU always uses fp32.
     """
     if device.type == "cuda":
-        return torch.float16
+        # bf16 where supported (Ampere+): fp32 exponent range, so no
+        # GradScaler and none of the fp16 overflow classes that caused the
+        # C-SCALER collapses. fp16 only on pre-Ampere cards.
+        return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     if device.type == "mps":
         return torch.bfloat16
     return torch.float32
@@ -105,6 +108,7 @@ def load_perturbation_net(
     num_classes: int = 3,
     nb_filter: Optional[list] = None,
     device: Optional[torch.device] = None,
+    epsilon: Optional[float] = None,
 ):
     """Load a trained NestedUNet perturbation network for inference/eval.
 
@@ -113,6 +117,9 @@ def load_perturbation_net(
         torch.save() checkpoints) — nb_filter must be passed explicitly if
         the checkpoint used a non-default architecture (e.g. the H6 larger
         variant), since a raw state_dict carries no architecture metadata.
+        Likewise pass epsilon (pixel units) for a checkpoint trained with a
+        hard bound; the bound has no weights, so loading succeeds either way
+        and an omitted epsilon silently yields an UNBOUNDED perturbation.
       - a local directory produced by NestedUNet.save_pretrained()
       - a Hugging Face Hub repo id (e.g. "username/diffvax-run") — recovers
         nb_filter automatically from the repo's config.json. Private repos
@@ -125,7 +132,9 @@ def load_perturbation_net(
 
     device = device or resolve_device()
     if os.path.isfile(checkpoint):
-        net = NestedUNet(num_classes=num_classes, nb_filter=nb_filter).to(device).eval()
+        net = NestedUNet(
+            num_classes=num_classes, nb_filter=nb_filter, epsilon=epsilon
+        ).to(device).eval()
         net.load_state_dict(
             torch.load(checkpoint, weights_only=True, map_location=device)
         )
@@ -168,10 +177,14 @@ def immunize_image_pil(
 
     image_np = np.array(image_pil.convert("RGB"))
     image_t = torch.from_numpy(image_np[None].transpose(0, 3, 1, 2))
-    image_t = (image_t.to(dtype=torch.float32) / 127.5 - 1.0).to(device=device, dtype=dtype)
+    # All arithmetic in float32. A bf16/fp16 image tensor quantises pixel
+    # values to ~0.5-1 level near +/-1 (bf16 has 8 mantissa bits), which both
+    # degrades the clean pixels and lets a 16/255 budget measure as 17 levels
+    # in the saved file. `dtype` is kept for API compatibility only.
+    image_t = (image_t.to(dtype=torch.float32) / 127.5 - 1.0).to(device=device)
 
     with torch.no_grad():
-        unet_out = perturbation_net(image_t.float()).to(dtype)
+        unet_out = perturbation_net(image_t).float()
 
     if mask_pil is not None:
         h, w = image_t.shape[-2:]
@@ -179,12 +192,17 @@ def immunize_image_pil(
             mask_pil = mask_pil.resize((w, h), Image.NEAREST)
         mask_np = np.array(mask_pil.convert("L"))
         mask_t = torch.from_numpy((mask_np >= 128).astype(np.float32))[None, None]
-        mask_t = mask_t.to(device=device, dtype=dtype)
+        mask_t = mask_t.to(device=device, dtype=torch.float32)
         unet_out = unet_out * (1.0 - mask_t)
 
     img_adv = torch.clamp(image_t + unet_out, -1, 1)
 
-    return topil(((img_adv / 2 + 0.5).clamp(0, 1)[0]).to(torch.float32).cpu())
+    # Round (not truncate) to uint8. ToPILImage truncates, which turns a
+    # value like 15.9999 into 15 and, because the clean image decodes the
+    # other way, lets a 16/255 budget appear as 17 levels in the saved file.
+    arr = (img_adv / 2 + 0.5).clamp(0, 1)[0].to(torch.float32).cpu().numpy()
+    arr = np.round(arr.transpose(1, 2, 0) * 255.0).astype(np.uint8)
+    return Image.fromarray(arr)
 
 
 def empty_cache(device: Optional[torch.device] = None) -> None:

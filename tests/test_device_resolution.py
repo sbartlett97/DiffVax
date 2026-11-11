@@ -37,12 +37,20 @@ def test_resolve_device_falls_back_to_cpu(monkeypatch):
 
 
 @pytest.mark.parametrize("device_type,expected_dtype", [
-    ("cuda", torch.float16),
     ("mps", torch.bfloat16),
     ("cpu", torch.float32),
 ])
 def test_resolve_dtype_per_backend(device_type, expected_dtype):
     assert resolve_dtype(torch.device(device_type)) is expected_dtype
+
+
+@pytest.mark.parametrize("bf16_ok,expected", [
+    (True, torch.bfloat16),    # Ampere+: no GradScaler needed
+    (False, torch.float16),    # pre-Ampere fallback
+])
+def test_resolve_dtype_cuda_prefers_bf16(monkeypatch, bf16_ok, expected):
+    monkeypatch.setattr(torch.cuda, "is_bf16_supported", lambda *a, **k: bf16_ok)
+    assert resolve_dtype(torch.device("cuda")) is expected
 
 
 def test_empty_cache_is_noop_on_cpu():
@@ -76,3 +84,11 @@ def test_make_generator_no_seed_leaves_default_state():
     # Must not raise when seed is omitted (None).
     gen = make_generator(torch.device("cpu"))
     assert gen is not None
+
+
+def test_grad_scaler_disabled_when_cuda_dtype_is_bf16():
+    """The module-level scaler must be a passthrough whenever the compute
+    dtype is not fp16 (bf16 needs no loss scaling)."""
+    from diffvax.immunization import diffvax_immunization as d
+    expected = torch.cuda.is_available() and resolve_dtype(torch.device("cuda")) == torch.float16
+    assert d._SCALER_ENABLED == expected
