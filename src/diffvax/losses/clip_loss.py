@@ -109,9 +109,15 @@ class CLIPDisruptionLoss:
         """
         # Feature disruption: minimize cosine similarity orig <-> adv
         # (we want the adversarial image to look different in CLIP space)
-        feat_orig = self.encode_image(img_orig).detach()
-        feat_adv = self.encode_image(img_adv)
-        loss_feat = F.cosine_similarity(feat_orig, feat_adv, dim=-1).mean()
+        # Skipped when its weight is 0: the feature term compares the 1088px
+        # perturbation after a 224px downsample (it mostly averages out), and
+        # computing it costs two extra CLIP image passes per step.
+        if self.feature_weight == 0.0:
+            loss_feat = torch.zeros((), device=img_adv.device)
+        else:
+            feat_orig = self.encode_image(img_orig).detach()
+            feat_adv = self.encode_image(img_adv)
+            loss_feat = F.cosine_similarity(feat_orig, feat_adv, dim=-1).mean()
 
         # Semantic disruption: minimize prompt–output alignment
         feat_out = self.encode_image(img_out)

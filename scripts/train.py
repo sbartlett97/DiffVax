@@ -176,6 +176,8 @@ def build_immunization_config(config: dict) -> dict:
         "hidden_state_loss": config.get("hidden_state_loss", {}),
         "noise_target": config.get("noise_target", {}),
         "spectral_loss": config.get("spectral_loss", {}),
+        "lpips_loss": config.get("lpips_loss", {}),
+        "loss1_weight": config.get("loss1_weight", 1.0),
         "latent_loss": config.get("latent_loss", {}),
         "nb_filter": config.get("nb_filter"),
         "epsilon": config.get("epsilon"),

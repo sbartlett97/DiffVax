@@ -42,3 +42,11 @@ def test_1088_curriculum_is_monotonic_and_reaches_1088():
     assert st[-1]["resolution"] == 1088
     assert ends[-1] == cfg["iter_num"]          # the last stage actually runs
     assert all(r % 16 == 0 for r in (s["resolution"] for s in st))
+
+
+def test_v2_config_enables_the_new_terms():
+    cfg = yaml.safe_load(open(os.path.join(ROOT, "configs", "klein_edit_v2_512.yml")))
+    p = build_immunization_config(cfg)
+    assert p["loss1_weight"] == 0.0 and p["lpips_loss"]["enabled"]
+    assert cfg["clip_loss"]["enabled"] and cfg["clip_loss"]["feature_weight"] == 0.0
+    assert cfg["clip_loss"]["model"] != "ViT-B-32"       # evaluation uses B-32; do not train on it

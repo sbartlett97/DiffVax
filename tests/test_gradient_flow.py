@@ -536,3 +536,40 @@ def test_latent_l2_mode_sign_bounds_and_gradient():
     adv2 = (adv - 0.5 * g / g.norm()).detach()
     d_after = (vae.encode(adv2).latent_dist.mode() - vae.encode(x).latent_dist.mode()).pow(2).sum()
     assert d_after > d_before
+
+
+def test_lpips_loss_term_gradient_and_weight_via_composer(monkeypatch):
+    """LossComposer wires LPIPS in with its weight; gradient reaches img_adv."""
+    import sys, types
+    import diffvax.losses as L
+
+    class _Net(nn.Module):
+        def forward(self, a, b): return (a - b).abs().mean(dim=(1, 2, 3))
+
+    fake = types.SimpleNamespace(LPIPS=lambda **kw: _Net())
+    monkeypatch.setitem(sys.modules, "lpips", fake)
+    comp = L.LossComposer({"lpips_loss": {"enabled": True, "weight": 3.0}})
+    assert comp.has_terms()
+    x = torch.rand(1, 3, 16, 16)
+    adv = (x + 0.1).requires_grad_(True)
+    total, br = comp.compute(img_orig=x, img_adv=adv, img_out=x, prompts=["p"])
+    assert abs(total.item() - 3.0 * br["lpips"]) < 1e-6 and br["lpips"] > 0
+    total.backward()
+    assert adv.grad.abs().sum() > 0
+
+
+def test_clip_semantic_only_skips_feature_term():
+    from diffvax.losses.clip_loss import CLIPDisruptionLoss
+    calls = []
+
+    class _C(CLIPDisruptionLoss):
+        def __init__(self):
+            self.feature_weight, self.semantic_weight = 0.0, 1.0
+        def encode_image(self, x):
+            calls.append(x.shape); return torch.ones(x.shape[0], 4)
+        def encode_text(self, p): return torch.ones(len(p), 4)
+
+    c = _C()
+    out = c.forward(torch.zeros(1, 3, 8, 8), torch.zeros(1, 3, 8, 8), torch.zeros(1, 3, 8, 8), ["p"])
+    assert len(calls) == 1            # only the output image was encoded
+    assert abs(out.item() - 1.0) < 1e-6

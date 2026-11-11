@@ -297,6 +297,7 @@ class DiffVaxImmunization:
         _any_extra_loss = (
             self._config.get("clip_loss", {}).get("enabled", False)
             or self._config.get("spectral_loss", {}).get("enabled", False)
+            or self._config.get("lpips_loss", {}).get("enabled", False)
         )
         if _any_extra_loss:
             from diffvax.losses import LossComposer
@@ -539,6 +540,9 @@ class DiffVaxImmunization:
         # gradients; it exists to catch genuine explosions (see
         # scaler.unscale_ call site) before they reach the optimizer.
         max_grad_norm = float(self._config.get("max_grad_norm", 5.0))
+        # Weight on loss1 (edit output -> target). v1 Klein showed it flat at
+        # ~0.57 for 9 epochs, so v2 sets it to 0 and relies on CLIP/hidden-state.
+        loss1_weight_cfg = float(self._config.get("loss1_weight", 1.0))
 
         dataset = ImmunizationDataset(
             entries, data_dir, images_subdir, masks_subdir, size,
@@ -973,6 +977,7 @@ class DiffVaxImmunization:
                 # ---- Phase 2+: Extra losses (CLIP, spectral, …) ----
                 loss_clip_val = 0.0
                 loss_spectral_val = 0.0
+                loss_lpips_val = 0.0
                 if self._loss_composer is not None and self._loss_composer.has_terms():
                     loss_extra, extra_breakdown = self._loss_composer.compute(
                         img_orig=img_batch,
@@ -982,6 +987,7 @@ class DiffVaxImmunization:
                     )
                     loss_clip_val = extra_breakdown.get("clip", 0.0)
                     loss_spectral_val = extra_breakdown.get("spectral", 0.0)
+                    loss_lpips_val = extra_breakdown.get("lpips", 0.0)
                 else:
                     loss_extra = torch.tensor(0.0, device=self.device)
 
@@ -1039,7 +1045,7 @@ class DiffVaxImmunization:
 
                 # Aggregate loss
                 loss = (
-                    loss1
+                    loss1_weight_cfg * loss1
                     + loss2
                     + loss_extra
                     + attn_weight * loss_attn
@@ -1268,6 +1274,7 @@ class DiffVaxImmunization:
                     "loss": float(loss.item()), "loss1": loss1_val, "loss2": loss2_val,
                     "spectral": float(loss_spectral_val), "latent": loss_latent_val,
                     "hs": loss_hs_val, "attn": loss_attn_val, "clip": float(loss_clip_val),
+                    "lpips": float(loss_lpips_val),
                     "scale": float(scaler.get_scale()),
                 }
                 if self.device.type == "cuda":
@@ -1292,6 +1299,7 @@ class DiffVaxImmunization:
                     f"Loss2: {np.mean(losses2):.5f}"
                     + (f" CLIP: {loss_clip_val:.5f}" if loss_clip_val else "")
                     + (f" Spec: {loss_spectral_val:.5f}" if loss_spectral_val else "")
+                    + (f" LPIPS: {loss_lpips_val:.5f}" if loss_lpips_val else "")
                     + (f" Lat: {loss_latent_val:.5f}" if loss_latent_val else "")
                     + (f" Attn: {loss_attn_val:.5f}" if loss_attn_val else "")
                     + (f" HS: {loss_hs_val:.5f}" if loss_hs_val else "")
