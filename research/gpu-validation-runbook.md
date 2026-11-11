@@ -27,6 +27,16 @@ The script checks the GPU, builds `/workspace/venv`, installs
 pre-fetches Klein 4B. Read any test failure before continuing: the suite was
 only run on CPU/MPS; CUDA is first exercised on this pod.
 
+## Live tracking (built into the trainer)
+
+Set `DISCORD_WEBHOOK` in the pod's environment (never in a config or the repo).
+The trainer then posts a start message, a progress ping every
+`reporting.progress_every_minutes` with per-term losses, s/it, spend and a loss
+chart, plus best-checkpoint, completion and error alerts. Trackio logs per-step
+terms locally (set `reporting.trackio.space_id` to sync to a Hugging Face Space).
+For a job started without this, `scripts/discord_monitor.py --log <file>` tails
+the log and pings the same way, and also alerts on a stalled log.
+
 ## 1. Memory and speed profile (15 min)
 
 ```bash

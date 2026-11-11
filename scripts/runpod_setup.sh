@@ -33,22 +33,32 @@ PY
 echo "== Disk"
 df -h /workspace | tail -1
 
-echo "== Python env"
+echo "== Python env (uv)"
 VENV=/workspace/venv
-if [[ ! -d "$VENV" ]]; then
-  # --system-site-packages keeps the template's CUDA torch instead of
-  # re-downloading it.
-  python -m venv --system-site-packages "$VENV"
-fi
+# Ubuntu 24.04 images block `pip install` into the system Python (PEP 668);
+# the RunPod image already ships uv, so only install it if it is missing.
+command -v uv >/dev/null || python -m pip install -q --break-system-packages uv
+# --system-site-packages keeps the template's CUDA torch. Pin it with a
+# constraints file so no dependency can swap the CUDA build (a plain `pip
+# install` once replaced torch 2.9.1+cu128 with 2.15.0+cu132).
+[[ -d "$VENV" ]] || uv venv --system-site-packages "$VENV"
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
-pip install -q -U pip
-pip install -q -r requirements-pod.txt
-pip install -q -e .
-# --system-site-packages: make sure a pin did not quietly replace the
-# template's CUDA torch, and that the resolved set is consistent.
+python - <<'PY' > /workspace/torch-constraints.txt
+import importlib.metadata as m
+for p in ("torch", "torchvision", "torchaudio"):
+    try:
+        # Drop the local "+cu128" suffix: PyPI does not serve local versions, and
+        # its Linux wheel for the same release is the matching CUDA build.
+        print(f"{p}=={m.version(p).split('+')[0]}")
+    except m.PackageNotFoundError:
+        pass
+PY
+cat /workspace/torch-constraints.txt
+uv pip install -q -r requirements-pod.txt -c /workspace/torch-constraints.txt
+uv pip install -q -e . -c /workspace/torch-constraints.txt
 python -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'avail', torch.cuda.is_available())"
-pip check || echo "WARNING: pip check reported conflicts above - review before training"
+uv pip check || echo "WARNING: uv pip check reported conflicts above - review before training"
 
 echo "== Tests (CPU suite; the 2-rank DDP tests are skipped on CUDA hosts)"
 python -m pytest tests/ -q || echo "WARNING: some tests failed on this host - read the output before training"

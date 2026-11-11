@@ -14,6 +14,7 @@ reproduces the original v1 behaviour exactly (loss1 + loss2 only).
 """
 
 import random
+import time
 import traceback
 
 import torch
@@ -234,7 +235,7 @@ class DiffVaxImmunization:
         # Non-main ranks must not contend for the same log file or fire
         # duplicate webhooks; give them a rank-suffixed log and no webhook.
         if not is_main_process():
-            self.reporter.webhook_url = None
+            self.reporter.disable_remote()
             _base, _ext = os.path.splitext(self.reporter.log_path)
             self.reporter.log_path = f"{_base}_rank{self.rank}{_ext}"
 
@@ -595,6 +596,14 @@ class DiffVaxImmunization:
         # self.reporter is initialised in __init__; reset events for this run
         # so the JSON log reflects only the current training session.
         self.reporter._events = []
+        if is_main_process():
+            self.reporter.start_run({
+                **{k: v for k, v in self._model_card_kwargs("start", 0, 0.0).items()
+                   if k in ("surrogates", "resolution_info", "loss_terms", "hyperparams")},
+                "device": str(self.device),
+                "gpu": torch.cuda.get_device_name(self.device) if self.device.type == "cuda" else "n/a",
+                "epochs": iter_num,
+            })
 
         hub_cfg = self._config.get("hub", {})
         hub_enabled = hub_cfg.get("enabled", False)
@@ -608,6 +617,7 @@ class DiffVaxImmunization:
         epoch_avg_loss = float("inf")  # updated each epoch for use after the loop
 
         batch_iter_count = 0  # global batch counter for adaptive weight updates
+        _t_prev_step = time.perf_counter()
         # S2: GradScaler has no floor — repeated found_inf events on
         # gradients (loss can be perfectly finite; only backward overflows)
         # halve the scale with NO abort or log line, while recovery needs
@@ -1249,6 +1259,22 @@ class DiffVaxImmunization:
                     return
 
                 batch_iter_count += 1
+
+                # ---- Live tracking (Trackio + Discord progress pings) ----
+                _now = time.perf_counter()
+                _step_s = _now - _t_prev_step
+                _t_prev_step = _now
+                _terms = {
+                    "loss": float(loss.item()), "loss1": loss1_val, "loss2": loss2_val,
+                    "spectral": float(loss_spectral_val), "latent": loss_latent_val,
+                    "hs": loss_hs_val, "attn": loss_attn_val, "clip": float(loss_clip_val),
+                    "scale": float(scaler.get_scale()),
+                }
+                if self.device.type == "cuda":
+                    _terms["gpu_mem_gb"] = torch.cuda.max_memory_allocated(self.device) / 2**30
+                self.reporter.log_step(
+                    batch_iter_count, _terms, epoch_i, i, len(dataloader), _step_s
+                )
 
                 # ---- Phase 5: Periodically update adaptive weights ----
                 if (

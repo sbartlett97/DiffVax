@@ -87,3 +87,17 @@ def test_hold_batches_default_resamples_every_call():
     m = AttackModelManager(models, {"a": .5, "b": .5})
     seq = [m.select_and_load()[0] for _ in range(60)]
     assert sum(1 for i in range(1, 60) if seq[i] != seq[i - 1]) > 15
+
+
+def test_legacy_batchnorm_checkpoint_loads_via_loader(tmp_path):
+    """Published checkpoints use BatchNorm2d (running_mean buffers); the loader
+    must auto-detect and load them (regression: GroupNorm swap broke them)."""
+    from diffvax.utils import load_perturbation_net
+    legacy = NestedUNet(nb_filter=[4, 8, 16, 32, 64], norm="batch")
+    assert any(k.endswith("running_mean") for k in legacy.state_dict())
+    p = tmp_path / "legacy.pth"
+    torch.save(legacy.state_dict(), p)
+    net = load_perturbation_net(str(p), nb_filter=[4, 8, 16, 32, 64], device=torch.device("cpu"))
+    x = torch.randn(1, 3, 32, 32)
+    with torch.no_grad():
+        assert torch.allclose(net(x), legacy.eval()(x), atol=1e-6)

@@ -68,13 +68,17 @@ def _group_norm(num_channels: int) -> nn.GroupNorm:
 
 
 class VGGBlock(nn.Module):
-    def __init__(self, in_channels, middle_channels, out_channels):
+    def __init__(self, in_channels, middle_channels, out_channels, norm="group"):
         super().__init__()
+        # norm="batch" is the ORIGINAL DiffVax layer, kept only so the published
+        # checkpoints (trained with BatchNorm2d) still load; new training uses
+        # GroupNorm, which is safe at batch size 1.
+        make = nn.BatchNorm2d if norm == "batch" else _group_norm
         self.relu = nn.ReLU(inplace=True)
         self.conv1 = nn.Conv2d(in_channels, middle_channels, 3, padding=1)
-        self.bn1 = _group_norm(middle_channels)
+        self.bn1 = make(middle_channels)
         self.conv2 = nn.Conv2d(middle_channels, out_channels, 3, padding=1)
-        self.bn2 = _group_norm(out_channels)
+        self.bn2 = make(out_channels)
 
     def forward(self, x):
         out = self.conv1(x)
@@ -165,9 +169,11 @@ class NestedUNet(
         deep_supervision: bool = False,
         nb_filter: list | None = None,
         epsilon: float | None = None,
+        norm: str = "group",
         **kwargs,
     ):
         super().__init__()
+        self.norm = norm
 
         # Hard L-inf budget in PIXEL units (0-255 scale), e.g. 16 for
         # "16/255". None = unbounded (legacy checkpoints, incl. the published
@@ -185,25 +191,25 @@ class NestedUNet(
         self.pool = nn.MaxPool2d(2, 2)
         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
-        self.conv0_0 = VGGBlock(input_channels, nb_filter[0], nb_filter[0])
-        self.conv1_0 = VGGBlock(nb_filter[0], nb_filter[1], nb_filter[1])
-        self.conv2_0 = VGGBlock(nb_filter[1], nb_filter[2], nb_filter[2])
-        self.conv3_0 = VGGBlock(nb_filter[2], nb_filter[3], nb_filter[3])
-        self.conv4_0 = VGGBlock(nb_filter[3], nb_filter[4], nb_filter[4])
+        self.conv0_0 = VGGBlock(input_channels, nb_filter[0], nb_filter[0], norm=norm)
+        self.conv1_0 = VGGBlock(nb_filter[0], nb_filter[1], nb_filter[1], norm=norm)
+        self.conv2_0 = VGGBlock(nb_filter[1], nb_filter[2], nb_filter[2], norm=norm)
+        self.conv3_0 = VGGBlock(nb_filter[2], nb_filter[3], nb_filter[3], norm=norm)
+        self.conv4_0 = VGGBlock(nb_filter[3], nb_filter[4], nb_filter[4], norm=norm)
 
-        self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1], nb_filter[0], nb_filter[0])
-        self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2], nb_filter[1], nb_filter[1])
-        self.conv2_1 = VGGBlock(nb_filter[2]+nb_filter[3], nb_filter[2], nb_filter[2])
-        self.conv3_1 = VGGBlock(nb_filter[3]+nb_filter[4], nb_filter[3], nb_filter[3])
+        self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1], nb_filter[0], nb_filter[0], norm=norm)
+        self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2], nb_filter[1], nb_filter[1], norm=norm)
+        self.conv2_1 = VGGBlock(nb_filter[2]+nb_filter[3], nb_filter[2], nb_filter[2], norm=norm)
+        self.conv3_1 = VGGBlock(nb_filter[3]+nb_filter[4], nb_filter[3], nb_filter[3], norm=norm)
 
-        self.conv0_2 = VGGBlock(nb_filter[0]*2+nb_filter[1], nb_filter[0], nb_filter[0])
-        self.conv1_2 = VGGBlock(nb_filter[1]*2+nb_filter[2], nb_filter[1], nb_filter[1])
-        self.conv2_2 = VGGBlock(nb_filter[2]*2+nb_filter[3], nb_filter[2], nb_filter[2])
+        self.conv0_2 = VGGBlock(nb_filter[0]*2+nb_filter[1], nb_filter[0], nb_filter[0], norm=norm)
+        self.conv1_2 = VGGBlock(nb_filter[1]*2+nb_filter[2], nb_filter[1], nb_filter[1], norm=norm)
+        self.conv2_2 = VGGBlock(nb_filter[2]*2+nb_filter[3], nb_filter[2], nb_filter[2], norm=norm)
 
-        self.conv0_3 = VGGBlock(nb_filter[0]*3+nb_filter[1], nb_filter[0], nb_filter[0])
-        self.conv1_3 = VGGBlock(nb_filter[1]*3+nb_filter[2], nb_filter[1], nb_filter[1])
+        self.conv0_3 = VGGBlock(nb_filter[0]*3+nb_filter[1], nb_filter[0], nb_filter[0], norm=norm)
+        self.conv1_3 = VGGBlock(nb_filter[1]*3+nb_filter[2], nb_filter[1], nb_filter[1], norm=norm)
 
-        self.conv0_4 = VGGBlock(nb_filter[0]*4+nb_filter[1], nb_filter[0], nb_filter[0])
+        self.conv0_4 = VGGBlock(nb_filter[0]*4+nb_filter[1], nb_filter[0], nb_filter[0], norm=norm)
 
         if self.deep_supervision:
             self.final1 = nn.Conv2d(nb_filter[0], num_classes, kernel_size=1)

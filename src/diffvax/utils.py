@@ -132,12 +132,14 @@ def load_perturbation_net(
 
     device = device or resolve_device()
     if os.path.isfile(checkpoint):
+        state = torch.load(checkpoint, weights_only=True, map_location=device)
+        # The published checkpoints were trained with BatchNorm2d (running_mean
+        # buffers); this fork's models use GroupNorm. Detect and load either.
+        norm = "batch" if any(k.endswith("running_mean") for k in state) else "group"
         net = NestedUNet(
-            num_classes=num_classes, nb_filter=nb_filter, epsilon=epsilon
+            num_classes=num_classes, nb_filter=nb_filter, epsilon=epsilon, norm=norm
         ).to(device).eval()
-        net.load_state_dict(
-            torch.load(checkpoint, weights_only=True, map_location=device)
-        )
+        net.load_state_dict(state)
         print(f"Loaded perturbation net from local checkpoint: {checkpoint}")
     else:
         # Not a local file (also transparently handles a local

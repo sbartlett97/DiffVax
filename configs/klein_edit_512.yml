@@ -103,6 +103,17 @@ hub:
   token: null
   upload_every_n_epochs: 10
 
+# Live tracking. The Discord webhook is read from the DISCORD_WEBHOOK env var
+# (never put the URL in this file). Trackio logs locally unless space_id is
+# set (then it syncs to that Hugging Face Space; needs HF_TOKEN).
 reporting:
   webhook_url: null
+  progress_every_minutes: 10
+  price_per_hour: 1.79
+  label: "diffvax"
+  trackio:
+    enabled: true
+    project: "diffvax-klein"
+    log_every_n_steps: 10
+    space_id: null
   checkpoint_every_n_epochs: 5
