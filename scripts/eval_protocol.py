@@ -86,6 +86,14 @@ def main():
                     help="override the zoo entry's native_resolution so run_model does not "
                          "rescale (512 for the legacy SD1.5 sanity run and the 512px gate; "
                          "leave unset at 1088 so Klein applies its own area cap)")
+    ap.add_argument("--mask-gate-perturbation", action="store_true",
+                    help="keep the perturbation only in the protected subject (mask==0; dataset "
+                         "convention 1=background) and restore the original elsewhere, as the "
+                         "ORIGINAL DiffVax app does. Controls are gated to the same region.")
+    ap.add_argument("--bn-train-mode", action="store_true",
+                    help="run the perturbation net in train mode (per-image BatchNorm "
+                         "statistics). The original app never calls .eval(), so this is how "
+                         "the published BatchNorm checkpoint was actually used")
     ap.add_argument("--no-transform", action="store_true",
                     help="skip the social-media transform (sanity runs on the legacy SD1.5 checkpoint)")
     ap.add_argument("--control-eps", type=int, default=None,
@@ -114,14 +122,22 @@ def main():
     divergence = _make_divergence(args.divergence)
 
     # ---- protect once per image; build all conditions (post-transform) ----
+    if args.bn_train_mode:
+        net.train()
     from skimage.metrics import structural_similarity as _ssim
     prepared, pert = [], {"psnr": [], "ssim": [], "lpips": [], "linf": [], "psnr_after_transform": []}
     for e in entries:
         orig = Image.open(e.image_path).convert("RGB")
         if args.resolution:
             orig = orig.resize((args.resolution, args.resolution), Image.LANCZOS)
-        prot = immunize_image_pil(net, orig)
-        conds = P.build_conditions(orig, prot, eps_px, rng, transform)
+        mask_img = Image.open(e.mask_path).convert("L") if os.path.exists(e.mask_path) else None
+        if mask_img is not None:
+            mask_img = mask_img.resize(orig.size, Image.NEAREST)
+        gate = None
+        if args.mask_gate_perturbation and mask_img is not None:
+            gate = np.asarray(mask_img) < 128          # subject = mask 0
+        prot = immunize_image_pil(net, orig, mask_pil=mask_img if gate is not None else None)
+        conds = P.build_conditions(orig, prot, eps_px, rng, transform, gate=gate)
         pert["psnr"].append(P.psnr_u8(orig, prot))
         pert["ssim"].append(float(_ssim(
             np.asarray(orig), np.asarray(prot), channel_axis=2, data_range=255)))
@@ -169,6 +185,7 @@ def main():
         for e, conds, mask, size in prepared:
             prompts = (e.flux_prompts if prompt_key == "flux_prompts" else e.sd_prompts)
             items.append({"name": e.name, "mask": mask, "conditions": conds,
+                          "restrict_to_mask": bool(cfg and cfg.uses_mask),
                           "prompts": prompts[: args.prompts_per_image]})
         label = cfg.name if cfg else "STUB"
         all_records += P.run_editor(

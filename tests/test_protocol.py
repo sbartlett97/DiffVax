@@ -79,3 +79,33 @@ def test_run_editor_uses_same_seed_and_clean_baseline():
     assert set(calls) == {0, 1}
     md = P.to_markdown(P.summarize(recs, n_boot=100), {"psnr": 40.0}, 0.05)
     assert "| ed |" in md
+
+
+def test_gated_noise_controls_stay_inside_region_and_match_energy():
+    rng = np.random.default_rng(0)
+    orig = _img(0, 64)
+    gate = np.zeros((64, 64), bool); gate[:, :32] = True          # left half only
+    arr = np.asarray(orig, dtype=np.int32).copy()
+    arr[:, :32] = np.clip(arr[:, :32] + np.random.default_rng(1).integers(-12, 13, arr[:, :32].shape), 0, 255)
+    prot = Image.fromarray(arr.astype(np.uint8))
+    g = P.gaussian_noise_matched_psnr(orig, prot, rng, gate)
+    s = P.random_sign_noise(orig, 16, rng, gate)
+    for img in (g, s):
+        assert np.array_equal(np.asarray(img)[:, 32:], np.asarray(orig)[:, 32:])   # untouched outside
+    assert abs(P.psnr_u8(orig, g) - P.psnr_u8(orig, prot)) < 0.5
+
+
+def test_restrict_to_edit_region_ignores_input_perturbation_outside_mask():
+    clean = _img(0, 32)
+    edit = Image.fromarray(np.asarray(clean).copy())
+    arr = np.asarray(edit).copy(); arr[:, :16] = 255 - arr[:, :16]       # change LEFT (outside mask)
+    perturbed = Image.fromarray(arr)
+    mask = Image.fromarray(np.where(np.arange(32)[None, :] >= 16, 255, 0).astype(np.uint8).repeat(32, 0))
+    out = P.restrict_to_edit_region(perturbed, clean, mask)
+    assert np.array_equal(np.asarray(out), np.asarray(clean))            # only the mask region may differ
+    # run_editor wires it in
+    items = [{"name": "a", "mask": mask, "prompts": ["p"], "restrict_to_mask": True,
+              "conditions": {"clean": clean, "protected": perturbed, "noise_psnr": perturbed, "noise_linf": perturbed}}]
+    recs = P.run_editor("ed", lambda img, m, p, s: img, items, [0],
+                        divergence=lambda a, b: float(np.abs(np.asarray(a, float) - np.asarray(b, float)).mean()))
+    assert recs[0].d["protected"] == 0.0

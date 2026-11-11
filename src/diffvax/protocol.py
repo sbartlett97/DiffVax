@@ -63,7 +63,8 @@ def linf_u8(a: Image.Image, b: Image.Image) -> int:
 
 
 def gaussian_noise_matched_psnr(
-    orig: Image.Image, protected: Image.Image, rng: np.random.Generator
+    orig: Image.Image, protected: Image.Image, rng: np.random.Generator,
+    gate: Optional[np.ndarray] = None,
 ) -> Image.Image:
     """Gaussian noise whose MSE vs ``orig`` matches the protected image's.
 
@@ -75,8 +76,15 @@ def gaussian_noise_matched_psnr(
     target = float(np.mean((np.asarray(protected.convert("RGB"), dtype=np.float64) - x) ** 2))
     if target == 0:
         return orig.convert("RGB")
-    sigma = math.sqrt(target)
     z = rng.standard_normal(x.shape)
+    if gate is not None:
+        # Noise only where the protection was applied (HxW bool), so the control
+        # has the same spatial footprint as the perturbation it is compared to.
+        z = z * gate[..., None]
+        frac = max(float(gate.mean()), 1e-6)
+        sigma = math.sqrt(target / frac)
+    else:
+        sigma = math.sqrt(target)
     for _ in range(8):
         y = np.clip(np.round(x + sigma * z), 0, 255)
         mse = float(np.mean((y - x) ** 2))
@@ -87,12 +95,15 @@ def gaussian_noise_matched_psnr(
 
 
 def random_sign_noise(
-    orig: Image.Image, eps: int, rng: np.random.Generator
+    orig: Image.Image, eps: int, rng: np.random.Generator,
+    gate: Optional[np.ndarray] = None,
 ) -> Image.Image:
     """+/-eps random-sign noise: same L-inf budget as the protected image and
     (for the saturating tanh bound) a comparable or larger energy."""
     x = np.asarray(orig.convert("RGB"), dtype=np.int32)
     s = rng.choice([-1, 1], size=x.shape)
+    if gate is not None:
+        s = s * gate[..., None]
     return Image.fromarray(np.clip(x + eps * s, 0, 255).astype(np.uint8))
 
 
@@ -207,6 +218,7 @@ def build_conditions(
     rng: np.random.Generator,
     transform: Callable[[Image.Image], Image.Image],
     extra: Optional[Dict[str, Callable[[Image.Image], Image.Image]]] = None,
+    gate: Optional[np.ndarray] = None,
 ) -> Dict[str, Image.Image]:
     """All conditions that get edited, each AFTER the social-media transform.
 
@@ -217,12 +229,30 @@ def build_conditions(
     conds = {
         "clean": original,
         "protected": protected,
-        "noise_psnr": gaussian_noise_matched_psnr(original, protected, rng),
-        "noise_linf": random_sign_noise(original, eps_pixels, rng),
+        "noise_psnr": gaussian_noise_matched_psnr(original, protected, rng, gate),
+        "noise_linf": random_sign_noise(original, eps_pixels, rng, gate),
     }
     for name, fn in (extra or {}).items():
         conds[name] = fn(original)
     return {k: transform(v) for k, v in conds.items()}
+
+
+def restrict_to_edit_region(
+    edit: Image.Image, clean_edit: Image.Image, mask: Optional[Image.Image]
+) -> Image.Image:
+    """For MASKED (inpainting) editors the output outside the edit region is a
+    verbatim copy of the INPUT, so comparing whole images measures how visible the
+    perturbation is, not how much the edit was disrupted (and rewards noisy
+    controls over smooth perturbations). Paste the clean edit's pixels back
+    outside the mask so only the generated region can differ.
+    ``mask``: white (>=128) = edit region."""
+    if mask is None:
+        return edit
+    m = np.asarray(mask.convert("L").resize(edit.size, Image.NEAREST)) >= 128
+    e = np.asarray(edit.convert("RGB")).copy()
+    c = np.asarray(clean_edit.convert("RGB").resize(edit.size, Image.LANCZOS))
+    e[~m] = c[~m]
+    return Image.fromarray(e)
 
 
 def run_editor(
@@ -245,6 +275,11 @@ def run_editor(
                     for c, img in it["conditions"].items()
                 }
                 clean = edits["clean"]
+                if it.get("restrict_to_mask"):
+                    edits = {
+                        c: (e if c == "clean" else restrict_to_edit_region(e, clean, it.get("mask")))
+                        for c, e in edits.items()
+                    }
                 d = {c: divergence(e, clean) for c, e in edits.items() if c != "clean"}
                 clip = {c: clip_score(e, prompt) for c, e in edits.items()} if clip_score else {}
                 records.append(Record(editor_name, it["name"], prompt, seed, d, clip))
