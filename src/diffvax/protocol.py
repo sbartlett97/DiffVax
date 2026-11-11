@@ -255,6 +255,44 @@ def restrict_to_edit_region(
     return Image.fromarray(e)
 
 
+def make_sample_grid(samples: Sequence[dict], thumb: int = 256, diff_gain: float = 8.0) -> Image.Image:
+    """Labeled contact sheet for eyeballing results.
+
+    One row per sample; columns: original input, protected input, |difference|
+    amplified by ``diff_gain``, edit of the clean image, edit of the protected
+    image, edit of the matched-noise control. ``samples`` items hold
+    ``name``, ``prompt``, ``conditions`` (the images that were edited) and
+    ``edits`` (their edited outputs), as collected by run_editor.
+    """
+    from PIL import ImageDraw
+
+    cols = ["original", "protected", f"|diff| x{diff_gain:g}", "edit: original", "edit: protected", "edit: noise ctrl"]
+    pad, head = 4, 22
+    rows = max(1, len(samples))
+    W = len(cols) * (thumb + pad) + pad
+    H = head + rows * (thumb + pad + 14) + pad
+    sheet = Image.new("RGB", (W, H), (20, 20, 20))
+    d = ImageDraw.Draw(sheet)
+    for j, c in enumerate(cols):
+        d.text((pad + j * (thumb + pad) + 4, 5), c, fill=(255, 255, 255))
+
+    def fit(im):
+        return im.convert("RGB").resize((thumb, thumb), Image.LANCZOS)
+
+    for i, s in enumerate(samples):
+        cond, ed = s["conditions"], s["edits"]
+        a = np.asarray(fit(cond["clean"]), dtype=np.float32)
+        b = np.asarray(fit(cond["protected"]), dtype=np.float32)
+        diff = Image.fromarray(np.clip(np.abs(a - b) * diff_gain, 0, 255).astype(np.uint8))
+        tiles = [fit(cond["clean"]), fit(cond["protected"]), diff,
+                 fit(ed["clean"]), fit(ed["protected"]), fit(ed.get("noise_psnr", ed["protected"]))]
+        y = head + i * (thumb + pad + 14)
+        for j, t in enumerate(tiles):
+            sheet.paste(t, (pad + j * (thumb + pad), y))
+        d.text((pad + 2, y + thumb + 1), f"{s['name']}: {s['prompt'][:110]}", fill=(200, 200, 200))
+    return sheet
+
+
 def run_editor(
     editor_name: str,
     edit_fn: Callable[[Image.Image, Optional[Image.Image], str, int], Image.Image],
@@ -262,6 +300,8 @@ def run_editor(
     seeds: Sequence[int],
     divergence: Callable[[Image.Image, Image.Image], float],
     clip_score: Optional[Callable[[Image.Image, str], float]] = None,
+    samples: Optional[list] = None,
+    max_samples: int = 3,
 ) -> List[Record]:
     """``items``: dicts with keys name, mask, prompts, conditions (from
     build_conditions). Edits clean once per (prompt, seed) and each condition
@@ -275,6 +315,9 @@ def run_editor(
                     for c, img in it["conditions"].items()
                 }
                 clean = edits["clean"]
+                if samples is not None and len(samples) < max_samples and seed == seeds[0] and prompt == it["prompts"][0]:
+                    samples.append({"name": it["name"], "prompt": prompt,
+                                    "conditions": it["conditions"], "edits": dict(edits)})
                 if it.get("restrict_to_mask"):
                     edits = {
                         c: (e if c == "clean" else restrict_to_edit_region(e, clean, it.get("mask")))

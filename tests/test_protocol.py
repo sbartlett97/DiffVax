@@ -109,3 +109,14 @@ def test_restrict_to_edit_region_ignores_input_perturbation_outside_mask():
     recs = P.run_editor("ed", lambda img, m, p, s: img, items, [0],
                         divergence=lambda a, b: float(np.abs(np.asarray(a, float) - np.asarray(b, float)).mean()))
     assert recs[0].d["protected"] == 0.0
+
+
+def test_sample_grid_and_collection():
+    cond = {"clean": _img(0), "protected": _img(1), "noise_psnr": _img(2), "noise_linf": _img(3)}
+    items = [{"name": f"im{i}", "mask": None, "prompts": ["a prompt"], "conditions": cond} for i in range(5)]
+    samples = []
+    P.run_editor("ed", lambda img, m, p, s: img, items, [0, 1],
+                 divergence=lambda a, b: 0.0, samples=samples, max_samples=3)
+    assert len(samples) == 3                       # capped, first seed/prompt only
+    sheet = P.make_sample_grid(samples, thumb=64)
+    assert sheet.size[0] > 6 * 64 and sheet.size[1] > 3 * 64

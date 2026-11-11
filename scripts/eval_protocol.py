@@ -102,6 +102,7 @@ def main():
     ap.add_argument("--margin", type=float, default=0.05,
                     help="success = d(protected) - d(control) > margin")
     ap.add_argument("--divergence", choices=["lpips", "l1"], default="lpips")
+    ap.add_argument("--n-samples", type=int, default=3, help="rows in the saved samples_<editor>.png")
     ap.add_argument("--n-boot", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=5)
     ap.add_argument("--output-dir", default=os.path.join(_project_root, "outputs", "protocol"))
@@ -188,8 +189,13 @@ def main():
                           "restrict_to_mask": bool(cfg and cfg.uses_mask),
                           "prompts": prompts[: args.prompts_per_image]})
         label = cfg.name if cfg else "STUB"
+        samples = []
         all_records += P.run_editor(
-            label, edit_fn, items, args.seeds, divergence, clip_score)
+            label, edit_fn, items, args.seeds, divergence, clip_score,
+            samples=samples, max_samples=args.n_samples)
+        if samples:
+            safe = "".join(ch if ch.isalnum() else "_" for ch in label)
+            P.make_sample_grid(samples).save(os.path.join(args.output_dir, f"samples_{safe}.png"))
         if pipe is not None:
             EM.unload_pipeline(pipe)
 
