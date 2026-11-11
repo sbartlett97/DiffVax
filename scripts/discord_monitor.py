@@ -67,7 +67,8 @@ def post(url, text, img=None):
         else:
             requests.post(url, json={"content": text[:1900]}, timeout=20)
     except Exception as exc:  # never let a bad webhook kill monitoring
-        print("discord post failed:", exc, file=sys.stderr)
+        # Type only: requests errors embed the full URL, which holds the webhook token.
+        print("discord post failed:", type(exc).__name__, file=sys.stderr)
 
 
 def alive(pattern):
