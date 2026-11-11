@@ -170,10 +170,19 @@ class NestedUNet(
         nb_filter: list | None = None,
         epsilon: float | None = None,
         norm: str = "group",
+        bound: str = "tanh",
         **kwargs,
     ):
         super().__init__()
         self.norm = norm
+        # How the epsilon bound is applied:
+        #   "tanh": eps*tanh(x/eps). Smooth, but its gradient vanishes once |x|
+        #           exceeds eps, and a fresh NestedUNet outputs |x|~0.4 vs
+        #           eps=0.125 (16/255): 55% of outputs start saturated, and training
+        #           drove a generator fully saturated with a flat objective.
+        #   "ste":  hard clip in the forward pass, identity gradient (straight-
+        #           through), like the projection step of PGD.
+        self.bound = bound
 
         # Hard L-inf budget in PIXEL units (0-255 scale), e.g. 16 for
         # "16/255". None = unbounded (legacy checkpoints, incl. the published
@@ -259,4 +268,18 @@ class NestedUNet(
         """
         if self._eps_t is None:
             return x
+        if self.bound == "ste":
+            # exactly the clipped value forward (x - x.detach() == 0), identity gradient
+            return x.clamp(-self._eps_t, self._eps_t).detach() + (x - x.detach())
         return self._eps_t * torch.tanh(x / self._eps_t)
+
+    def init_small_output(self, scale: float = 0.05) -> None:
+        """Shrink the final layer so a fresh network starts inside the epsilon
+        bound (linear regime) instead of saturated. Call only for training from
+        scratch; loading a checkpoint overwrites these weights anyway."""
+        with torch.no_grad():
+            for name in ("final", "final1", "final2", "final3", "final4"):
+                layer = getattr(self, name, None)
+                if layer is not None:
+                    layer.weight.mul_(scale)
+                    layer.bias.zero_()

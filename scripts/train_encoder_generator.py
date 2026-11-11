@@ -90,10 +90,15 @@ def main():
     ap.add_argument("--epsilon", type=float, default=16)
     ap.add_argument("--enc-weight", type=float, default=1.0)
     ap.add_argument("--lpips-weight", type=float, default=1.0)
+    ap.add_argument("--lpips-target", type=float, default=None,
+                    help="hinge: penalise LPIPS only ABOVE this value (e.g. 0.05). A plain LPIPS "
+                         "penalty drove the perturbation to ~0 (LPIPS 0.001, no effect) in run 1")
     ap.add_argument("--alpha", type=float, default=0.0)
     ap.add_argument("--eot", choices=["on", "off"], default="on")
     ap.add_argument("--nb-filter", type=int, nargs="+", default=[32, 64, 128, 256, 512])
     ap.add_argument("--init", default=None, help="warm-start .pth")
+    ap.add_argument("--bound", choices=["tanh", "ste"], default="ste",
+                    help="epsilon bound: straight-through hard clip (default) or tanh")
     ap.add_argument("--save-every", type=int, default=500)
     ap.add_argument("--label", default="enc-gen")
     ap.add_argument("--price", type=float, default=1.79)
@@ -107,9 +112,11 @@ def main():
     files = sorted(glob.glob(os.path.join(args.data_dir, "train", "images", "*.png")))
     dl = torch.utils.data.DataLoader(Images(files, args.resolution), batch_size=args.batch,
                                      shuffle=True, drop_last=True, num_workers=4)
-    net = NestedUNet(nb_filter=args.nb_filter, epsilon=args.epsilon).to(device)
+    net = NestedUNet(nb_filter=args.nb_filter, epsilon=args.epsilon, bound=args.bound).to(device)
     if args.init:
         net.load_state_dict(torch.load(args.init, map_location=device, weights_only=True))
+    else:
+        net.init_small_output()
     opt = torch.optim.Adam(net.parameters(), lr=args.lr)
     vaes = load_vaes(args.vae, device, dtype)
     import lpips
@@ -124,6 +131,7 @@ def main():
     rep.start_run({"objective": "VAE encoder -> gray latent", "vaes": ", ".join(args.vae),
                    "resolution": args.resolution, "batch": args.batch, "steps": args.steps,
                    "epsilon": f"{args.epsilon}/255", "lpips_weight": args.lpips_weight,
+                   "lpips_target": args.lpips_target, "lr": args.lr,
                    "alpha": args.alpha, "eot": args.eot,
                    "gpu": torch.cuda.get_device_name(0) if device.type == "cuda" else str(device)})
 
@@ -147,7 +155,9 @@ def main():
                     base = F.mse_loss(encode(vae, x, dtype), zg)
                 enc_terms.append(F.mse_loss(encode(vae, inp, dtype), zg) / base.clamp(min=1e-8))
             l_enc = torch.stack(enc_terms).mean()
-            l_lp = lp(x, x_adv).mean()
+            l_lp_raw = lp(x, x_adv).flatten()
+            l_lp = (F.relu(l_lp_raw - args.lpips_target) if args.lpips_target is not None
+                    else l_lp_raw).mean()
             l_l1 = d.abs().mean()
             loss = args.enc_weight * l_enc + args.lpips_weight * l_lp + args.alpha * l_l1
             opt.zero_grad(set_to_none=True)
@@ -156,7 +166,8 @@ def main():
             opt.step()
             step += 1
             now = time.perf_counter(); st = now - t_prev; t_prev = now
-            terms = {"loss": loss.item(), "enc": l_enc.item(), "lpips": l_lp.item(), "l1": l_l1.item()}
+            terms = {"loss": loss.item(), "enc": l_enc.item(), "lpips": l_lp_raw.mean().item(),
+                     "l1": l_l1.item()}
             if step % 20 == 0:
                 print(f"step {step}/{args.steps} " + " ".join(f"{k}={v:.4f}" for k, v in terms.items())
                       + f" {st:.2f}s/it", flush=True)

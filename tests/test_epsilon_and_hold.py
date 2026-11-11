@@ -101,3 +101,28 @@ def test_legacy_batchnorm_checkpoint_loads_via_loader(tmp_path):
     x = torch.randn(1, 3, 32, 32)
     with torch.no_grad():
         assert torch.allclose(net(x), legacy.eval()(x), atol=1e-6)
+
+
+def test_ste_bound_clips_forward_but_passes_gradient_when_saturated():
+    net = _net(epsilon=16, bound="ste")
+    with torch.no_grad():
+        net.final.weight.mul_(1000.0)                    # deep saturation
+    x = torch.rand(1, 3, 32, 32) * 2 - 1
+    out = net(x)
+    assert out.abs().max().item() <= 2 * 16 / 255 + 1e-6
+    out.sum().backward()
+    g_ste = net.final.weight.grad.abs().sum().item()
+    tanh = _net(epsilon=16, bound="tanh")
+    with torch.no_grad():
+        tanh.final.weight.mul_(1000.0)
+    tanh(x).sum().backward()
+    assert g_ste > 100 * tanh.final.weight.grad.abs().sum().item()   # tanh gradient has vanished
+
+
+def test_init_small_output_starts_in_linear_regime():
+    net = _net(epsilon=16)
+    net.init_small_output()
+    x = torch.rand(2, 3, 32, 32) * 2 - 1
+    with torch.no_grad():
+        out = net(x)
+    assert out.abs().mean().item() < 0.2 * (2 * 16 / 255)
