@@ -120,3 +120,20 @@ def test_sample_grid_and_collection():
     assert len(samples) == 3                       # capped, first seed/prompt only
     sheet = P.make_sample_grid(samples, thumb=64)
     assert sheet.size[0] > 6 * 64 and sheet.size[1] > 3 * 64
+
+
+def test_identity_summary_and_verdict():
+    recs = []
+    rng = np.random.default_rng(0)
+    for i in range(20):
+        recs.append(P.Record("ed", f"im{i}", "p", 0,
+                             {"protected": .3, "noise_psnr": .1, "noise_linf": .1}, {},
+                             {"clean": 0.8 + rng.normal(0, .01), "protected": 0.3 + rng.normal(0, .02),
+                              "noise_psnr": 0.78, "noise_linf": 0.75}))
+    s = P.summarize(recs, n_boot=200)["ed"]
+    assert s["id_drop_vs_noise_psnr"][1] > 0.3
+    assert P.identity_verdict(s) == "IDENTITY PROTECTED"
+    assert "identity: clean edit" in P.to_markdown({"ed": s}, {"psnr": 40.0}, 0.05)
+    # NaN (no face found) is skipped, not propagated
+    recs[0].ident["protected"] = float("nan")
+    assert P.summarize(recs, n_boot=50)["ed"]["id_drop_vs_clean"][0] == P.summarize(recs, n_boot=50)["ed"]["id_drop_vs_clean"][0]

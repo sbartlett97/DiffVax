@@ -46,6 +46,7 @@ def main():
     ap.add_argument("--editor-resolution", default="512")
     ap.add_argument("--max-images", default="10")
     ap.add_argument("--extra", nargs="*", default=[], help="extra args for eval_protocol.py")
+    ap.add_argument("--identity", action="store_true", help="pass --identity to eval_protocol.py")
     ap.add_argument("--poll", type=int, default=60)
     args = ap.parse_args()
     url = os.environ.get("DISCORD_WEBHOOK")
@@ -65,6 +66,8 @@ def main():
                    "--editors", *args.editors, "--resolution", args.resolution,
                    "--editor-resolution", args.editor_resolution,
                    "--max-images", args.max_images, "--seeds", "0", "--output-dir", out, *args.extra]
+            if args.identity:
+                cmd.append("--identity")
             r = subprocess.run(cmd, capture_output=True, text=True)
             done.add(ck)
             rp = os.path.join(out, "protocol_report.json")
@@ -79,7 +82,12 @@ def main():
                         f"noise={s.get('d_noise_psnr', [float('nan')])[0]:+.3f} "
                         f"excess={s['excess_noise_psnr'][0]:+.3f} "
                         f"[{s['excess_noise_psnr'][1]:+.3f},{s['excess_noise_psnr'][2]:+.3f}] "
-                        f"=> **{rep['verdicts'][ed]}** | SSIM={p['ssim']:.3f} LPIPS={p['lpips']:.3f} "
+                        f"=> **{rep['verdicts'][ed]}** | "
+                        + (f"identity drop vs noise={s['id_drop_vs_noise_psnr'][0]:+.3f} "
+                           f"[{s['id_drop_vs_noise_psnr'][1]:+.3f},{s['id_drop_vs_noise_psnr'][2]:+.3f}] "
+                           f"=> **{rep.get('identity_verdicts', {}).get(ed, '')}** | "
+                           if 'id_drop_vs_noise_psnr' in s else "")
+                        + f"SSIM={p['ssim']:.3f} LPIPS={p['lpips']:.3f} "
                         f"PSNR={p['psnr']:.1f} Linf={p['linf_max']:.0f}")
                 print(line, flush=True)
                 with open(os.path.join(args.out, "summary.tsv"), "a") as fh:

@@ -102,6 +102,8 @@ def main():
     ap.add_argument("--margin", type=float, default=0.05,
                     help="success = d(protected) - d(control) > margin")
     ap.add_argument("--divergence", choices=["lpips", "l1"], default="lpips")
+    ap.add_argument("--identity", action="store_true",
+                    help="score face identity (insightface ArcFace; non-commercial weights) of each edit vs the original")
     ap.add_argument("--n-samples", type=int, default=3, help="rows in the saved samples_<editor>.png")
     ap.add_argument("--n-boot", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=5)
@@ -154,6 +156,10 @@ def main():
     pert_summary["resolution_arg"] = float(args.resolution or 0)
     print("Perturbation:", pert_summary)
 
+    identity = None
+    if args.identity:
+        from diffvax.identity import IdentityScorer
+        identity = IdentityScorer()
     all_records, zoo = [], {m.name.lower(): m for m in EM.DEFAULT_ZOO}
     clip_metric = None
     for name in args.editors:
@@ -192,7 +198,7 @@ def main():
         samples = []
         all_records += P.run_editor(
             label, edit_fn, items, args.seeds, divergence, clip_score,
-            samples=samples, max_samples=args.n_samples)
+            identity=identity, samples=samples, max_samples=args.n_samples)
         if samples:
             safe = "".join(ch if ch.isalnum() else "_" for ch in label)
             P.make_sample_grid(samples).save(os.path.join(args.output_dir, f"samples_{safe}.png"))
@@ -207,6 +213,7 @@ def main():
             "args": vars(args), "perturbation": pert_summary,
             "summary": summary,
             "verdicts": {k: P.verdict(v) for k, v in summary.items()},
+            "identity_verdicts": {k: P.identity_verdict(v) for k, v in summary.items()},
             "records": [r.__dict__ for r in all_records],
         }, fh, indent=1, default=float)
     with open(os.path.join(args.output_dir, "protocol_report.md"), "w") as fh:

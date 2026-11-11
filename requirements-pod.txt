@@ -24,3 +24,5 @@ PyYAML
 tqdm
 hf-xet
 pytest
+insightface==2.1             # identity metric (bundled face models: NON-COMMERCIAL licence)
+onnxruntime-gpu==1.31.1

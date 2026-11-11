@@ -142,6 +142,10 @@ class Record:
     seed: int
     d: Dict[str, float]            # condition -> edit divergence vs clean edit
     clip: Dict[str, float] = field(default_factory=dict)  # condition -> CLIP(edit,prompt)
+    # condition -> cosine(face embedding of the ORIGINAL, face embedding of that
+    # condition's edit). The product goal: protected edits should NOT depict the
+    # original person, so lower = better protection. NaN when no face is found.
+    ident: Dict[str, float] = field(default_factory=dict)
 
 
 def summarize(
@@ -183,6 +187,26 @@ def summarize(
                 cd.setdefault(r.image, []).append(r.clip["clean"] - r.clip[protected])
         if cd:
             s["clip_delta"] = bootstrap_ci(cd, n_boot=n_boot)
+        # Identity: similarity of each condition's edit to the original person,
+        # and the paired drop of the protected edit vs the clean edit and vs the
+        # noise control (positive = protected edit looks LESS like the person).
+        def _ok(v):
+            return v is not None and v == v
+        for cond in ("clean", protected, *controls):
+            g = {}
+            for r in rs:
+                if _ok(r.ident.get(cond)):
+                    g.setdefault(r.image, []).append(r.ident[cond])
+            if g:
+                s[f"id_{cond}"] = bootstrap_ci(g, n_boot=n_boot)
+        for ref_c in ("clean", *controls):
+            g = {}
+            for r in rs:
+                a, b = r.ident.get(ref_c), r.ident.get(protected)
+                if _ok(a) and _ok(b):
+                    g.setdefault(r.image, []).append(a - b)
+            if g:
+                s[f"id_drop_vs_{ref_c}"] = bootstrap_ci(g, n_boot=n_boot)
         out[editor] = s
     return out
 
@@ -300,6 +324,7 @@ def run_editor(
     seeds: Sequence[int],
     divergence: Callable[[Image.Image, Image.Image], float],
     clip_score: Optional[Callable[[Image.Image, str], float]] = None,
+    identity: Optional[Callable[[Image.Image, Image.Image], float]] = None,
     samples: Optional[list] = None,
     max_samples: int = 3,
 ) -> List[Record]:
@@ -325,8 +350,20 @@ def run_editor(
                     }
                 d = {c: divergence(e, clean) for c, e in edits.items() if c != "clean"}
                 clip = {c: clip_score(e, prompt) for c, e in edits.items()} if clip_score else {}
-                records.append(Record(editor_name, it["name"], prompt, seed, d, clip))
+                ref = it["conditions"]["clean"]
+                ident = {c: identity(ref, e) for c, e in edits.items()} if identity else {}
+                records.append(Record(editor_name, it["name"], prompt, seed, d, clip, ident))
     return records
+
+
+def identity_verdict(s: dict, control: str = "noise_psnr") -> str:
+    """'IDENTITY PROTECTED' if the protected edit resembles the person less than
+    the noise-control edit does (CI lower bound of the drop > 0)."""
+    key = f"id_drop_vs_{control}"
+    if key not in s:
+        return "UNMEASURED"
+    _, lo, hi = s[key]
+    return "IDENTITY PROTECTED" if lo > 0 else ("WORSE THAN CONTROL" if hi < 0 else "NO EFFECT")
 
 
 def to_markdown(summary: Dict[str, dict], perturbation: dict, margin: float) -> str:
@@ -344,6 +381,15 @@ def to_markdown(summary: Dict[str, dict], perturbation: dict, margin: float) -> 
             f"| {f(s.get('success_noise_psnr', (float('nan'),)*3))} "
             f"| {f(s.get('clip_delta', (float('nan'),)*3))} | **{verdict(s)}** | {verdict(s, 'noise_linf')} |"
         )
+    if any("id_clean" in s for s in summary.values()):
+        lines += ["", "| Editor | identity: clean edit | protected edit | noise edit | drop vs clean | drop vs noise | verdict |",
+                  "|---|---|---|---|---|---|---|"]
+        nan3 = (float("nan"),) * 3
+        for ed, s in summary.items():
+            lines.append(
+                f"| {ed} | {f(s.get('id_clean', nan3))} | {f(s.get('id_protected', nan3))} "
+                f"| {f(s.get('id_noise_psnr', nan3))} | {f(s.get('id_drop_vs_clean', nan3))} "
+                f"| {f(s.get('id_drop_vs_noise_psnr', nan3))} | **{identity_verdict(s)}** |")
     lines += [
         "",
         "Perturbation (before transform): "
