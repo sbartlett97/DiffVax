@@ -64,7 +64,10 @@ def _make_divergence(kind: str):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--checkpoint", required=True, help=".pth, save_pretrained dir, or Hub id")
+    ap.add_argument("--checkpoint", default=None, help=".pth, save_pretrained dir, or Hub id")
+    ap.add_argument("--protected-dir", default=None,
+                    help="evaluate PRE-COMPUTED protected images (<dir>/<name>.png, e.g. from "
+                         "make_teacher.py) instead of running a checkpoint")
     ap.add_argument("--epsilon", type=float, default=None,
                     help="pixel-unit bound the checkpoint was trained with (raw .pth only; "
                          "Hub/save_pretrained checkpoints carry it in config.json)")
@@ -118,14 +121,18 @@ def main():
     import eval_multimodel as EM
     entries, _res = EM.load_eval_entries(
         args.data_dir, args.mask_type, args.max_images, split=args.split)
-    net = load_perturbation_net(
-        args.checkpoint, nb_filter=args.nb_filter, epsilon=args.epsilon)
+    if not args.checkpoint and not args.protected_dir:
+        raise SystemExit("give --checkpoint or --protected-dir")
+    net = None
+    if args.checkpoint:
+        net = load_perturbation_net(
+            args.checkpoint, nb_filter=args.nb_filter, epsilon=args.epsilon)
     transform = (lambda im: im.convert("RGB")) if args.no_transform else (
         lambda im: P.social_media_transform(im, args.social_max_side, args.social_quality))
     divergence = _make_divergence(args.divergence)
 
     # ---- protect once per image; build all conditions (post-transform) ----
-    if args.bn_train_mode:
+    if args.bn_train_mode and net is not None:
         net.train()
     from skimage.metrics import structural_similarity as _ssim
     prepared, pert = [], {"psnr": [], "ssim": [], "lpips": [], "linf": [], "psnr_after_transform": []}
@@ -139,7 +146,14 @@ def main():
         gate = None
         if args.mask_gate_perturbation and mask_img is not None:
             gate = np.asarray(mask_img) < 128          # subject = mask 0
-        prot = immunize_image_pil(net, orig, mask_pil=mask_img if gate is not None else None)
+        if args.protected_dir:
+            pp = os.path.join(args.protected_dir, e.name + ".png")
+            prot = Image.open(pp).convert("RGB").resize(orig.size, Image.LANCZOS) \
+                if os.path.exists(pp) else None
+            if prot is None:
+                print(f"skip {e.name}: no protected image"); continue
+        else:
+            prot = immunize_image_pil(net, orig, mask_pil=mask_img if gate is not None else None)
         conds = P.build_conditions(orig, prot, eps_px, rng, transform, gate=gate)
         pert["psnr"].append(P.psnr_u8(orig, prot))
         pert["ssim"].append(float(_ssim(

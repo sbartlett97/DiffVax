@@ -39,18 +39,29 @@ from diffvax.utils import resolve_device, resolve_dtype
 
 
 class Images(torch.utils.data.Dataset):
-    def __init__(self, files, res):
-        self.files, self.res = files, res
+    """Images at res; with teacher_dir, also the per-image teacher perturbation
+    (make_teacher.py <split>/deltas/<name>.pt, same resolution), flipped together."""
+
+    def __init__(self, files, res, teacher_dir=None):
+        self.res, self.teacher_dir = res, teacher_dir
+        if teacher_dir:
+            files = [f for f in files if os.path.exists(self._tpath(f))]
+        self.files = files
+
+    def _tpath(self, f):
+        return os.path.join(self.teacher_dir, os.path.splitext(os.path.basename(f))[0] + ".pt")
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, i):
         img = Image.open(self.files[i]).convert("RGB").resize((self.res, self.res), Image.LANCZOS)
-        if random.random() < 0.5:
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
         a = torch.from_numpy(np.asarray(img, np.float32) / 127.5 - 1.0).permute(2, 0, 1)
-        return a
+        t = torch.load(self._tpath(self.files[i]))[0].float() if self.teacher_dir else torch.zeros(0)
+        if random.random() < 0.5:
+            a = a.flip(-1)
+            t = t.flip(-1) if t.numel() else t
+        return a, t
 
 
 def load_vaes(specs, device, dtype):
@@ -96,6 +107,9 @@ def main():
     ap.add_argument("--alpha", type=float, default=0.0)
     ap.add_argument("--eot", choices=["on", "off"], default="on")
     ap.add_argument("--nb-filter", type=int, nargs="+", default=[32, 64, 128, 256, 512])
+    ap.add_argument("--teacher-dir", default=None,
+                    help="make_teacher.py deltas dir (e.g. <out>/train/deltas) to distil from")
+    ap.add_argument("--distill-weight", type=float, default=1.0)
     ap.add_argument("--init", default=None, help="warm-start .pth")
     ap.add_argument("--bound", choices=["tanh", "ste"], default="ste",
                     help="epsilon bound: straight-through hard clip (default) or tanh")
@@ -110,7 +124,9 @@ def main():
     os.makedirs(os.path.join(args.out, "models"), exist_ok=True)
 
     files = sorted(glob.glob(os.path.join(args.data_dir, "train", "images", "*.png")))
-    dl = torch.utils.data.DataLoader(Images(files, args.resolution), batch_size=args.batch,
+    ds = Images(files, args.resolution, args.teacher_dir)
+    print(f"{len(ds)} training images" + (f" with teacher perturbations" if args.teacher_dir else ""))
+    dl = torch.utils.data.DataLoader(ds, batch_size=args.batch,
                                      shuffle=True, drop_last=True, num_workers=4)
     net = NestedUNet(nb_filter=args.nb_filter, epsilon=args.epsilon, bound=args.bound).to(device)
     if args.init:
@@ -139,7 +155,7 @@ def main():
     step, save_k, t_prev = 0, 0, time.perf_counter()
     stem = os.path.join(args.out, "models", f"encgen_eps{int(args.epsilon)}_{args.resolution}")
     while step < args.steps:
-        for x in dl:
+        for x, d_t in dl:
             x = x.to(device)
             d = net(x)
             x_adv = (x + d).clamp(-1, 1)
@@ -159,7 +175,12 @@ def main():
             l_lp = (F.relu(l_lp_raw - args.lpips_target) if args.lpips_target is not None
                     else l_lp_raw).mean()
             l_l1 = d.abs().mean()
-            loss = args.enc_weight * l_enc + args.lpips_weight * l_lp + args.alpha * l_l1
+            l_dist = torch.zeros((), device=device)
+            if args.teacher_dir:
+                eps_t = 2.0 * args.epsilon / 255.0
+                l_dist = F.mse_loss(d, d_t.to(device)) / eps_t ** 2
+            loss = (args.enc_weight * l_enc + args.lpips_weight * l_lp + args.alpha * l_l1
+                    + args.distill_weight * l_dist)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 5.0)
@@ -167,7 +188,7 @@ def main():
             step += 1
             now = time.perf_counter(); st = now - t_prev; t_prev = now
             terms = {"loss": loss.item(), "enc": l_enc.item(), "lpips": l_lp_raw.mean().item(),
-                     "l1": l_l1.item()}
+                     "l1": l_l1.item(), "distill": l_dist.item()}
             if step % 20 == 0:
                 print(f"step {step}/{args.steps} " + " ".join(f"{k}={v:.4f}" for k, v in terms.items())
                       + f" {st:.2f}s/it", flush=True)
