@@ -50,6 +50,14 @@ class LossComposer:
             )
             self._terms["spectral"] = (SpectralLoss(config), spectral_weight)
 
+        # Perceptual imperceptibility: LPIPS(original, protected)
+        if config.get("lpips_loss", {}).get("enabled", False):
+            from diffvax.losses.lpips_loss import LPIPSLoss
+
+            self._terms["lpips"] = (
+                LPIPSLoss(config), float(config.get("lpips_loss", {}).get("weight", 1.0))
+            )
+
     def has_terms(self) -> bool:
         """Return True if any optional loss terms are active."""
         return bool(self._terms)
@@ -73,7 +81,7 @@ class LossComposer:
             (total_extra_loss, breakdown_dict) where breakdown_dict maps
             term names to their unweighted scalar values for logging.
         """
-        total = torch.tensor(0.0, device="cuda")
+        total = torch.tensor(0.0, device=img_adv.device)
         breakdown: Dict[str, float] = {}
 
         for name, (loss_fn, weight) in self._terms.items():

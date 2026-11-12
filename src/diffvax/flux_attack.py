@@ -5,9 +5,10 @@ Requires diffusers with FLUX.2 Klein support. Install from source if needed:
 """
 
 import torch
-from typing import Union, List
+from typing import Optional, Union, List
 
-from diffvax.attack_base import BaseAttack
+from diffvax.attack_base import BaseAttack, suppress_full_backward_hook_kwarg_warning
+from diffvax.utils import empty_cache, resolve_device, resolve_dtype
 
 
 def _compute_empirical_mu(image_seq_len: int, num_steps: int) -> float:
@@ -35,12 +36,15 @@ class FluxAttack(BaseAttack):
     back to pixel space.
 
     All model parameters are frozen — only the image path carries gradients.
-    Output is converted to float16 for consistent loss computation with GradScaler.
+    Output matches the pipeline's compute dtype (fp16 on CUDA, bf16 on MPS,
+    fp32 on CPU) for consistent loss computation with GradScaler.
     """
 
     def __init__(self, model_link: str, strength: float = 0.75,
                  gradient_timestep_fraction: float = 1.0,
-                 token_gradient_regularization: bool = False):
+                 token_gradient_regularization: bool = False,
+                 use_gradient_checkpointing: bool = True,
+                 dtype: Optional[torch.dtype] = None):
         # Lazy import — only fail when someone actually uses FLUX
         try:
             from diffusers import Flux2KleinPipeline as PipeClass
@@ -53,8 +57,11 @@ class FluxAttack(BaseAttack):
                     "Install from source: pip install git+https://github.com/huggingface/diffusers.git"
                 )
 
+        # Defaults to fp16 on CUDA, bf16 on MPS (fp16 has incomplete/unreliable
+        # kernel coverage there), fp32 on CPU. Pass dtype explicitly to override.
+        dtype = dtype or resolve_dtype(resolve_device())
         self.pipe = PipeClass.from_pretrained(
-            model_link, torch_dtype=torch.float16
+            model_link, torch_dtype=dtype
         )
 
         self.model_link = model_link
@@ -65,6 +72,12 @@ class FluxAttack(BaseAttack):
         # H4: TGR token gradient regularization (CVPR 2023, arXiv:2303.15754)
         self._tgr_enabled = bool(token_gradient_regularization)
         self._tgr_hooks: list = []
+        # Gradient checkpointing trades VRAM for a recomputed forward.
+        # Non-reentrant checkpointing (use_reentrant=False) keeps hook-captured
+        # activations (Phase 7 attention loss) connected to the graph — only
+        # no_grad-skipped timesteps produce detached captures. Knob exposed for
+        # profiling/debugging; default True.
+        self._use_grad_ckpt = bool(use_gradient_checkpointing)
 
         # vae_scale_factor matches pipeline convention: 2**(len-1)
         # The pipeline then uses vae_scale_factor*2 to account for 2x2 patchification.
@@ -86,7 +99,7 @@ class FluxAttack(BaseAttack):
 
     def to_cpu(self):
         self.pipe.to("cpu")
-        torch.cuda.empty_cache()
+        empty_cache()
 
     @property
     def loss_uses_mask_weighting(self) -> bool:
@@ -114,7 +127,19 @@ class FluxAttack(BaseAttack):
     # ------------------------------------------------------------------
 
     def _register_tgr_hooks(self, transformer) -> None:
-        """Register backward hooks on single_transformer_blocks for TGR."""
+        """Register full backward PRE-hooks for TGR (replaces grad_output).
+
+        See SD3Attack._register_tgr_hooks for the hook-semantics rationale.
+        Persistent: hooks fire on every backward, including recomputed graphs
+        from non-reentrant gradient checkpointing.
+
+        Real DiT blocks are called with all-keyword arguments, which triggers
+        PyTorch's benign "no inputs require gradients" full-backward-hook
+        warning on every backward — see
+        suppress_full_backward_hook_kwarg_warning() for why this is safe to
+        silence.
+        """
+        suppress_full_backward_hook_kwarg_warning()
         self._remove_tgr_hooks()
         # FLUX.2 Klein uses single_transformer_blocks (MMDiT single-stream)
         blocks = (
@@ -123,19 +148,29 @@ class FluxAttack(BaseAttack):
             or []
         )
         for block in blocks:
-            h = block.register_backward_hook(self._tgr_backward_hook)
+            h = block.register_full_backward_pre_hook(self._tgr_backward_pre_hook)
             self._tgr_hooks.append(h)
 
     @staticmethod
-    def _tgr_backward_hook(module, grad_input, grad_output):
-        """Normalize per-token gradient magnitude (TGR, CVPR 2023)."""
+    def _tgr_backward_pre_hook(module, grad_output):
+        """Equalize per-token gradient magnitude, preserving overall scale
+        (TGR, CVPR 2023, arXiv:2303.15754).
+
+        Computed in float32 regardless of g's dtype — see
+        SD3Attack._tgr_backward_pre_hook's docstring for the full mechanism,
+        why this is a leading (not confirmed) candidate for a real GradScaler
+        collapse, and the residual limitation of the final `.to(g.dtype)`
+        cast.
+        """
         normed = []
         for g in grad_output:
             if g is None or g.ndim < 3:
                 normed.append(g)
                 continue
-            norm = g.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-            normed.append(g / norm)
+            g32 = g.float()
+            tok_norm = g32.norm(dim=-1, keepdim=True)
+            mean_norm = tok_norm.mean(dim=1, keepdim=True)
+            normed.append((g32 / tok_norm.clamp(min=1e-8) * mean_norm).to(g.dtype))
         return tuple(normed)
 
     def _remove_tgr_hooks(self) -> None:
@@ -232,15 +267,25 @@ class FluxAttack(BaseAttack):
         pack → noise mixing → denoising loop → unpack → BN denormalize →
         unpatchify → VAE decode → output image.
         """
-        device = self.pipe.device
-        if device.type == "cpu":
-            raise RuntimeError(
-                "FluxAttack pipeline is on CPU. Call to_device('cuda') before calling attack()."
-            )
         vae = self.pipe.vae
         dtype = next(vae.parameters()).dtype
         transformer = self.pipe.transformer
         scheduler = self.pipe.scheduler
+        # NOT self.pipe.device: DiffusionPipeline.device returns whichever
+        # component diffusers finds first in the pipeline's signature (often
+        # a text encoder). Since text_encoder is deliberately moved to CPU
+        # below and never moved back, pipe.device silently reports "cpu" on
+        # every call after the first, while vae/transformer stay on the
+        # accelerator — vae's own device is the only thing safe to trust.
+        device = next(vae.parameters()).device
+
+        _best_device = resolve_device()
+        if device.type == "cpu" and _best_device.type != "cpu":
+            raise RuntimeError(
+                "FluxAttack pipeline is on CPU but an accelerator "
+                f"({_best_device.type}) is available. Call "
+                f"to_device({_best_device.type!r}) before calling attack()."
+            )
 
         # ----- 1. Text encoding (detached) -----
         with torch.no_grad():
@@ -248,9 +293,15 @@ class FluxAttack(BaseAttack):
 
         # Offload text encoder to CPU — gradient flows only through VAE + transformer,
         # so the Qwen3 encoder doesn't need to be in VRAM during backprop.
-        if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
-            self.pipe.text_encoder.to("cpu")
-        torch.cuda.empty_cache()
+        # CUDA-only: on unified-memory backends (MPS) this doesn't free any
+        # memory (there's no separate VRAM pool to relieve) and repeatedly
+        # shuttling HF's lazily/meta-loaded modules between devices has been
+        # observed to leave them with unmaterialized ("placeholder") storage
+        # on the next call — a real crash, not just a missed optimization.
+        if device.type == "cuda":
+            if hasattr(self.pipe, "text_encoder") and self.pipe.text_encoder is not None:
+                self.pipe.text_encoder.to("cpu")
+            empty_cache(device)
 
         # ----- 2. VAE encode image (gradient maintained via mode()) -----
         image_input = image.to(device=device, dtype=dtype)
@@ -289,45 +340,46 @@ class FluxAttack(BaseAttack):
         sigma = scheduler.sigmas[t_start].to(dtype)
         noisy_latents = (1.0 - sigma) * packed + sigma * noise
 
-        # H2: backprop through the LAST n_grad_steps (chain-rule reachable from loss).
+        # H2: partial-timestep gradient — straight-through latent path.
+        # The latent chain is the ONLY gradient route back to img_adv (the
+        # transformer is frozen, prompts detached). Skipped steps therefore run
+        # only the TRANSFORMER under no_grad; scheduler.step always executes
+        # with grad enabled so the additive integration path stays connected.
+        # The first n_grad_steps (early, high-sigma) get transformer gradients.
         n_steps = len(timesteps)
         n_grad_steps = max(1, int(n_steps * self._gradient_timestep_fraction))
-        first_grad_step = n_steps - n_grad_steps
 
-        # H4: TGR hooks disabled — register_backward_hook return value replaces
-        # grad_input, not grad_output, corrupting gradients silently.
-        if self._tgr_enabled:
-            import warnings
-            warnings.warn(
-                "H4 TGR hooks are disabled due to incorrect grad semantics with "
-                "register_backward_hook. Set token_gradient_regularization=False.",
-                stacklevel=2,
-            )
+        # H4: TGR — persistent full-backward-pre-hooks normalize per-token
+        # gradient magnitude during every backward pass. Registered lazily on
+        # first use; they remain attached for the lifetime of the attack.
+        if self._tgr_enabled and not self._tgr_hooks:
+            self._register_tgr_hooks(transformer)
 
         # ----- 9. Denoising loop -----
         from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
         for step_idx, t in enumerate(timesteps):
-            use_grad = step_idx >= first_grad_step
-            grad_ctx = torch.enable_grad() if use_grad else torch.no_grad()
+            # Transformer Jacobian only for the first n_grad_steps; the
+            # scheduler integration below always runs with grad enabled so the
+            # latent chain from vae.encode to vae.decode is never severed.
+            use_grad = step_idx < n_grad_steps
+            timestep = t.expand(batch_size).to(dtype)
 
-            with grad_ctx:
-                timestep = t.expand(batch_size).to(dtype)
-
-                if use_grad:
-                    # Gradient checkpointing: recompute transformer activations
-                    # during backward instead of retaining them, saving several GB
-                    # for the single_transformer_blocks stack in FLUX.
-                    def _transformer_fwd(hs, ts, enc_hs, t_ids, i_ids):
-                        return transformer(
-                            hidden_states=hs,
-                            timestep=ts,
-                            guidance=None,
-                            encoder_hidden_states=enc_hs,
-                            txt_ids=t_ids,
-                            img_ids=i_ids,
-                            return_dict=False,
-                        )[0]
+            if use_grad:
+                # Gradient checkpointing: recompute transformer activations
+                # during backward instead of retaining them, saving several GB
+                # for the single_transformer_blocks stack in FLUX.
+                def _transformer_fwd(hs, ts, enc_hs, t_ids, i_ids):
+                    return transformer(
+                        hidden_states=hs,
+                        timestep=ts,
+                        guidance=None,
+                        encoder_hidden_states=enc_hs,
+                        txt_ids=t_ids,
+                        img_ids=i_ids,
+                        return_dict=False,
+                    )[0]
+                if self._use_grad_ckpt:
                     noise_pred = grad_checkpoint(
                         _transformer_fwd,
                         noisy_latents, timestep / 1000, prompt_embeds,
@@ -335,6 +387,15 @@ class FluxAttack(BaseAttack):
                         use_reentrant=False,
                     )
                 else:
+                    noise_pred = _transformer_fwd(
+                        noisy_latents, timestep / 1000, prompt_embeds,
+                        text_ids, latent_ids,
+                    )
+            else:
+                # Skipped step: transformer output is detached (no activation
+                # memory, no Jacobian), but the scheduler step below still
+                # propagates gradient through the latent path.
+                with torch.no_grad():
                     noise_pred = transformer(
                         hidden_states=noisy_latents,
                         timestep=timestep / 1000,
@@ -345,11 +406,9 @@ class FluxAttack(BaseAttack):
                         return_dict=False,
                     )[0]
 
-                noisy_latents = scheduler.step(
-                    noise_pred, t, noisy_latents, return_dict=False
-                )[0]
-
-        # TGR hooks were not registered (disabled); nothing to remove.
+            noisy_latents = scheduler.step(
+                noise_pred, t, noisy_latents, return_dict=False
+            )[0]
 
         # ----- 10. Unpack: (B, seq, C*4) -> (B, C*4, H//2, W//2) -----
         # Use differentiable reshape (row-major order is preserved through the loop)
@@ -366,5 +425,6 @@ class FluxAttack(BaseAttack):
         # ----- 13. VAE decode -----
         output = vae.decode(latents_out.to(dtype), return_dict=False)[0]
 
-        # Convert to float16 for consistent loss computation with GradScaler
-        return output.half()
+        # Match whichever compute dtype the pipeline was loaded in (fp16 on
+        # CUDA, bf16 on MPS, fp32 on CPU) rather than hardcoding fp16.
+        return output.to(dtype)

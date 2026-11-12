@@ -11,6 +11,8 @@ maximizes attention entropy — making the model unable to focus on semantically
 relevant image regions for any text prompt.
 """
 
+import warnings
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -41,6 +43,7 @@ class AttentionDisruptionLoss:
         self.only_with_dit = bool(cfg.get("only_with_dit", True))
         self._hooks: List = []
         self._attention_maps: List[Tensor] = []
+        self._warned_detached = False
 
     def _should_hook(self, block_idx: int, total_blocks: int) -> bool:
         """Decide whether to hook block at index block_idx.
@@ -131,17 +134,42 @@ class AttentionDisruptionLoss:
         Higher entropy = more uniform attention = disrupted semantic focus.
         We negate because we minimize the loss and want to maximize entropy.
 
+        Only maps that still carry gradient (requires_grad=True) contribute:
+        activations captured while the attack's transformer ran under
+        torch.no_grad() or gradient checkpointing are DETACHED, and an
+        entropy built from them would add a constant to the loss — silently
+        contributing zero gradient. If every captured map is detached, a
+        one-time warning is emitted (the attack must be constructed with
+        use_gradient_checkpointing=False for this loss to work) and 0 is
+        returned.
+
         Returns:
             Scalar loss tensor (negated mean entropy across hooked blocks).
-            Returns 0.0 if no maps were captured (e.g., no hooks registered).
+            Returns 0.0 if no gradient-carrying maps were captured.
         """
-        if not self._attention_maps:
-            return torch.tensor(0.0, device="cuda")
+        maps = self._attention_maps
+        self._attention_maps = []  # clear for next iteration
+        if not maps:
+            return torch.tensor(0.0)
 
-        total_entropy = torch.tensor(0.0, device="cuda")
-        count = 0
+        device = maps[0].device
+        live_maps = [m for m in maps if m.requires_grad]
+        if not live_maps:
+            if not self._warned_detached:
+                warnings.warn(
+                    "AttentionDisruptionLoss: all captured attention "
+                    "activations are detached — the attack's transformer ran "
+                    "under no_grad or gradient checkpointing, so this loss "
+                    "contributes ZERO gradient. Construct the attack with "
+                    "use_gradient_checkpointing=False (higher VRAM) to make "
+                    "Phase 7 effective.",
+                    stacklevel=2,
+                )
+                self._warned_detached = True
+            return torch.tensor(0.0, device=device)
 
-        for attn_out in self._attention_maps:
+        total_entropy = torch.tensor(0.0, device=device)
+        for attn_out in live_maps:
             # attn_out shape: (B, seq_len, dim)
             # Use token-level activation magnitude distribution as proxy
             # for attention focus: high variance = focused, low = diffuse.
@@ -152,13 +180,6 @@ class AttentionDisruptionLoss:
             # Entropy: H = -sum(p * log(p))
             entropy = -(probs * (probs + 1e-8).log()).sum(dim=-1).mean()
             total_entropy = total_entropy + entropy
-            count += 1
-
-        # Clear for next iteration
-        self._attention_maps = []
-
-        if count == 0:
-            return torch.tensor(0.0, device="cuda")
 
         # Negate: we minimize loss, so -entropy achieves entropy maximization
-        return -(total_entropy / count)
+        return -(total_entropy / len(live_maps))

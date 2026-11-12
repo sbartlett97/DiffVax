@@ -26,9 +26,9 @@ resolution: 1024
 sd_target_resolutions: [512, 1024]
 strength_range: [0.5, 1.0]
 
-# Load v3 512px checkpoint
-load_existing: true
-load_path: "checkpoints/diffvax_v3_512_best.pth"
+# Warm start: pass a 512px checkpoint with --checkpoint (that flag sets
+# load_existing/load_path). The old hardcoded path did not exist.
+load_existing: false
 
 # -- Attack ensemble --
 attack_model_link: "runwayml/stable-diffusion-inpainting"
@@ -43,11 +43,15 @@ flux_probability: 0.25
 # -- H2: Partial-timestep gradient (enables 1088px on 24 GB GPU) --
 sd3_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
+  # Non-reentrant gradient checkpointing keeps Phase 7 hook captures live
+  # (verified by tests/test_attack_gradient_flow.py::test_a5). Leave true.
+  use_gradient_checkpointing: true
 
 flux_attack:
   gradient_timestep_fraction: 0.5
-  token_gradient_regularization: true
+  token_gradient_regularization: true  # H4 (full_backward_pre_hook, scale-preserving)
+  use_gradient_checkpointing: true
 
 # -- H7: Noise target --
 noise_target:

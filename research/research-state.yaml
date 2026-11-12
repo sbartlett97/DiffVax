@@ -1,6 +1,6 @@
 project: DiffVax High-Resolution Image Immunization
 date_started: "2026-03-26"
-last_updated: "2026-03-27"
+last_updated: "2026-11-11"
 
 research_question: >
   How can the DiffVax image immunization framework be adapted to operate effectively
@@ -8,14 +8,45 @@ research_question: >
   (DALL-E 3, Flux 1.x, SD3, SD3.5), given that the current system is only proven
   at 512×512 against UNet-based diffusers?
 
-status: inner_loop  # bootstrap | inner_loop | outer_loop | conclude
+status: outer_loop  # see goal_evaluation below
+goal_evaluation: >
+  2026-11-11: research/evaluation-2026-11-11.md evaluates the whole track
+  against the goal (1088px, FLUX/SD3/Nano Banana). Existing eval reports show
+  no DiT protection; cause is the img2img surrogate vs. the real
+  reference-token edit mechanism. Phased plan in tasks/todo.md (P0-P5).
+  P0/P1/P2 code implemented 2026-11-11 (CPU-verified); GPU validation per
+  research/gpu-validation-runbook.md is the next step and is blocked on the user
+  (RunPod 80GB, HF_TOKEN for the private dataset).
 
 # ============================
 # CURRENT DIRECTION: INNER LOOP
 # ============================
 current_direction: inner_loop
-current_hypothesis: "H5 spectral loss — implemented 2026-03-27, awaiting training validation"
-next_hypothesis: "H6 (larger NestedUNet [64,128,256,512,1024]) or multi-scale gradient aggregation"
+current_hypothesis: >
+  Cycles 3-5 (2026-07-05) complete: training-signal audit fixed C7 (H8 sign
+  inversion) and C8 (severed gtf<1.0 gradient path, straight-through fix);
+  Phase 7 verified live under non-reentrant checkpointing; H4 TGR re-enabled
+  with full_backward_pre_hook; full loss-path + metrics audit clean; real
+  training loop proven to learn end-to-end on CPU (35-test suite).
+  CODE-LEVEL VERIFICATION COMPLETE — see findings.md confidence assessment.
+next_hypothesis: >
+  Tier 2: GPU validation per research/gpu-validation-runbook.md (signal
+  sanity run, protection eval, ablations, 1088px). C-SCALER (2026-09-03,
+  research-log.md, findings.md): a real run's GradScaler scale collapsed to
+  exactly 0.0 and silently froze weight updates. Two fixes made: (1) img_adv
+  kept float32 through the loss graph instead of a redundant fp16 downcast —
+  correct but a loss1+loss2-only ablation showed this was NOT the primary
+  driver (identical ~85% found_inf rate with or without the other four loss
+  terms); (2) _tgr_backward_pre_hook (sd3_attack.py/flux_attack.py) computed
+  per-token gradient norms in fp16, CPU-proven to overflow at plausible
+  post-GradScaler magnitudes — this is the LEADING but NOT YET CONFIRMED
+  cause. IMMEDIATE NEXT STEP before trusting any protection-rate numbers
+  from this config family: a token_gradient_regularization=false run — if
+  the ~85% skip rate drops to ~0, TGR is confirmed; if it persists, the real
+  driver is still unidentified. Also still need the actual config path used
+  by the real runs (asked twice, unanswered) to confirm TGR was even active.
+  Tier 3: black-box
+  transfer probe against closed models.
 
 # ============================
 # HYPOTHESES

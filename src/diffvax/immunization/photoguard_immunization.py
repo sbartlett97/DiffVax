@@ -20,6 +20,8 @@ import numpy as np
 import gc
 from tqdm import tqdm
 
+from diffvax.utils import empty_cache, make_generator
+
 
 class PhotoGuardImmunization:
     """PhotoGuard Encoder Attack (simple attack).
@@ -40,20 +42,23 @@ class PhotoGuardImmunization:
         """Apply PhotoGuard encoder attack.
 
         Args:
-            img: image tensor in [-1,1], shape (1, 3, H, W), half on CUDA.
+            img: image tensor in [-1,1], shape (1, 3, H, W), in the attack
+                model's compute dtype (fp16 on CUDA, bf16 on MPS, fp32 on CPU).
             img_mask: mask tensor, shape (1, 1, H, W). 1 = edit region.
 
         Returns:
-            (immunized_tensor, perturbation) both in [-1,1] half precision.
+            (immunized_tensor, perturbation) both in [-1,1], attack model's
+            compute dtype.
         """
         vae = self.attack_model.model.vae
+        _vae_dtype = next(vae.parameters()).dtype
         img_f = img.float()
         mask_f = img_mask.float()
 
         # Target: encode zeros (gray/black), use .mean for determinism
         with torch.no_grad():
             target = vae.encode(
-                torch.zeros_like(img_f).half()
+                torch.zeros_like(img_f).to(_vae_dtype)
             ).latent_dist.mean.float()
 
         # Initialize with random perturbation inside eps ball
@@ -71,7 +76,7 @@ class PhotoGuardImmunization:
 
             X_adv.requires_grad_(True)
             loss = (
-                vae.encode(X_adv.half()).latent_dist.mean.float() - target
+                vae.encode(X_adv.to(_vae_dtype)).latent_dist.mean.float() - target
             ).norm()
 
             pbar.set_description(
@@ -93,20 +98,20 @@ class PhotoGuardImmunization:
             X_adv.grad = None
 
             if i % 100 == 0:
-                torch.cuda.empty_cache()
+                empty_cache()
 
         immunized = X_adv.detach()
         perturbation = (immunized - img_f) * (1 - mask_f)
 
         del target
-        torch.cuda.empty_cache()
+        empty_cache()
         gc.collect()
 
-        return immunized.half(), perturbation.half()
+        return immunized.to(_vae_dtype), perturbation.to(_vae_dtype)
 
     def edit_image(self, prompt, img, img_mask, num_inf=30, SEED=5):
         """Edit image using the diffusion inpainting pipeline."""
-        generator = torch.Generator(device="cuda").manual_seed(SEED)
+        generator = make_generator(self.attack_model.model.device, SEED)
         return self.attack_model.model(
             prompt=prompt, image=img, mask_image=img_mask,
             eta=1, num_inference_steps=num_inf,
@@ -195,7 +200,8 @@ class PhotoGuardDiffusionImmunization:
         torch.set_grad_enabled(True)
         cur_masked_image = cur_masked_image.clone().requires_grad_(True)
 
-        with torch.autocast("cuda"):
+        device = self.attack_model.model.device
+        with torch.autocast(device.type, enabled=device.type != "cpu"):
             image_out = self._attack_forward(
                 cur_masked_image, cur_mask, self.prompt,
             )
@@ -211,17 +217,20 @@ class PhotoGuardDiffusionImmunization:
         """Apply PhotoGuard diffusion attack (L2 PGD).
 
         Args:
-            img: image tensor in [-1,1], shape (1, 3, H, W), half on CUDA.
+            img: image tensor in [-1,1], shape (1, 3, H, W), in the attack
+                model's compute dtype (fp16 on CUDA, bf16 on MPS, fp32 on CPU).
             img_mask: mask tensor, shape (1, 1, H, W). 1 = edit region.
 
         Returns:
-            (immunized_tensor, perturbation) both in [-1,1] half precision.
+            (immunized_tensor, perturbation) both in [-1,1], attack model's
+            compute dtype.
         """
+        _vae_dtype = next(self.attack_model.model.vae.parameters()).dtype
         img_f = img.float()
         mask_f = img_mask.float()
 
         # Target: zero tensor (attack toward blank image)
-        target = torch.zeros_like(img_f).cuda()
+        target = torch.zeros_like(img_f).to(self.attack_model.model.device)
 
         # Prepare masked image (visible region only)
         X_adv = (img_f * (mask_f < 0.5).float()).clone().detach()
@@ -258,7 +267,7 @@ class PhotoGuardDiffusionImmunization:
             )
 
             if i % 25 == 0:
-                torch.cuda.empty_cache()
+                empty_cache()
 
         # Reconstruct full image: adv outside mask + original inside mask
         immunized = X_adv.detach() * (1 - mask_f) + img_f * mask_f
@@ -266,14 +275,14 @@ class PhotoGuardDiffusionImmunization:
         perturbation = (immunized - img_f) * (1 - mask_f)
 
         del target
-        torch.cuda.empty_cache()
+        empty_cache()
         gc.collect()
 
-        return immunized.half(), perturbation.half()
+        return immunized.to(_vae_dtype), perturbation.to(_vae_dtype)
 
     def edit_image(self, prompt, img, img_mask, num_inf=30, SEED=5):
         """Edit image using the diffusion inpainting pipeline."""
-        generator = torch.Generator(device="cuda").manual_seed(SEED)
+        generator = make_generator(self.attack_model.model.device, SEED)
         return self.attack_model.model(
             prompt=prompt, image=img, mask_image=img_mask,
             eta=1, num_inference_steps=num_inf,

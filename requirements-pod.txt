@@ -1,0 +1,28 @@
+# Pinned for the RunPod GPU runs. These exact versions were exercised by the
+# CPU/MPS test suite on the dev machine (Python 3.14); the pod's Python is
+# usually 3.10-3.12, so confirm `pytest` passes on the pod before training.
+#
+# torch/torchvision are NOT pinned here: use the build that ships with the
+# RunPod "PyTorch" template (matched to its CUDA). The code needs torch >= 2.3
+# (torch.amp.GradScaler) and was developed against 2.13.
+diffusers==0.39.0            # Flux2KleinPipeline, Flux2Transformer2DModel
+transformers==5.14.1
+accelerate==1.14.0
+huggingface_hub==1.25.1      # transformers 5.14 needs <2.0; newer hub breaks the diffusers import
+trackio==0.44.0              # experiment tracking (0.45 requires huggingface_hub 2.x)
+kornia==0.8.3                # differentiable JPEG (EoT)
+open_clip_torch==3.3.0       # CLIP score metric in the eval
+lpips                        # edit-divergence metric (eval_protocol.py)
+scikit-image
+opencv-python-headless  # diffvax.metrics.fsim (imported by eval_multimodel/eval_protocol)
+phasepack                # diffvax.metrics.fsim
+scipy
+matplotlib
+Pillow
+numpy
+PyYAML
+tqdm
+hf-xet
+pytest
+insightface==2.1             # identity metric (bundled face models: NON-COMMERCIAL licence)
+onnxruntime-gpu==1.31.1

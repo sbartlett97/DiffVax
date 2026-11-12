@@ -24,7 +24,7 @@ def main():
         help="Directory to store the dataset (default: data/)",
     )
     parser.add_argument(
-        "--repo-id", type=str, default="ozdentarikcan/DiffVaxDataset",
+        "--repo-id", type=str, default="sbartlett97/diffvax-high-res",
         help="Hugging Face dataset repository ID",
     )
     args = parser.parse_args()
